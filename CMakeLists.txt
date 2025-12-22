@@ -31,6 +31,10 @@ set(SOURCES
     mstsbfile.cc
     mstsace.cc
     mstsshape.cc
+    mstsroute.cc
+    tsection.cc
+    trackdb.cc
+    track.cc
 )
 
 add_executable(tsviewer ${SOURCES})

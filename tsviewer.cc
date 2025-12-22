@@ -3,6 +3,7 @@
 #include <iostream>
 #include "mstsace.h"
 #include "mstsshape.h"
+#include "mstsroute.h"
 
 vsg::ref_ptr<vsg::Node> createTextureQuad(vsg::ref_ptr<vsg::Data> sourceData,
   vsg::ref_ptr<vsg::Options> options)
@@ -40,6 +41,7 @@ int main(int argc, char** argv)
 	options->add(vsgXchange::all::create());
 	options->add(MstsAceReaderWriter::create());
 	options->add(MstsShapeReaderWriter::create());
+	options->add(MstsRouteReaderWriter::create());
 //	vsg::Logger::instance()->level= vsg::Logger::LOGGER_ALL;;
 
 	auto scene= vsg::Group::create();
@@ -104,6 +106,7 @@ int main(int argc, char** argv)
 	  vsg::ViewportState::create(window->extent2D()));
 
 	viewer->addEventHandler(vsg::CloseHandler::create(viewer));
+	viewer->addEventHandler(vsg::WindowResizeHandler::create());
 	viewer->addEventHandler(vsg::Trackball::create(camera));
 
 	auto commandGraph=
