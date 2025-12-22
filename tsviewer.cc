@@ -91,12 +91,15 @@ int main(int argc, char** argv)
 	scene->accept(computeBounds);
 	vsg::dvec3 center=
 	  (computeBounds.bounds.min+computeBounds.bounds.max)*0.5;
-	double radius=
-	  vsg::length(computeBounds.bounds.max-computeBounds.bounds.min)*0.6;
+	auto size= computeBounds.bounds.max-computeBounds.bounds.min;
+	double radius= vsg::length(size)*0.6;
 	fprintf(stderr,"%lf %lf %lf %lf\n",center.x,center.y,center.z,radius);
 	double nearFarRatio= 0.0001;
 	auto lookAt= vsg::LookAt::create(center+vsg::dvec3(0.0,
 	  -radius*3.5, 0.0), center, vsg::dvec3(0.0, 0.0, 1.0));
+	if (size.z < .1*radius)
+		lookAt= vsg::LookAt::create(center+vsg::dvec3(0,0,radius*3.5),
+		  center,vsg::dvec3(0,1,0));
 	vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
 	perspective= vsg::Perspective::create(30.0,
 	  static_cast<double>(window->extent2D().width) /

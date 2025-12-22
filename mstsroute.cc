@@ -4364,6 +4364,66 @@ bool MSTSRoute::ignoreShape(string* filename, double x, double y, double z)
 }
 #endif
 
+vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
+{
+	auto i= trackMap.find(routeID);
+	if (i == trackMap.end())
+		return {};
+	Track* track= i->second;
+	auto nv= track->vertexList.size();
+	auto ne= track->edgeList.size();
+	fprintf(stderr,"nv %ld ne %ld\n",nv,ne);
+	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
+	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	int j= 0;
+	for (auto i=track->vertexList.begin(); i!=track->vertexList.end();
+	  i++) {
+		auto v= *i;
+		verts->at(j)= v->location.coord;
+		colors->at(j)= vsg::vec4(0,0,0,1);
+		v->occupied= j++;
+	}
+	auto indices= vsg::ushortArray::create(2*ne);
+	j= 0;
+	for (auto i=track->edgeList.begin(); i!=track->edgeList.end(); i++) {
+		auto e= *i;
+		indices->set(j++,e->v1->occupied);
+		indices->set(j++,e->v2->occupied);
+	}
+	auto attributeArrays= vsg::DataList{verts,colors};
+	auto vid= vsg::VertexIndexDraw::create();
+	vid->assignArrays(attributeArrays);
+	vid->assignIndices(indices);
+	vid->indexCount= indices->valueCount();
+	vid->instanceCount= 1;
+	vid->firstIndex= 0;
+	vid->vertexOffset= 0;
+	vid->firstInstance= 0;
+	auto stateGroup= vsg::StateGroup::create();
+	stateGroup->addChild(vid);
+	auto shaderSet= vsg::createFlatShadedShaderSet();;
+	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
+	struct SetLineList : public vsg::Visitor {
+		SetLineList() { }
+		void apply(vsg::InputAssemblyState& ias) override {
+			ias.topology= VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+		}
+	} setLineList;
+//	gpConfig->accept(setLineList); this doesn't work for some reason
+	for (auto& ps : gpConfig->pipelineStates) ps->accept(setLineList);
+	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	gpConfig->init();
+	vsg::StateCommands commands;
+	gpConfig->copyTo(commands);
+	stateGroup->stateCommands.swap(commands);
+	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
+	auto sw= vsg::Switch::create();
+	sw->addChild(true,stateGroup);
+	trackLines= sw;
+	return sw;
+}
+
 MstsRouteReaderWriter::MstsRouteReaderWriter()
 {
 }
@@ -4391,5 +4451,6 @@ vsg::ref_ptr<vsg::Object> MstsRouteReaderWriter::read(
 	route->makeTrack();
 	auto group= vsg::Group::create();
 	route->makeTileMap(group);
+	group->addChild(route->createTrackLines());
 	return group;
 }

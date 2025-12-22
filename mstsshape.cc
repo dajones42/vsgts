@@ -787,7 +787,6 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 		  vsg::vec3(normals[j].x,normals[j].y,normals[j].z);
 		colors->at(vi)= vsg::vec4(1,1,1,1);
 	}
-	vsg::Geometry::DrawCommands drawCommands;
 	auto indices= vsg::ushortArray::create(triList.vertexIndices.size());
 	for (int i=0; i<triList.vertexIndices.size(); i++) {
 		int i3= i%3;
