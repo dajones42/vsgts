@@ -84,7 +84,7 @@ struct MSTSRoute {
 		float nwWaterLevel;
 		std::string tFilename;
 		vsg::Group* models;
-		vsg::Node* terrModel;
+		vsg::ref_ptr<vsg::Group> terrModel;
 		vsg::PagedLOD* plod;
 		Terrain* terrain;
 		Patch patches[256];
@@ -192,7 +192,7 @@ struct MSTSRoute {
 	int drawWater;
 	float waterLevelDelta;
 	void makeTerrainPatches(Tile* tile);
-	vsg::Geometry* makePatch(Patch* patch, int i0, int j0,
+	vsg::ref_ptr<vsg::StateGroup> makePatch(Patch* patch, int i0, int j0,
 	  Tile* tile, Tile* t12, Tile* t21, Tile* t22);
 	vsg::Geometry* loadPatchGeoFile(Patch* patch, int i0, int j0,
 	  Tile* tile);
@@ -221,15 +221,27 @@ struct MSTSRoute {
 	std::multimap<std::string,vsg::dvec3> ignoreShapeMap;
 	bool ignoreShape(std::string* filename, double x, double y, double z);
 	vsg::ref_ptr<vsg::Switch> createTrackLines();
+	vsg::ref_ptr<vsg::Options> vsgOptions;
 };
+extern MSTSRoute* mstsRoute;
 
 #include <vsg/io/ReaderWriter.h>
 
-class MstsRouteReaderWriter : public vsg::Inherit<vsg::CompositeReaderWriter,
-  MstsRouteReaderWriter>
+class MstsRouteReader : public vsg::Inherit<vsg::CompositeReaderWriter,
+  MstsRouteReader>
 {
 public:
-	MstsRouteReaderWriter();
+	MstsRouteReader();
+	vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename,
+	  vsg::ref_ptr<const vsg::Options> options= {}) const override;
+	bool getFeatures(Features& features) const override;
+};
+
+class MstsTerrainReader : public vsg::Inherit<vsg::CompositeReaderWriter,
+  MstsTerrainReader>
+{
+public:
+	MstsTerrainReader();
 	vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename,
 	  vsg::ref_ptr<const vsg::Options> options= {}) const override;
 	bool getFeatures(Features& features) const override;

@@ -33,7 +33,6 @@ int main(int argc, char** argv)
 	  windowTraits->height)) {
 		windowTraits->fullscreen= false;
 	}
-	auto horizonMountainHeight= arguments.value(0.0, "--hmh");
 	arguments.read("--screen", windowTraits->screenNum);
 	arguments.read("--display", windowTraits->display);
 	if (arguments.errors())
@@ -41,8 +40,9 @@ int main(int argc, char** argv)
 	options->add(vsgXchange::all::create());
 	options->add(MstsAceReaderWriter::create());
 	options->add(MstsShapeReaderWriter::create());
-	options->add(MstsRouteReaderWriter::create());
-//	vsg::Logger::instance()->level= vsg::Logger::LOGGER_ALL;;
+	options->add(MstsRouteReader::create());
+	options->add(MstsTerrainReader::create());
+//	vsg::Logger::instance()->level= vsg::Logger::LOGGER_DEBUG;;
 
 	auto scene= vsg::Group::create();
 	for (int i=1; i<argc; ++i) {
@@ -93,11 +93,10 @@ int main(int argc, char** argv)
 	  (computeBounds.bounds.min+computeBounds.bounds.max)*0.5;
 	auto size= computeBounds.bounds.max-computeBounds.bounds.min;
 	double radius= vsg::length(size)*0.6;
-	fprintf(stderr,"%lf %lf %lf %lf\n",center.x,center.y,center.z,radius);
 	double nearFarRatio= 0.0001;
 	auto lookAt= vsg::LookAt::create(center+vsg::dvec3(0.0,
 	  -radius*3.5, 0.0), center, vsg::dvec3(0.0, 0.0, 1.0));
-	if (size.z < .1*radius)
+	if (mstsRoute)
 		lookAt= vsg::LookAt::create(center+vsg::dvec3(0,0,radius*3.5),
 		  center,vsg::dvec3(0,1,0));
 	vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
@@ -116,6 +115,12 @@ int main(int argc, char** argv)
 	  vsg::createCommandGraphForView(window, camera, scene);
 	viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 	viewer->compile();
+	for (auto& task: viewer->recordAndSubmitTasks) {
+		if (task->databasePager) {
+			task->databasePager->
+			  targetMaxNumPagedLODWithHighResSubgraphs= 25;
+		}
+	}
 
 	while (viewer->advanceToNextFrame()) {
 		viewer->handleEvents();

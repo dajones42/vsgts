@@ -62,7 +62,8 @@ MSTSRoute* MSTSRoute::createRoute(string tdbPath)
 	if (i == string::npos)
 		return nullptr;
 	string mstsDir= path1.substr(0,i);
-	return new MSTSRoute(mstsDir.c_str(),routeID.c_str());
+	mstsRoute= new MSTSRoute(mstsDir.c_str(),routeID.c_str());
+	return mstsRoute;
 }
 
 MSTSRoute::MSTSRoute(const char* mDir, const char* rID)
@@ -124,7 +125,7 @@ void MSTSRoute::findCenter(TrackDB* trackDB)
 		if (maxTZ < node->tz)
 			maxTZ= node->tz;
 	}
-	fprintf(stderr,"%d %d %d %d\n",minTX,maxTX,minTZ,maxTZ);
+//	fprintf(stderr,"%d %d %d %d\n",minTX,maxTX,minTZ,maxTZ);
 	if (centerLat!=0 || centerLong!=0) {
 		cosCenterLat= cos(centerLat/(180*3.14159));
 		fprintf(stderr,"%f %f %lf\n",
@@ -133,7 +134,7 @@ void MSTSRoute::findCenter(TrackDB* trackDB)
 		centerTX= (minTX+maxTX)/2;
 		centerTZ= (minTZ+maxTZ)/2;
 	}
-	fprintf(stderr,"center %d %d\n",centerTX,centerTZ);
+//	fprintf(stderr,"center %d %d\n",centerTX,centerTZ);
 //	double lat,lng,xx,yy;
 //	xy2ll(0,0,&lat,&lng);
 //	ll2xy(lat,lng,&xx,&yy);
@@ -614,7 +615,7 @@ void MSTSRoute::readTerrain(Tile* tile)
 		fprintf(stderr,"cannot read %s\n",path.c_str());
 		memset(tile->terrain->y,0,sizeof(tile->terrain->y));
 	} else {
-		if (fread(tile->terrain->y,1,sizeof(tile->terrain->y),in) != 1)
+		if (fread(tile->terrain->y,sizeof(tile->terrain->y),1,in) != 1)
 			fprintf(stderr,"cannot read %s\n",path.c_str());
 		fclose(in);
 	}
@@ -713,126 +714,6 @@ void MSTSRoute::loadTerrainData(Tile* tile)
 }
 #endif
 
-#if 0
-//	makes a 3D model for a tiles terrain data
-//	not used anymore
-void MSTSRoute::makeTerrainModel(Tile* tile)
-{
-	if (tile->terrModel != NULL)
-		return;
-	readTerrain(tile);
-//	fprintf(stderr,"makeTerrain %d %d %f %f\n",
-//	  tile->x,tile->z,tile->floor,tile->scale);
-	Tile* t12= findTile(tile->x,tile->z-1);
-	if (t12 != NULL)
-		readTerrain(t12);
-	Tile* t21= findTile(tile->x+1,tile->z);
-	if (t21 != NULL)
-		readTerrain(t21);
-	Tile* t22= findTile(tile->x+1,tile->z-1);
-	if (t22 != NULL)
-		readTerrain(t22);
-	float maxa= tile->floor;
-	float x0= 2048*(tile->x-centerTX);
-	float z0= 2048*(tile->z-centerTZ);
-	float dt= 1/64.;
-	osg::Vec3Array* verts= new osg::Vec3Array;
-	osg::Vec2Array* texCoords= new osg::Vec2Array;
-	osg::Vec3Array* norms= new osg::Vec3Array;
-	osg::DrawElementsUInt* drawElements=
-	  new osg::DrawElementsUInt(GL_TRIANGLES);;
-	for (int i=0; i<=256; i++) {
-		int k= i*257;
-		for (int j=0; j<=256; j++) {
-			float a;
-			int ni;
-			if (i<256 && j<256) {
-				a= tile->floor+
-				  tile->scale*tile->terrain->y[i][j];
-				ni= tile->terrain->n[i][j];
-			} else if (i<256 && j>=256) {
-			  if (t21 != NULL) {
-				a= t21->floor+
-				  t21->scale*t21->terrain->y[i][j-256];
-				ni= t21->terrain->n[i][j-256];
-			  } else {
-				a= tile->floor+
-				  tile->scale*tile->terrain->y[i][255];
-				ni= tile->terrain->n[i][255];
-			  }
-			} else if (i>=256 && j<256) {
-			  if (t12 != NULL) {
-				a= t12->floor+
-				  t12->scale*t12->terrain->y[i-256][j];
-				ni= t12->terrain->n[i-256][j];
-			  } else {
-				a= tile->floor+
-				  tile->scale*tile->terrain->y[255][j];
-				ni= tile->terrain->n[255][j];
-			  }
-			} else if (i>=256 && j>=256) {
-			  if (t22 != NULL) {
-				a= t22->floor+
-				  t22->scale*t22->terrain->y[i-256][j-256];
-				ni= t22->terrain->n[i-256][j-256];
-			  } else {
-				a= tile->floor+
-				  tile->scale*tile->terrain->y[255][255];
-				ni= tile->terrain->n[255][255];
-			  }
-			}
-			if (maxa < a)
-				maxa= a;
-			verts->push_back(
-			  osg::Vec3(x0+8*(j-128),z0+8*(128-i),a));
-			texCoords->push_back(osg::Vec2(dt*i,dt*j));
-			norms->push_back(terrainNormals[ni]);
-			if (i<256 && j<256) {
-				drawElements->push_back(k+j);
-				drawElements->push_back(k+j+257);
-				drawElements->push_back(k+j+1);
-				drawElements->push_back(k+j+1);
-				drawElements->push_back(k+j+257);
-				drawElements->push_back(k+j+257+1);
-			}
-		}
-	}
-	osg::Geometry* geometry= new osg::Geometry;
-	geometry->setVertexArray(verts);
-	osg::Vec4Array* colors= new osg::Vec4Array;
-	colors->push_back(osg::Vec4(1,1,1,1));
-	geometry->setColorArray(colors);
-	geometry->setColorBinding(osg::Geometry::BIND_OVERALL);
-	geometry->setNormalArray(norms);
-	geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
-	geometry->setTexCoordArray(0,texCoords);
-	geometry->addPrimitiveSet(drawElements);
-	static osg::Texture2D* t= NULL;
-	if (t == NULL) {
-		t= new osg::Texture2D;
-		t->ref();
-		t->setDataVariance(osg::Object::DYNAMIC);
-		string path= terrtexDir+dirSep+"terrain.ace";
-		osg::Image* image= readMSTSACE(path.c_str());
-		if (image != NULL)
-			t->setImage(image);
-		t->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::REPEAT);
-		t->setWrap(osg::Texture2D::WRAP_T,osg::Texture2D::REPEAT);
-	}
-	osg::StateSet* stateSet= geometry->getOrCreateStateSet();
-	stateSet->setTextureAttributeAndModes(0,t,osg::StateAttribute::ON);
-	stateSet->setRenderingHint(osg::StateSet::OPAQUE_BIN);
-	osg::Material* m= new osg::Material;
-	m->setAmbient(osg::Material::FRONT_AND_BACK,osg::Vec4(.6,.6,.6,1));
-	m->setDiffuse(osg::Material::FRONT_AND_BACK,osg::Vec4(.4,.4,.4,1));
-	stateSet->setAttribute(m,osg::StateAttribute::ON);
-	osg::Geode* geode= new osg::Geode;
-	geode->addDrawable(geometry);
-	tile->terrModel= geode;
-	geode->ref();
-}
-#endif
-
 void MSTSRoute::Tile::freeTerrain()
 {
 	if (terrain != NULL)
@@ -853,9 +734,15 @@ MSTSRoute::Tile* MSTSRoute::findTile(int tx, int tz)
 //	the model is a green and white checker board with one square per tile
 void MSTSRoute::makeTileMap(vsg::Group* root)
 {
+	vsgOptions->shaderSets["phong"]= vsg::createPhongShaderSet();
+	vsgOptions->shaderSets["flat"]= vsg::createFlatShadedShaderSet();
+	vsgOptions->add(MstsTerrainReader::create());
+	if (!vsgOptions->sharedObjects)
+		vsgOptions->sharedObjects= vsg::SharedObjects::create();
 	vsg::StateInfo stateInfo;
 	stateInfo.lighting= false;
 	auto builder= vsg::Builder::create();
+	builder->options= vsgOptions;
 //	fprintf(stderr,"%d nodes before makeTileMap\n",checkTree(root));
 	for (TileMap::iterator i=tileMap.begin(); i!=tileMap.end(); ++i) {
 		Tile* tile= i->second;
@@ -870,8 +757,25 @@ void MSTSRoute::makeTileMap(vsg::Group* root)
 			geomInfo.color= vsg::vec4(1,1,1,1);
 		else
 			geomInfo.color= vsg::vec4(.7,1,.7,1);
-		root->addChild(builder->createQuad(geomInfo,stateInfo));
+		auto quad= builder->createQuad(geomInfo,stateInfo);
+		vsg::ComputeBounds computeBounds;
+		quad->accept(computeBounds);
+		vsg::dvec3 center=
+		  (computeBounds.bounds.min+computeBounds.bounds.max)*0.5;
+		double radius= vsg::length(computeBounds.bounds.max-
+		  computeBounds.bounds.min)*0.6;
+		auto lod= vsg::PagedLOD::create();
+		lod->options= vsgOptions;
+		lod->bound.set(center.x,center.y,center.z,radius);
+		lod->filename= tile->tFilename+"_y.raw";
+		lod->children[0]= vsg::PagedLOD::Child{.6,{}};
+		lod->children[1]= vsg::PagedLOD::Child{0,quad};
+		root->addChild(lod);
 	}
+	vsg::CollectResourceRequirements crr;
+	root->accept(crr);
+	root->setObject("ResourceHints",
+	  crr.createResourceHints(2*tileMap.size()));
 //	fprintf(stderr,"%d nodes before makeTileMap\n",checkTree(root));
 	for (TileMap::iterator i=tileMap.begin(); i!=tileMap.end(); ++i) {
 		Tile* tile= i->second;
@@ -2880,291 +2784,6 @@ void MSTSRoute::saveShoreMarkers(const char* filename)
 }
 #endif
 
-#if 0
-//	makes 3D models for each patch in a tile
-void MSTSRoute::makeTerrainPatches(Tile* tile)
-{
-	if (tile->terrModel != NULL)
-		return;
-	readTerrain(tile);
-//	calcTileAO(tile);
-//	fprintf(stderr,"makeTerrain %d %d %f %f\n",
-//	  tile->x,tile->z,tile->floor,tile->scale);
-	Tile* t12= findTile(tile->x,tile->z-1);
-	if (t12 != NULL)
-		readTerrain(t12);
-	Tile* t21= findTile(tile->x+1,tile->z);
-	if (t21 != NULL)
-		readTerrain(t21);
-	Tile* t22= findTile(tile->x+1,tile->z-1);
-	if (t22 != NULL)
-		readTerrain(t22);
-	vector<osg::Texture2D*> textures;
-	for (int i=0; i<tile->textures.size()/2; i++) {
-		osg::Texture2D* t= new osg::Texture2D;
-		t->ref();
-		t->setDataVariance(osg::Object::DYNAMIC);
-		textures.push_back(t);
-		string path= terrtexDir+dirSep+tile->textures[i];
-		if (strstr(tile->textures[i].c_str(),".ace") ||
-		  strstr(tile->textures[i].c_str(),".ACE")) {
-			osg::Image* img= readMSTSACE(path.c_str());
-			if (img == NULL) {
-				path= path.substr(0,path.size()-4)+".png";
-//				fprintf(stderr,"trying %s\n",path.c_str());
-				img= osgDB::readImageFile(path.c_str());
-//				if (img == NULL)
-//					fprintf(stderr,"no png");
-			}
-			if (img != NULL)
-				t->setImage(img);
-		} else {
-			osg::Image* img= osgDB::readImageFile(path.c_str());
-			if (img != NULL)
-				t->setImage(img);
-		}
-//		t->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::REPEAT);
-//		t->setWrap(osg::Texture2D::WRAP_T,osg::Texture2D::REPEAT);
-		t->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::CLAMP_TO_EDGE);
-		t->setWrap(osg::Texture2D::WRAP_T,osg::Texture2D::CLAMP_TO_EDGE);
-	}
-	vector<osg::Texture2D*> microTextures;
-	for (int i=0; i<tile->microTextures.size(); i++) {
-		osg::Texture2D* t= new osg::Texture2D;
-		t->ref();
-		t->setDataVariance(osg::Object::DYNAMIC);
-		microTextures.push_back(t);
-		string path= terrtexDir+dirSep+tile->microTextures[i];
-		osg::Image* image= readMSTSACE(path.c_str());
-		if (image != NULL)
-			t->setImage(image);
-		t->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::REPEAT);
-		t->setWrap(osg::Texture2D::WRAP_T,osg::Texture2D::REPEAT);
-	}
-	osg::TexEnvCombine* tec= new osg::TexEnvCombine();
-	tec->setCombine_RGB(osg::TexEnvCombine::MODULATE);
-	tec->setSource0_RGB(osg::TexEnvCombine::PREVIOUS);
-	tec->setSource1_RGB(osg::TexEnvCombine::TEXTURE1);
-	tec->setOperand0_RGB(osg::TexEnvCombine::SRC_COLOR);
-	tec->setOperand1_RGB(osg::TexEnvCombine::SRC_COLOR);
-	tec->setScale_RGB(2.);
-	tec->ref();
-//	osg::Material* mat= new osg::Material;
-//	mat->setAmbient(osg::Material::FRONT_AND_BACK,osg::Vec4(.6,.6,.6,1));
-//	mat->setDiffuse(osg::Material::FRONT_AND_BACK,osg::Vec4(.4,.4,.4,1));
-	Patch* patch= tile->patches;
-	osg::Geode* geode= new osg::Geode;
-	tile->terrModel= geode;
-	geode->setNodeMask(0x1);
-//	fprintf(stderr,"tile %d %d\n",tile->x,tile->z);
-	geode->ref();
-	for (int i=0; i<16; i++) {
-		for (int j=0; j<16; j++) {
-			if ((patch->flags&1)!=0) {
-//				fprintf(stderr,"skip patch %d %d %d %d %x\n",
-//				  tile->x,tile->z,i,j,patch->flags);
-				patch++;
-				continue;
-			}
-//			fprintf(stderr,"patchflags %x\n",patch->flags);
-			osg::Geometry* geometry=
-			  loadPatchGeoFile(patch,i,j,tile);
-			if (geometry == NULL)
-				geometry= makePatch(patch,i*16,j*16,
-				  tile,t12,t21,t22);
-			osg::Material* mat= new osg::Material;
-			mat->setAmbient(osg::Material::FRONT_AND_BACK,
-			  osg::Vec4(.6,.6,.6,1));
-			mat->setDiffuse(osg::Material::FRONT_AND_BACK,
-			  osg::Vec4(.4,.4,.4,1));
-			mat->setSpecular(osg::Material::FRONT_AND_BACK,
-			  osg::Vec4(0,0,0,1));
-			osg::StateSet* stateSet=
-			  geometry->getOrCreateStateSet();
-			stateSet->setMode(GL_LIGHTING,osg::StateAttribute::ON);
-			stateSet->setAttributeAndModes(mat,
-			  osg::StateAttribute::ON);
-			stateSet->setTextureAttributeAndModes(0,
-			  textures[patch->texIndex],osg::StateAttribute::ON);
-			if (patch->texIndex<microTextures.size() &&
-			  microTextures[patch->texIndex]) {
-				stateSet->setTextureAttributeAndModes(1,
-				  microTextures[patch->texIndex],
-				  osg::StateAttribute::ON);
-				stateSet->setTextureAttributeAndModes(1,tec,
-				  osg::StateAttribute::ON);
-			}
-			stateSet->setAttribute(mat,osg::StateAttribute::ON);
-			if (wireTerrain) {
-				osg::PolygonMode* pm= new osg::PolygonMode;
-				pm->setMode(osg::PolygonMode::FRONT_AND_BACK,
-				  osg::PolygonMode::LINE);
-				stateSet->setAttribute(pm);
-			}
-			geode->addDrawable(geometry);
-//			fprintf(stderr," %d.%x",
-//			  patch->detail,patch->edgeDetail);
-			patch++;
-		}
-//		fprintf(stderr,"\n");
-	}
-	for (int i=0; i<textures.size(); i++)
-		textures[i]->unref();
-	for (int i=0; i<microTextures.size(); i++)
-		microTextures[i]->unref();
-	tec->unref();
-//	osgUtil::Simplifier simplifier(.5,4);
-//	geode->accept(simplifier);
-}
-#endif
-
-#if 0
-//	makes a 3D model for a single patch
-//	uses TrinagleGrid to simplify terrain far from the tracks
-osg::Geometry* MSTSRoute::makePatch(Patch* patch, int i0, int j0,
-  Tile* tile, Tile* t12, Tile* t21, Tile* t22)
-{
-	float x0= 2048*(tile->x-centerTX);
-	float z0= 2048*(tile->z-centerTZ);
-	int sz= 1;
-	int dij= 16;
-	for (int i=0; i<patch->detail; i++) {
-		sz*= 2;
-		dij/= 2;
-	}
-	sz++;
-	float uvmult= tile->microTexUVMult;
-	//fprintf(stderr,"%d %d %d\n",patch->detail,sz,dij);
-	//sz= 17;
-	//dij= 1;
-	osg::Vec3Array* verts= new osg::Vec3Array;
-	osg::Vec2Array* texCoords= new osg::Vec2Array;
-	osg::Vec2Array* microTexCoords= new osg::Vec2Array;
-	osg::Vec3Array* norms= new osg::Vec3Array;
-	osg::DrawElementsUInt* drawElements=
-	  new osg::DrawElementsUInt(GL_TRIANGLES);;
-	if (patch->detail>=4 && patch->edgeDetail==0) {
-		for (int i=0; i<=16; i++) {
-			int k= i*17;
-			for (int j=0; j<=16; j++) {
-				float a=
-				  getAltitude(i+i0,j+j0,tile,t12,t21,t22);
-//				int ni=
-//				  getNormalIndex(i+i0,j+j0,tile,t12,t21,t22);
-				osg::Vec3f normal=
-				  getNormal(i+i0,j+j0,tile,t12,t21,t22);
-				verts->push_back(
-				  osg::Vec3(x0+8*(j0+j-128),z0+8*(128-i-i0),a));
-				float u= patch->u0+patch->dudx*j+patch->dudz*i;
-				float v= patch->v0+patch->dvdx*j+patch->dvdz*i;
-				texCoords->push_back(osg::Vec2(u,v));
-				microTexCoords->push_back(
-				  osg::Vec2(uvmult*u,uvmult*v));
-//				norms->push_back(terrainNormals[ni]);
-				norms->push_back(normal);
-				float h00=
-				  getVertexHidden(i+i0,j+j0,tile,t12,t21,t22);
-				if (i<16 && j<16) {
-					float a11= getAltitude(i+i0+1,j+j0+1,
-					  tile,t12,t21,t22);
-					float a01= getAltitude(i+i0,j+j0+1,
-					  tile,t12,t21,t22);
-					float a10= getAltitude(i+i0+1,j+j0,
-					  tile,t12,t21,t22);
-					float h11= getVertexHidden(
-					  i+i0+1,j+j0+1,tile,t12,t21,t22);
-					float h01= getVertexHidden(
-					  i+i0,j+j0+1,tile,t12,t21,t22);
-					float h10= getVertexHidden(
-					  i+i0+1,j+j0,tile,t12,t21,t22);
-					int kj= k+j/dij;
-					if (fabs(a11-a) < fabs(a10-a01)) {
-						if (!h00 && !h10 && !h11) {
-						drawElements->push_back(kj);
-						drawElements->push_back(kj+17);
-						drawElements->push_back(kj+17+1);
-						}
-						if (!h00 && !h01 && !h11) {
-						drawElements->push_back(kj+17+1);
-						drawElements->push_back(kj+1);
-						drawElements->push_back(kj);
-						}
-					} else {
-						if (!h00 && !h10 && !h01) {
-						drawElements->push_back(kj);
-						drawElements->push_back(kj+17);
-						drawElements->push_back(kj+1);
-						}
-						if (!h11 && !h01 && !h10) {
-						drawElements->push_back(kj+1);
-						drawElements->push_back(kj+17);
-						drawElements->push_back(kj+17+1);
-						}
-					}
-				}
-			}
-		}
-	} else {
-		TriangleGrid tg(17,patch->edgeDetail);
-		for (int i=0; i<=16; i+=dij) {
-			for (int j=0; j<=16; j+=dij) {
-				if (getVertexHidden(
-				  i+i0,j+j0,tile,t12,t21,t22)) {
-					fprintf(stderr,
-					  "vertex hidden %p %f %f %d %d %x\n",
-					  tile,x0,z0,i+i0,j+j0,
-					  0);//tile->terrain->f[i+i0][j+j0]);
-					tg.hide(i,j);
-				}
-			}
-		}
-		tg.makeList(2*patch->detail);
-		list<int>& tlist= tg.getList();
-		map<int,int> vmap;
-		for (list<int>::iterator i=tlist.begin(); i!=tlist.end(); ++i) {
-			map<int,int>::iterator j= vmap.find(*i);
-			if (j != vmap.end()) {
-				drawElements->push_back(j->second);
-			} else {
-				int i1= (*i)/17;
-				int j1= (*i)%17;
-				float a=
-				  getAltitude(i1+i0,j1+j0,tile,t12,t21,t22);
-//				int ni=
-//				  getNormalIndex(i1+i0,j1+j0,tile,t12,t21,t22);
-				osg::Vec3f normal=
-				  getNormal(i1+i0,j1+j0,tile,t12,t21,t22);
-				verts->push_back(osg::Vec3(
-				  x0+8*(j0+j1-128),z0+8*(128-i1-i0),a));
-				float u=
-				  patch->u0+patch->dudx*j1+patch->dudz*i1;
-				float v=
-				  patch->v0+patch->dvdx*j1+patch->dvdz*i1;
-				texCoords->push_back(osg::Vec2(u,v));
-				microTexCoords->push_back(osg::Vec2(32*u,32*v));
-//				norms->push_back(terrainNormals[ni]);
-				norms->push_back(normal);
-				int vi= vmap.size();
-				vmap[*i]= vi;
-				drawElements->push_back(vi);
-			}
-		}
-	}
-	osg::Geometry* geometry= new osg::Geometry;
-	geometry->setVertexArray(verts);
-	osg::Vec4Array* colors= new osg::Vec4Array;
-	colors->push_back(osg::Vec4(1,1,1,1));
-	geometry->setColorArray(colors);
-	geometry->setColorBinding(osg::Geometry::BIND_OVERALL);
-	geometry->setNormalArray(norms);
-	geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
-	geometry->setTexCoordArray(0,texCoords);
-	geometry->setTexCoordArray(1,microTexCoords);
-	geometry->addPrimitiveSet(drawElements);
-	return geometry;
-}
-#endif
-
 //	returns the altitude of terrain point i,j
 float MSTSRoute::getAltitude(int i, int j,
   Tile* tile, Tile* t12, Tile* t21, Tile* t22)
@@ -4372,7 +3991,7 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 	Track* track= i->second;
 	auto nv= track->vertexList.size();
 	auto ne= track->edgeList.size();
-	fprintf(stderr,"nv %ld ne %ld\n",nv,ne);
+//	fprintf(stderr,"nv %ld ne %ld\n",nv,ne);
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
 	int j= 0;
@@ -4401,7 +4020,7 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 	vid->firstInstance= 0;
 	auto stateGroup= vsg::StateGroup::create();
 	stateGroup->addChild(vid);
-	auto shaderSet= vsg::createFlatShadedShaderSet();;
+	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
 	struct SetLineList : public vsg::Visitor {
 		SetLineList() { }
@@ -4413,9 +4032,13 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 	for (auto& ps : gpConfig->pipelineStates) ps->accept(setLineList);
 	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
 	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
-	gpConfig->init();
+	if (vsgOptions->sharedObjects)
+		vsgOptions->sharedObjects->share(gpConfig,
+		  [](auto gpc) { gpc->init(); });
+	else
+		gpConfig->init();
 	vsg::StateCommands commands;
-	gpConfig->copyTo(commands);
+	gpConfig->copyTo(commands,vsgOptions->sharedObjects);
 	stateGroup->stateCommands.swap(commands);
 	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
 	auto sw= vsg::Switch::create();
@@ -4424,18 +4047,18 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 	return sw;
 }
 
-MstsRouteReaderWriter::MstsRouteReaderWriter()
+MstsRouteReader::MstsRouteReader()
 {
 }
 
-bool MstsRouteReaderWriter::getFeatures(Features& features) const
+bool MstsRouteReader::getFeatures(Features& features) const
 {
 	features.extensionFeatureMap[".tdb"]=
 	  static_cast<vsg::ReaderWriter::FeatureMask>(READ_FILENAME);
 	return true;
 }
 
-vsg::ref_ptr<vsg::Object> MstsRouteReaderWriter::read(
+vsg::ref_ptr<vsg::Object> MstsRouteReader::read(
   const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const
 {
 	const auto ext= vsg::lowerCaseFileExtension(filename);
@@ -4447,6 +4070,7 @@ vsg::ref_ptr<vsg::Object> MstsRouteReaderWriter::read(
 	auto route= MSTSRoute::createRoute(filepath.string());
 	if (!route)
 		return {};
+	route->vsgOptions= vsg::Options::create();
 	route->readTiles();
 	route->makeTrack();
 	auto group= vsg::Group::create();
