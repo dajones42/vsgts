@@ -134,7 +134,7 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 		  offset,size,
 		  path,flags,wid,ht,colors,offset);
 	vsg::Data::Properties layout;
-	layout.maxNumMipmaps= nMipmaps;
+	layout.mipLevels= nMipmaps;
 	layout.origin= vsg::TOP_LEFT;
 	if ((flags&020)!=0 && colors>3) {
 		layout.blockWidth= 4;

@@ -33,6 +33,8 @@ struct MSTSFileNode;
 struct LooseConsist;
 struct MSTSSignal;
 
+#include <mutex>
+
 #include "track.h"
 
 struct MSTSRoute {
@@ -83,7 +85,7 @@ struct MSTSRoute {
 		float neWaterLevel;
 		float nwWaterLevel;
 		std::string tFilename;
-		vsg::Group* models;
+		vsg::ref_ptr<vsg::Group> models;
 		vsg::ref_ptr<vsg::Group> terrModel;
 		vsg::PagedLOD* plod;
 		Terrain* terrain;
@@ -119,7 +121,7 @@ struct MSTSRoute {
 	typedef std::map<std::string,Tile*> TerrainTileMap;
 	TileMap tileMap;
 	TerrainTileMap terrainTileMap;
-	typedef std::map<std::string,vsg::Node*> ModelMap;
+	typedef std::map<std::string,vsg::ref_ptr<vsg::Node>> ModelMap;
 	ModelMap trackModelMap;
 	ModelMap staticModelMap;
 	TrackShape* dynTrackBase;
@@ -164,11 +166,13 @@ struct MSTSRoute {
 	Tile* findTile(int tx, int tz);
 	void makeTileMap(vsg::Group* root);
 	void loadModels(Tile* tile);
+	std::mutex loadMutex;
 	int readBinWFile(const char* filename, Tile* tile, float x0, float z0);
 	void loadTerrainData(Tile* tile);
 //	vsg::Node* loadTrackModel(std::string* filename, Track::SwVertex* sw);
 	void overrideTrackModel(std::string& shapename, std::string& model);
-	vsg::Node* loadStaticModel(std::string* filename, MSTSSignal* signal=NULL);
+	vsg::ref_ptr<vsg::Node> loadStaticModel(std::string* filename,
+	  MSTSSignal* signal=NULL);
 	vsg::Node* loadHazardModel(std::string* filename);
 	vsg::Node* attachSwitchStand(Tile* tile, vsg::Node* model,
 	  double x, double y, double z);
@@ -242,6 +246,16 @@ class MstsTerrainReader : public vsg::Inherit<vsg::CompositeReaderWriter,
 {
 public:
 	MstsTerrainReader();
+	vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename,
+	  vsg::ref_ptr<const vsg::Options> options= {}) const override;
+	bool getFeatures(Features& features) const override;
+};
+
+class MstsWorldReader : public vsg::Inherit<vsg::CompositeReaderWriter,
+  MstsWorldReader>
+{
+public:
+	MstsWorldReader();
 	vsg::ref_ptr<vsg::Object> read(const vsg::Path& filename,
 	  vsg::ref_ptr<const vsg::Options> options= {}) const override;
 	bool getFeatures(Features& features) const override;

@@ -196,6 +196,7 @@ struct MSTSShape {
 		mtStateSet= NULL;
 		mtUVMult= 0;
 	}
+	vsg::ref_ptr<vsg::Options> vsgOptions;
 };
 
 class MstsShapeReaderWriter : public vsg::Inherit<vsg::CompositeReaderWriter,

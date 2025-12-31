@@ -737,6 +737,7 @@ void MSTSRoute::makeTileMap(vsg::Group* root)
 	vsgOptions->shaderSets["phong"]= vsg::createPhongShaderSet();
 	vsgOptions->shaderSets["flat"]= vsg::createFlatShadedShaderSet();
 	vsgOptions->add(MstsTerrainReader::create());
+	vsgOptions->add(MstsWorldReader::create());
 	if (!vsgOptions->sharedObjects)
 		vsgOptions->sharedObjects= vsg::SharedObjects::create();
 	vsg::StateInfo stateInfo;

@@ -109,7 +109,11 @@ int main(int argc, char** argv)
 
 	viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 	viewer->addEventHandler(vsg::WindowResizeHandler::create());
-	viewer->addEventHandler(vsg::Trackball::create(camera));
+	auto tb= vsg::Trackball::create(camera);
+	tb->panButtonMask= vsg::BUTTON_MASK_3;
+	tb->zoomButtonMask= vsg::BUTTON_MASK_2;
+	tb->supportsThrow= false;
+	viewer->addEventHandler(tb);
 
 	auto commandGraph=
 	  vsg::createCommandGraphForView(window, camera, scene);

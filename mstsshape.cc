@@ -811,7 +811,7 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 	int mi= vtxStates[vsi].matrixIndex;
 	if (matrices[mi].group == nullptr)
 		matrices[mi].group= new vsg::Group();
-	auto shaderSet= vsg::createPhongShaderSet();;
+	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().alphaMask= 0;
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
@@ -932,6 +932,8 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 			  VK_SAMPLER_ADDRESS_MODE_REPEAT;
 			gpConfig->assignTexture("diffuseMap",
 			  textures[ti].image,sampler);
+			if (vsgOptions)
+				vsgOptions->sharedObjects->share(sampler);
 		}
 	}
 	gpConfig->assignDescriptor("material",matValue);
@@ -940,9 +942,16 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
 	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
 //	defines.insert("VSG_TWO_SIDED_LIGHTING");
-	gpConfig->init();
+	if (vsgOptions)
+		vsgOptions->sharedObjects->share(gpConfig,
+		  [](auto gpc) { gpc->init(); });
+	else
+		gpConfig->init();
 	vsg::StateCommands commands;
-	gpConfig->copyTo(commands);
+	if (vsgOptions)
+		gpConfig->copyTo(commands,vsgOptions->sharedObjects);
+	else
+		gpConfig->copyTo(commands);
 	stateGroup->stateCommands.swap(commands);
 	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
 }

@@ -141,10 +141,17 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 	  (computeBounds.bounds.min+computeBounds.bounds.max)*0.5;
 	double radius= vsg::length(computeBounds.bounds.max-
 	  computeBounds.bounds.min)*0.6;
-	auto cg= vsg::CullGroup::create();
-	cg->bound.set(center.x,center.y,center.z,radius);
-	cg->addChild(group);
-	tile->terrModel= cg;
+	auto lod= vsg::PagedLOD::create();
+	lod->options= vsgOptions;
+	lod->bound.set(center.x,center.y,center.z,radius);
+	lod->filename= tile->tFilename+".world";
+	lod->children[0]= vsg::PagedLOD::Child{.8,{}};
+	lod->children[1]= vsg::PagedLOD::Child{1,{}};
+	group->addChild(lod);
+//	auto cg= vsg::CullGroup::create();
+//	cg->bound.set(center.x,center.y,center.z,radius);
+//	cg->addChild(group);
+//	tile->terrModel= cg;
 //	for (int i=0; i<microTextures.size(); i++)
 //		microTextures[i]->unref();
 //	tec->unref();

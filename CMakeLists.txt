@@ -36,6 +36,7 @@ set(SOURCES
     trackdb.cc
     track.cc
     mststerrain.cc
+    mstsworld.cc
 )
 
 add_executable(tsviewer ${SOURCES})
