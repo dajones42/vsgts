@@ -59,7 +59,6 @@ struct MSTSRoute {
 	double cosCenterLat;
 	struct Terrain {
 		unsigned short y[256][256];
-		unsigned char n[256][256];
 		unsigned char f[256][256];
 	};
 	struct Patch {
@@ -169,16 +168,16 @@ struct MSTSRoute {
 	std::mutex loadMutex;
 	int readBinWFile(const char* filename, Tile* tile, float x0, float z0);
 	void loadTerrainData(Tile* tile);
-//	vsg::Node* loadTrackModel(std::string* filename, Track::SwVertex* sw);
+	vsg::ref_ptr<vsg::Node> loadTrackModel(std::string* filename, Track::SwVertex* sw);
 	void overrideTrackModel(std::string& shapename, std::string& model);
 	vsg::ref_ptr<vsg::Node> loadStaticModel(std::string* filename,
 	  MSTSSignal* signal=NULL);
-	vsg::Node* loadHazardModel(std::string* filename);
+	vsg::ref_ptr<vsg::Node> loadHazardModel(std::string* filename);
 	vsg::Node* attachSwitchStand(Tile* tile, vsg::Node* model,
 	  double x, double y, double z);
 	void cleanStaticModelMap();
-	vsg::Node* makeDynTrack(MSTSFileNode* dynTrack);
-	vsg::Node* makeDynTrack(TrackSections& trackSections,bool bridge);
+	vsg::ref_ptr<vsg::Node> makeDynTrack(MSTSFileNode* dynTrack);
+	vsg::ref_ptr<vsg::Node> makeDynTrack(TrackSections& trackSections,bool bridge);
 	vsg::Node* makeTransfer(MSTSFileNode* transfer, std::string* filename,
 	  Tile* tile, MSTSFileNode* pos, MSTSFileNode* qdir);
 	vsg::Node* makeTransfer(std::string* filename, Tile* tile,

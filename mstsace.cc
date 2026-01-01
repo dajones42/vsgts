@@ -83,7 +83,7 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 	offset= 0;
 	int w= wid;
 	int h= ht;
-	int nMipmaps= 1;
+	int nMipmaps= 0;
 	for (;;) {
 		if ((flags&020) != 0) {
 			int len= reader.getInt();

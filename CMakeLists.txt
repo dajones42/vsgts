@@ -10,7 +10,7 @@ project(vsgts
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 if (VULKAN_SDK)
@@ -37,6 +37,7 @@ set(SOURCES
     track.cc
     mststerrain.cc
     mstsworld.cc
+    trackshape.cc
 )
 
 add_executable(tsviewer ${SOURCES})

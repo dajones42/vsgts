@@ -207,7 +207,7 @@ struct Track {
 	~Track();
 	void translate(double dx, double dy, double dz);
 	void rotate(double angle);
-	vsg::Geometry* makeGeometry();
+	vsg::ref_ptr<vsg::StateGroup> makeGeometry(vsg::ref_ptr<vsg::Options> vsgOptions);
 	void makeMovable() {
 		matrix= new vsg::dmat4();
 	};
