@@ -24,6 +24,7 @@ THE SOFTWARE.
 #include <vsg/all.h>
 #include <string>
 #include <vector>
+using namespace std;
 
 #include "mstsroute.h"
 #include "mstsace.h"
@@ -33,6 +34,7 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 {
 	if (tile->terrModel)
 		return;
+//	scoped_lock lock {loadMutex};
 	readTerrain(tile);
 //	fprintf(stderr,"makeTerrain %d %d %f %f\n",
 //	  tile->x,tile->z,tile->floor,tile->scale);

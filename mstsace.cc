@@ -83,7 +83,7 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 	offset= 0;
 	int w= wid;
 	int h= ht;
-	int nMipmaps= 0;
+	int nMipmaps= 1;
 	for (;;) {
 		if ((flags&020) != 0) {
 			int len= reader.getInt();
@@ -133,10 +133,12 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 		fprintf(stderr,"bad mipmap %d %d\n ace %s %d %d %d %d %d\n",
 		  offset,size,
 		  path,flags,wid,ht,colors,offset);
+//	fprintf(stderr,"%d mipmaps\n",nMipmaps);
 	vsg::Data::Properties layout;
 	layout.mipLevels= nMipmaps;
 	layout.origin= vsg::TOP_LEFT;
-	if ((flags&020)!=0 && colors>3) {
+	layout.imageViewType= VK_IMAGE_VIEW_TYPE_2D;
+	if ((flags&020) != 0) {
 		layout.blockWidth= 4;
 		layout.blockHeight= 4;
 		if (colors > 3)
@@ -182,8 +184,10 @@ vsg::ref_ptr<vsg::Data> readCacheACEFile(const char* path, bool tryPNG)
 	if (i != aceMap.end() && i->second)
 		return vsg::ref_ptr(i->second);
 	vsg::ref_ptr<vsg::Data> image= readMSTSACE(path);
-	aceMap[path]= image.get();
-	image->ref();
+	if (image) {
+		aceMap[path]= image.get();
+		image->ref();
+	}
 	return image;
 #if 0
 	if (strstr(path,".ace") || strstr(path,".ACE")) {

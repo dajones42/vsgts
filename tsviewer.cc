@@ -64,16 +64,16 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	auto aLight= vsg::AmbientLight::create();
-	aLight->color.set(1,1,1);
+	aLight->color.set(.8,.8,.8);
 	aLight->intensity= 1;
 	scene->addChild(aLight);
 	auto dLight1= vsg::DirectionalLight::create();
-	dLight1->color.set(1,1,1);
+	dLight1->color.set(.8,.8,.8);
 	dLight1->intensity= 1;
 	dLight1->direction.set(0,-1,-1);
 	scene->addChild(dLight1);
 	auto dLight2= vsg::DirectionalLight::create();
-	dLight2->color.set(1,1,1);
+	dLight2->color.set(.8,.8,.8);
 	dLight2->intensity= 1;
 	dLight2->direction.set(-1,1,.5);
 	scene->addChild(dLight2);
@@ -85,6 +85,14 @@ int main(int argc, char** argv)
 		std::cout<<"Could not create window."<<std::endl;
 		return 1;
 	}
+	auto instance = window->getOrCreateInstance();
+	auto surface = window->getOrCreateSurface();
+	auto physicalDevice = instance->getPhysicalDevice(windowTraits->queueFlags, surface,
+	  {VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU});
+	auto properties = physicalDevice->getProperties();
+	std::cout << "selected " << properties.deviceName << std::endl;
+	window->setPhysicalDevice(physicalDevice);
+
 	viewer->addWindow(window);
 
 	vsg::ComputeBounds computeBounds;

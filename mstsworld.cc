@@ -115,16 +115,14 @@ void MSTSRoute::loadModels(Tile* tile)
 				  swVertex);
 			} else if (*(node->value)=="Dyntrack") {
 				model= makeDynTrack(next);
-#if 0
 			} else if (*(node->value)=="Transfer") {
-				model= makeTransfer(next,
-				  file->getChild(0)->value,tile,pos,qdir);
+//				model= makeTransfer(next,
+//				  file->getChild(0)->value,tile,pos,qdir);
 			} else if (*(node->value)=="Forest") {
-				model= makeForest(next,tile,pos,qdir);
+//				model= makeForest(next,tile,pos,qdir);
 			} else if (*(node->value)=="Hazard" && file!=NULL) {
 				model=
 				  loadHazardModel(file->getChild(0)->value);
-#endif
 #if 0
 			} else if (*(node->value)=="Signal") {
 				MSTSSignal* signal= findSignalInfo(next);
@@ -715,9 +713,9 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeDynTrack(TrackSections& trackSections, bo
 {
 	if (dynTrackBase == NULL && srDynTrack)
 		makeSRDynTrackShapes();
-	else if (dynTrackBase == NULL && ustDynTrack)
+	if (dynTrackBase == NULL && ustDynTrack)
 		makeUSTDynTrackShapes();
-	else if (dynTrackBase==NULL && makeDynTrackShapes())
+	if (dynTrackBase==NULL && makeDynTrackShapes())
 		;
 	else if (dynTrackBase==NULL && makeUSTDynTrackShapes())
 		;
@@ -1115,8 +1113,10 @@ bool MSTSRoute::makeUSTDynTrackShapes()
 		path= gTexturesDir+dirSep+"US_Track3.ace";
 		image= readCacheACEFile(path.c_str());
 	}
-	if (!image)
+	if (!image) {
+		ustDynTrack= false;
 		return false;
+	}
 	dynTrackBase= new TrackShape;
 	dynTrackBase->image= image;
 	dynTrackBase->offsets.push_back(TrackShape::Offset(-2.6,.2));
