@@ -811,10 +811,52 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 	int mi= vtxStates[vsi].matrixIndex;
 	if (matrices[mi].group == nullptr)
 		matrices[mi].group= new vsg::Group();
-	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);
+//	fprintf(stderr,"vsi %d\n",ps->vStateIndex);
+//	fprintf(stderr,"lmi %d\n",vtxStates[ps->vStateIndex].lightMaterialIndex);
+	bool useFlatShader= false;
 	auto matValue= vsg::PhongMaterialValue::create();
+	matValue->value().ambient= vsg::vec4(1,1,1,1);// multiplied by diffuse in shader
+	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().specular= vsg::vec4(0,0,0,1);
+	matValue->value().shininess= 0;
+	switch (vtxStates[ps->vStateIndex].lightMaterialIndex) {
+	 case -5://normal
+		break;
+	 case -1: //maybe supershine used in Wayne Campbell autos
+	 case -6: //spec25, strong highlight, roughness .3 in blender
+		matValue->value().specular= vsg::vec4(.1,.1,.1,1);
+		matValue->value().shininess= 4;
+		break;
+	 case -7: //spec750, small highlight, roughness .1 in blender
+		matValue->value().specular= vsg::vec4(.1,.1,.1,1);
+		matValue->value().shininess= 8;
+		break;
+	 case -8: // full bright
+	 case -9: // cruciform
+		useFlatShader= true;
+		break;
+	 case -11: // half bright
+		matValue->value().diffuse= vsg::vec4(.375,.375,.375,1);
+		useFlatShader= true;
+		break;
+	 case -12: // dark bright
+		matValue->value().diffuse= vsg::vec4(.25,.25,.25,1);
+		useFlatShader= true;
+		break;
+	 case -10: // emissive
+		matValue->value().emissive= vsg::vec4(1,1,1,1);
+		break;
+	 default:
+//		fprintf(stderr,"unknown lmi %d %s\n",
+//		  vtxStates[ps->vStateIndex].lightMaterialIndex,
+//		  filename.c_str());
+		break;
+	}
+	auto shaderSet= useFlatShader ? vsg::createFlatShadedShaderSet(vsgOptions) :
+	  vsg::createPhongShaderSet(vsgOptions);
 	matValue->value().alphaMask= 0;
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
+	auto& defines= gpConfig->shaderHints->defines;
 	if ((ps->alphaTestMode || shaders[ps->shaderIndex]==1)
 	  && transparentBin!=0) {
 		int& tbin= transparentBin;
@@ -826,6 +868,7 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 		if (ps->alphaTestMode) {
 			matValue->value().alphaMask= 1;
 			matValue->value().alphaMaskCutoff= .6;
+			defines.insert("VSG_ALPHA_TEST");
 		} else {
 			vsg::ColorBlendState::ColorBlendAttachments cbas;
 			VkPipelineColorBlendAttachmentState cba= {};
@@ -852,7 +895,6 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 	} else {
 		matrices[mi].group->addChild(stateGroup);
 	}
-	auto& defines= gpConfig->shaderHints->defines;
 #if 0
 	if (mtTexCoords) {
 		geometry->setTexCoordArray(1,mtTexCoords);
@@ -864,64 +906,6 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 		return;
 	}
 #endif
-//	fprintf(stderr,"vsi %d\n",ps->vStateIndex);
-//	fprintf(stderr,"lmi %d\n",vtxStates[ps->vStateIndex].lightMaterialIndex);
-	switch (vtxStates[ps->vStateIndex].lightMaterialIndex) {
-	 case -5://normal
-		matValue->value().ambient= vsg::vec4(.6,.6,.6,1);
-		matValue->value().diffuse= vsg::vec4(.4,.4,.4,1);
-		matValue->value().specular= vsg::vec4(0,0,0,1);
-		matValue->value().shininess= 0;
-		break;
-	 case -1: //maybe supershine used in Wayne Campbell autos
-	 case -6: //spec25, strong highlight, roughness .3 in blender
-		matValue->value().ambient= vsg::vec4(.6,.6,.6,1);
-		matValue->value().diffuse= vsg::vec4(.4,.4,.4,1);
-		matValue->value().specular= vsg::vec4(.1,.1,.1,1);
-		matValue->value().shininess= 4;
-		break;
-	 case -7: //spec750, small highlight, roughness .1 in blender
-		matValue->value().ambient= vsg::vec4(.6,.6,.6,1);
-		matValue->value().diffuse= vsg::vec4(.4,.4,.4,1);
-		matValue->value().specular= vsg::vec4(.1,.1,.1,1);
-		matValue->value().shininess= 8;
-		break;
-	 case -8: // full bright
-	 case -9: // cruciform
-		matValue->value().ambient= vsg::vec4(1,1,1,1);
-		matValue->value().diffuse= vsg::vec4(0,0,0,1);
-		matValue->value().specular= vsg::vec4(0,0,0,1);
-		matValue->value().shininess= 0;
-		break;
-	 case -11: // half bright
-		matValue->value().ambient= vsg::vec4(.75,.75,.75,1);
-		matValue->value().diffuse= vsg::vec4(0,0,0,1);
-		matValue->value().specular= vsg::vec4(0,0,0,1);
-		matValue->value().shininess= 0;
-		break;
-	 case -12: // dark bright
-		matValue->value().ambient= vsg::vec4(.5,.5,.5,1);
-		matValue->value().diffuse= vsg::vec4(0,0,0,1);
-		matValue->value().specular= vsg::vec4(0,0,0,1);
-		matValue->value().shininess= 0;
-		break;
-	 case -10: // emissive
-		matValue->value().emissive= vsg::vec4(1,1,1,1);
-		matValue->value().ambient= vsg::vec4(.6,.6,.6,1);
-		matValue->value().diffuse= vsg::vec4(.4,.4,.4,1);
-		matValue->value().specular= vsg::vec4(0,0,0,1);
-		matValue->value().shininess= 0;
-		break;
-	 default:
-//		fprintf(stderr,"unknown lmi %d %s\n",
-//		  vtxStates[ps->vStateIndex].lightMaterialIndex,
-//		  filename.c_str());
-		matValue->value().ambient= vsg::vec4(.6,.6,.6,1);
-		matValue->value().diffuse= vsg::vec4(.4,.4,.4,1);
-		matValue->value().specular= vsg::vec4(0,0,0,1);
-		matValue->value().shininess= 0;
-		break;
-	}
 	if (ps->texIdxs.size()>0) {
 		int ti= ps->texIdxs[0];
 		if (textures[ti].image) {
