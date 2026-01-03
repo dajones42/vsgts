@@ -38,6 +38,7 @@ set(SOURCES
     mststerrain.cc
     mstsworld.cc
     trackshape.cc
+    camerac.cc
 )
 
 add_executable(tsviewer ${SOURCES})

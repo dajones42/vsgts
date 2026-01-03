@@ -45,7 +45,7 @@ void MSTSRoute::loadModels(Tile* tile)
 	char buf[100];
 	sprintf(buf,"w%+6.6d%+6.6d.w",tile->x,tile->z);
 	string path= worldDir+dirSep+buf;
-	fprintf(stderr,"loadModels from %s %f %f\n",path.c_str(),x0,z0);
+//	fprintf(stderr,"loadModels from %s %f %f\n",path.c_str(),x0,z0);
 	if (readBinWFile(path.c_str(),tile,x0,z0) == 0) {
 	try {
 		MSTSFile file;
@@ -1291,7 +1291,6 @@ bool MstsWorldReader::getFeatures(Features& features) const
 vsg::ref_ptr<vsg::Object> MstsWorldReader::read(
   const vsg::Path& filename, vsg::ref_ptr<const vsg::Options> options) const
 {
-	fprintf(stderr,"read world %s\n",filename.string().c_str());
 	if (!mstsRoute)
 		return {};
 	const auto ext= vsg::lowerCaseFileExtension(filename);

@@ -4,6 +4,7 @@
 #include "mstsace.h"
 #include "mstsshape.h"
 #include "mstsroute.h"
+#include "camerac.h"
 
 vsg::ref_ptr<vsg::Node> createTextureQuad(vsg::ref_ptr<vsg::Data> sourceData,
   vsg::ref_ptr<vsg::Options> options)
@@ -92,7 +93,6 @@ int main(int argc, char** argv)
 	auto properties = physicalDevice->getProperties();
 	std::cout << "selected " << properties.deviceName << std::endl;
 	window->setPhysicalDevice(physicalDevice);
-
 	viewer->addWindow(window);
 
 	vsg::ComputeBounds computeBounds;
@@ -117,6 +117,8 @@ int main(int argc, char** argv)
 
 	viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 	viewer->addEventHandler(vsg::WindowResizeHandler::create());
+	if (mstsRoute)
+		viewer->addEventHandler(CameraController::create(camera,scene));
 	auto tb= vsg::Trackball::create(camera);
 	tb->panButtonMask= vsg::BUTTON_MASK_3;
 	tb->zoomButtonMask= vsg::BUTTON_MASK_2;
