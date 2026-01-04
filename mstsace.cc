@@ -161,7 +161,6 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 typedef std::map<std::string,vsg::Data*> ACEMap;
 static ACEMap aceMap;
 
-#if 0
 void cleanACECache()
 {
 	for (ACEMap::iterator i=aceMap.begin(); i!=aceMap.end(); i++) {
@@ -175,7 +174,6 @@ void cleanACECache()
 		}
 	}
 }
-#endif
 
 //	reads an ACE file and saves image for future calls
 vsg::ref_ptr<vsg::Data> readCacheACEFile(const char* path, bool tryPNG)

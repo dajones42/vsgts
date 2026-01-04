@@ -34,6 +34,8 @@ using namespace std;
 #include "mstsshape.h"
 #include "trackshape.h"
 
+extern string fixFilenameCase(string);
+
 //	loads the models for a tile
 void MSTSRoute::loadModels(Tile* tile)
 {
@@ -162,31 +164,7 @@ void MSTSRoute::loadModels(Tile* tile)
 			vsg::ref_ptr<vsg::MatrixTransform> mt=
 			  vsg::MatrixTransform::create();
 			mt->matrix= vsg::dmat4(1,0,0,0, 0,0,1,0, 0,1,0,0, x,y,z,1) * vsg::rotate(q);
-#if 0
-			if (file && file->getChild(0)->value)
-				fprintf(stderr,"%s %lf %lf %lf\n",
-				  file->getChild(0)->value->c_str(),x,y,z);
-			fprintf(stderr,"quat %lf %lf %lf %lf\n",
-			  q.x,q.y,q.z,q.w);
-			fprintf(stderr,"mat0 %lf %lf %lf %lf\n",
-			  mt->matrix[0][0],mt->matrix[0][1],
-			  mt->matrix[0][2],mt->matrix[0][3]);
-			fprintf(stderr,"mat1 %lf %lf %lf %lf\n",
-			  mt->matrix[1][0],mt->matrix[1][1],
-			  mt->matrix[1][2],mt->matrix[1][3]);
-			fprintf(stderr,"mat2 %lf %lf %lf %lf\n",
-			  mt->matrix[2][0],mt->matrix[2][1],
-			  mt->matrix[2][2],mt->matrix[2][3]);
-			fprintf(stderr,"mat3 %lf %lf %lf %lf\n",
-			  mt->matrix[3][0],mt->matrix[3][1],
-			  mt->matrix[3][2],mt->matrix[3][3]);
-#endif
 			mt->addChild(model);
-//			if (*(node->value)=="Static" &&
-//			  file && file->getChild(0)->value) {
-//				mt->setName(*file->getChild(0)->value);
-//				mt->setNodeMask(0x10);
-//			}
 			tile->models->addChild(mt);
 		}
 	} catch (const char* msg) {
@@ -196,14 +174,32 @@ void MSTSRoute::loadModels(Tile* tile)
 		  error.what(),path.c_str());
 	}
 	}
-//	makeWater(tile,waterLevelDelta-1,"waterbot.ace",0);
-//	makeWater(tile,waterLevelDelta-.5,"watermid.ace",1);
-//	makeWater(tile,waterLevelDelta,"watertop.ace",2);
+	makeWater(tile,waterLevelDelta-1,"waterbot.ace",0);
+	makeWater(tile,waterLevelDelta-.5,"watermid.ace",1);
+	makeWater(tile,waterLevelDelta,"watertop.ace",2);
 //	fprintf(stderr,"tile models %d\n",tile->models->getNumChildren());
-//	cleanStaticModelMap();
+	cleanStaticModelMap();
 //	fprintf(stderr,"cleanStatic\n");
-//	cleanACECache();
+	cleanACECache();
 //	fprintf(stderr,"cleanACE\n");
+}
+
+void MSTSRoute::cleanStaticModelMap()
+{
+	for (ModelMap::iterator i=staticModelMap.begin();
+	  i!=staticModelMap.end(); i++) {
+		if (i->second == NULL)
+			continue;
+		if (i->second->referenceCount() <= 1) {
+			fprintf(stderr,"unused %s %d\n",
+			  i->first.c_str(),i->second->referenceCount());
+			i->second->unref();
+			i->second= NULL;
+//		} else {
+//			fprintf(stderr,"ref count %s %d\n",
+//			  i->first.c_str(),i->second->referenceCount());
+		}
+	}
 }
 
 //	reads a binary world file
@@ -1598,6 +1594,143 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	stateGroup->stateCommands.swap(commands);
 	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
 	return stateGroup;
+}
+
+//	makes a 3D model for water in a tile
+void MSTSRoute::makeWater(Tile* tile, float dl, const char* texture,
+  int renderBin)
+{
+//	fprintf(stderr,"makeWater %d %f\n",drawWater,tile->swWaterLevel);
+//	for (int i=0; i<256; i++)
+//		fprintf(stderr," %x\n",tile->patches[i].flags);
+	if (!drawWater || tile->swWaterLevel==-1e10)
+		return;
+	int npw= 0;
+	for (int i=0; i<256; i++)
+		if ((tile->patches[i].flags&0xc0) != 0)
+			npw++;
+	if (npw == 0)
+		return;
+//	fprintf(stderr,"makeWater %p %f sw=%f se=%f ne=%f nw=%f\n",
+//	  tile,dl,tile->swWaterLevel,tile->seWaterLevel,
+//	  tile->neWaterLevel,tile->nwWaterLevel);
+	int nv= 4*npw;
+	int ni= 6*npw;
+	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
+	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
+	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(nv));
+	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	auto indices= vsg::ushortArray::create(ni);
+	float x0= 2048*(float)(tile->x-centerTX);
+	float z0= 2048*(float)(tile->z-centerTZ);
+	int vi= 0;
+	int ii= 0;
+	for (int i=0; i<16; i++) {
+		for (int j=0; j<16; j++) {
+			Patch* patch= &tile->patches[i*16+j];
+			if ((patch->flags&0xc0) == 0)
+				continue;
+			float x= x0 + 128*(j-8);
+			float z= z0 + 128*(8-i);
+//			fprintf(stderr,"patch flags %d %d %x %f %f %f %f %f\n",
+//			  i,j,patch->flags,x-x0,z-z0,
+//			  patch->centerX,patch->centerZ,
+//			  tile->getWaterLevel(i,j));
+			verts->at(vi)= vsg::vec3(x,z,tile->getWaterLevel(i,j)+dl);
+			verts->at(vi+1)= vsg::vec3(x,z-128,tile->getWaterLevel(i+1,j)+dl);
+			verts->at(vi+2)= vsg::vec3(x+128,z-128,tile->getWaterLevel(i+1,j+1)+dl);
+			verts->at(vi+3)= vsg::vec3(x+128,z,tile->getWaterLevel(i,j+1)+dl);
+			texCoords->at(vi)= vsg::vec2(.05,.05);
+			texCoords->at(vi+1)= vsg::vec2(.05,.95);
+			texCoords->at(vi+2)= vsg::vec2(.95,.95);
+			texCoords->at(vi+3)= vsg::vec2(.95,.05);
+			normals->at(vi)= vsg::vec3(0,0,1);
+			normals->at(vi+1)= vsg::vec3(0,0,1);
+			normals->at(vi+2)= vsg::vec3(0,0,1);
+			normals->at(vi+3)= vsg::vec3(0,0,1);
+			colors->at(vi)= vsg::vec4(1,1,1,1);
+			colors->at(vi+1)= vsg::vec4(1,1,1,1);
+			colors->at(vi+2)= vsg::vec4(1,1,1,1);
+			colors->at(vi+3)= vsg::vec4(1,1,1,1);
+			indices->set(ii++,vi);
+			indices->set(ii++,vi+1);
+			indices->set(ii++,vi+2);
+			indices->set(ii++,vi);
+			indices->set(ii++,vi+2);
+			indices->set(ii++,vi+3);
+			vi+= 4;
+		}
+	}
+	string envDir= fixFilenameCase(routeDir+dirSep+"ENVFILES");
+	string envTexDir= fixFilenameCase(envDir+dirSep+"TEXTURES");
+	string path= fixFilenameCase(envTexDir+dirSep+texture);
+	vsg::ref_ptr<vsg::Data> image= readCacheACEFile(path.c_str());
+	if (!image)
+		return;
+	auto attributeArrays= vsg::DataList{verts,normals,texCoords,colors};
+	auto vid= vsg::VertexIndexDraw::create();
+	vid->assignArrays(attributeArrays);
+	vid->assignIndices(indices);
+	vid->indexCount= indices->size();
+	vid->instanceCount= 1;
+	vid->firstIndex= 0;
+	vid->vertexOffset= 0;
+	vid->firstInstance= 0;
+	auto stateGroup= vsg::StateGroup::create();
+	stateGroup->addChild(vid);
+	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
+	auto matValue= vsg::PhongMaterialValue::create();
+	matValue->value().ambient= vsg::vec4(1,1,1,1);
+	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().specular= vsg::vec4(0,0,0,1);
+	matValue->value().shininess= 0;
+	auto sampler= vsg::Sampler::create();
+	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vsgOptions->sharedObjects->share(sampler);
+	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
+	gpConfig->assignTexture("diffuseMap",image,sampler);
+	gpConfig->assignDescriptor("material",matValue);
+	if (renderBin > 0) {
+		vsg::ColorBlendState::ColorBlendAttachments cbas;
+		VkPipelineColorBlendAttachmentState cba= {};
+		cba.colorWriteMask= VK_COLOR_COMPONENT_R_BIT |
+		  VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+		  VK_COLOR_COMPONENT_A_BIT;
+		cbas.push_back(cba);
+		auto colorBlendState= vsg::ColorBlendState::create(cbas);
+		colorBlendState->configureAttachments(true);
+		gpConfig->pipelineStates.push_back(colorBlendState);
+	}
+	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	if (vsgOptions->sharedObjects)
+		vsgOptions->sharedObjects->share(gpConfig,
+		  [](auto gpc) { gpc->init(); });
+	else
+		gpConfig->init();
+	vsg::StateCommands commands;
+	gpConfig->copyTo(commands,vsgOptions->sharedObjects);
+	stateGroup->stateCommands.swap(commands);
+	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
+	auto depthSorted= vsg::DepthSorted::create();
+	depthSorted->binNumber= renderBin;
+	depthSorted->bound.set(x0,z0,tile->swWaterLevel,1024);
+	depthSorted->child= stateGroup;
+	tile->models->addChild(depthSorted);
+}
+
+float MSTSRoute::Tile::getWaterLevel(int i, int j)
+{
+	float x= 1-.0625*j;
+	float z= .0625*i;
+//	fprintf(stderr,"wl %d %d %f %f %f\n",i,j,x,z,
+//	  x*(1-z)*nwWaterLevel + x*z*swWaterLevel +
+//	  (1-x)*z*seWaterLevel + (1-x)*(1-z)*neWaterLevel);
+	return x*(1-z)*nwWaterLevel + x*z*swWaterLevel +
+	  (1-x)*z*seWaterLevel + (1-x)*(1-z)*neWaterLevel;
 }
 
 MstsWorldReader::MstsWorldReader()

@@ -28,7 +28,7 @@ THE SOFTWARE.
 
 vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path);
 vsg::ref_ptr<vsg::Data> readCacheACEFile(const char* path, bool tryPNG=false);
-//void cleanACECache();
+void cleanACECache();
 class MstsAceReaderWriter : public vsg::Inherit<vsg::CompositeReaderWriter,
   MstsAceReaderWriter>
 {
