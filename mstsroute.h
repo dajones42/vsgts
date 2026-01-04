@@ -180,9 +180,9 @@ struct MSTSRoute {
 	vsg::ref_ptr<vsg::Node> makeDynTrack(TrackSections& trackSections,bool bridge);
 	vsg::Node* makeTransfer(MSTSFileNode* transfer, std::string* filename,
 	  Tile* tile, MSTSFileNode* pos, MSTSFileNode* qdir);
-	vsg::Node* makeTransfer(std::string* filename, Tile* tile,
+	vsg::ref_ptr<vsg::Node> makeTransfer(std::string* filename, Tile* tile,
 	  vsg::vec3 center, vsg::quat quat, float w, float h);
-	vsg::Node* makeForest(MSTSFileNode* transfer,
+	vsg::ref_ptr<vsg::Node> makeForest(MSTSFileNode* transfer,
 	  Tile* tile, MSTSFileNode* pos, MSTSFileNode* qdir);
 	void makeTerrainModel(Tile* tile);
 	void makeWater(Tile* tile, float dl, const char* texture,

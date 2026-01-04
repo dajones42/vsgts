@@ -91,7 +91,7 @@ int main(int argc, char** argv)
 	auto physicalDevice = instance->getPhysicalDevice(windowTraits->queueFlags, surface,
 	  {VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU, VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU});
 	auto properties = physicalDevice->getProperties();
-	std::cout << "selected " << properties.deviceName << std::endl;
+//	std::cout << "selected " << properties.deviceName << std::endl;
 	window->setPhysicalDevice(physicalDevice);
 	viewer->addWindow(window);
 

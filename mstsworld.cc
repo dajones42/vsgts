@@ -119,7 +119,7 @@ void MSTSRoute::loadModels(Tile* tile)
 //				model= makeTransfer(next,
 //				  file->getChild(0)->value,tile,pos,qdir);
 			} else if (*(node->value)=="Forest") {
-//				model= makeForest(next,tile,pos,qdir);
+				model= makeForest(next,tile,pos,qdir);
 			} else if (*(node->value)=="Hazard" && file!=NULL) {
 				model=
 				  loadHazardModel(file->getChild(0)->value);
@@ -1275,6 +1275,203 @@ bool MSTSRoute::makeUSTDynTrackShapes()
 	  TrackShape::Surface(1,2,.375,.1043,5,4));
 	dynTrackTies->matchOffsets();
 	return true;
+}
+
+struct Random {
+	int value;
+	Random(int seed=12345) { value= seed; };
+	double next() {
+		value= (value*2661+36979) % 175000;
+		return value/(double)(175000-1);
+	};
+};
+
+int addCrossTree(int vIndex, float w, float h, float scale,
+  float x, float y, float z, vsg::ref_ptr<vsg::vec3Array>& verts,
+  vsg::ref_ptr<vsg::vec3Array>& normals, vsg::ref_ptr<vsg::vec2Array>& texCoords,
+  vsg::ref_ptr<vsg::vec4Array>& colors, vsg::ref_ptr<vsg::ushortArray>& indices)
+{
+	verts->at(vIndex)= vsg::vec3(-w/2*scale+x,y,z);
+	verts->at(vIndex+1)= vsg::vec3(w/2*scale+x,y,z);
+	verts->at(vIndex+2)= vsg::vec3(w/2*scale+x,h*scale+y,z);
+	verts->at(vIndex+3)= vsg::vec3(-w/2*scale+x,h*scale+y,z);
+	normals->at(vIndex)= vsg::vec3(0,0,1);
+	normals->at(vIndex+1)= vsg::vec3(0,0,1);
+	normals->at(vIndex+2)= vsg::vec3(0,0,1);
+	normals->at(vIndex+3)= vsg::vec3(0,0,1);
+	texCoords->at(vIndex)= vsg::vec2(0,1);
+	texCoords->at(vIndex+1)= vsg::vec2(1,1);
+	texCoords->at(vIndex+2)= vsg::vec2(1,0);
+	texCoords->at(vIndex+3)= vsg::vec2(0,0);
+	colors->at(vIndex)= vsg::vec4(1,1,1,1);
+	colors->at(vIndex+1)= vsg::vec4(1,1,1,1);
+	colors->at(vIndex+2)= vsg::vec4(1,1,1,1);
+	colors->at(vIndex+3)= vsg::vec4(1,1,1,1);
+	int ii= 3*vIndex;
+	indices->set(ii++,0+vIndex);
+	indices->set(ii++,1+vIndex);
+	indices->set(ii++,2+vIndex);
+	indices->set(ii++,0+vIndex);
+	indices->set(ii++,2+vIndex);
+	indices->set(ii++,3+vIndex);
+	indices->set(ii++,0+vIndex);
+	indices->set(ii++,2+vIndex);
+	indices->set(ii++,1+vIndex);
+	indices->set(ii++,0+vIndex);
+	indices->set(ii++,3+vIndex);
+	indices->set(ii++,2+vIndex);
+	vIndex+= 4;
+	verts->at(vIndex)= vsg::vec3(x,y,-w/2*scale+z);
+	verts->at(vIndex+1)= vsg::vec3(x,y,w/2*scale+z);
+	verts->at(vIndex+2)= vsg::vec3(x,h*scale+y,w/2*scale+z);
+	verts->at(vIndex+3)= vsg::vec3(x,h*scale+y,-w/2*scale+z);
+	normals->at(vIndex)= vsg::vec3(1,0,0);
+	normals->at(vIndex+1)= vsg::vec3(1,0,0);
+	normals->at(vIndex+2)= vsg::vec3(1,0,0);
+	normals->at(vIndex+3)= vsg::vec3(1,0,0);
+	texCoords->at(vIndex)= vsg::vec2(0,1);
+	texCoords->at(vIndex+1)= vsg::vec2(1,1);
+	texCoords->at(vIndex+2)= vsg::vec2(1,0);
+	texCoords->at(vIndex+3)= vsg::vec2(0,0);
+	colors->at(vIndex)= vsg::vec4(1,1,1,1);
+	colors->at(vIndex+1)= vsg::vec4(1,1,1,1);
+	colors->at(vIndex+2)= vsg::vec4(1,1,1,1);
+	colors->at(vIndex+3)= vsg::vec4(1,1,1,1);
+	indices->set(ii++,0+vIndex);
+	indices->set(ii++,1+vIndex);
+	indices->set(ii++,2+vIndex);
+	indices->set(ii++,0+vIndex);
+	indices->set(ii++,2+vIndex);
+	indices->set(ii++,3+vIndex);
+	indices->set(ii++,0+vIndex);
+	indices->set(ii++,2+vIndex);
+	indices->set(ii++,1+vIndex);
+	indices->set(ii++,0+vIndex);
+	indices->set(ii++,3+vIndex);
+	indices->set(ii++,2+vIndex);
+	vIndex+= 4;
+	return vIndex;
+}
+
+vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
+  Tile* tile, MSTSFileNode* pos, MSTSFileNode* qdir)
+{
+	MSTSFileNode* treeTexture= forest->children->find("TreeTexture");
+	MSTSFileNode* scaleRange= forest->children->find("ScaleRange");
+	MSTSFileNode* area= forest->children->find("Area");
+	MSTSFileNode* size= forest->children->find("TreeSize");
+	MSTSFileNode* population= forest->children->find("Population");
+	if (forest==NULL || pos==NULL || qdir==NULL || treeTexture==NULL ||
+	  scaleRange==NULL || area==NULL || size==NULL || population==NULL) {
+//		fprintf(stderr,"forest %p %p %p %p %p %p %p %p\n",forest,
+//		  pos,qdir,treeTexture,scaleRange,area,size,population);
+		return {};
+	}
+	float x0= 2048*(tile->x-centerTX);
+	float z0= 2048*(tile->z-centerTZ);
+	vsg::quat q(-atof(qdir->getChild(0)->value->c_str()),
+	  -atof(qdir->getChild(1)->value->c_str()),
+	  -atof(qdir->getChild(2)->value->c_str()),
+	  atof(qdir->getChild(3)->value->c_str()));
+	vsg::mat4 rot= vsg::rotate(q);
+	vsg::vec3 center= vsg::vec3(atof(pos->getChild(0)->value->c_str()),
+	  atof(pos->getChild(1)->value->c_str()),
+	  atof(pos->getChild(2)->value->c_str()));
+	Tile* t12= findTile(tile->x,tile->z-1);
+	Tile* t21= findTile(tile->x+1,tile->z);
+	Tile* t22= findTile(tile->x+1,tile->z-1);
+	float a0= center[1];//getAltitude(center[0],center[2],tile,t12,t21,t22);
+	float scale= atof(scaleRange->getChild(0)->value->c_str());
+	float range= atof(scaleRange->getChild(1)->value->c_str());
+	float areaW= atof(area->getChild(0)->value->c_str());
+	float areaH= atof(area->getChild(1)->value->c_str());
+	float w= atof(size->getChild(0)->value->c_str());
+	float h= atof(size->getChild(1)->value->c_str());
+	int pop= atoi(population->getChild(0)->value->c_str());
+//	fprintf(stderr,"forest %s %.2f %.2f %.2f %.2f %.2f %.2f %d\n",
+//	  treeTexture->getChild(0)->value->c_str(),
+//	  scale,range,areaW,areaH,w,h,pop);
+	string path= rTexturesDir+dirSep+treeTexture->getChild(0)->value->c_str();
+	vsg::ref_ptr<vsg::Data> image= readMSTSACE(path.c_str());
+	if (!image)
+		{};
+	if (pop > 65536/8)
+		pop= 65536/8;
+	int numVert= 8*pop;
+	int numInd= 3*numVert;
+	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(numVert));
+	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(numVert));
+	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(numVert));
+	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(numVert));
+	auto indices= vsg::ushortArray::create(3*numVert);
+	int vIndex= 0;
+	Random random;
+	int nh= (int)ceil(sqrt(pop*areaH/areaW));
+	int nv= (int)ceil(pop/(double)nh);
+	for (int i=0; i<nh; i++) {
+		if (i==nh-1 && nv>pop)
+			nv= pop;
+//		fprintf(stderr,"forest %d %d %d %d\n",i,nh,nv,pop);
+		for (int j=0; j<nv; j++) {
+			float s= (i+.5+.9*(random.next()-.5))/(float)nh;
+			float t= (j+.5+.9*(random.next()-.5))/(float)nv;
+			float size= scale + (range-scale)*random.next();
+			float x= (s-.5)*(areaW>size?areaW-size:0);
+			float z= (t-.5)*(areaH>size?areaH-size:0);
+			vsg::vec3 p= rot*vsg::vec3(x,0,z) + center;
+			float a= getAltitude(p.x,p.z,tile,t12,t21,t22);
+			vIndex= addCrossTree(vIndex,w,h,size,x,a-a0,z,
+			  verts,normals,texCoords,colors,indices);
+			if (vIndex >= numVert)
+				break;
+//			fprintf(stderr,"forest %d %d %f %f %d\n",i,j,s,t,pop);
+			if (pop-- == 0)
+				break;
+		}
+		if (vIndex >= numVert)
+			break;
+	}
+	auto attributeArrays= vsg::DataList{verts,normals,texCoords,colors};
+	auto vid= vsg::VertexIndexDraw::create();
+	vid->assignArrays(attributeArrays);
+	vid->assignIndices(indices);
+	vid->indexCount= indices->size();
+	vid->instanceCount= 1;
+	vid->firstIndex= 0;
+	vid->vertexOffset= 0;
+	vid->firstInstance= 0;
+	auto stateGroup= vsg::StateGroup::create();
+	stateGroup->addChild(vid);
+	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);;
+	auto matValue= vsg::PhongMaterialValue::create();
+	matValue->value().ambient= vsg::vec4(0,0,0,0);
+	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().specular= vsg::vec4(0,0,0,1);
+	matValue->value().shininess= 0;
+	auto sampler= vsg::Sampler::create();
+	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vsgOptions->sharedObjects->share(sampler);
+	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
+	matValue->value().alphaMask= 1;
+	matValue->value().alphaMaskCutoff= .6;
+	gpConfig->shaderHints->defines.insert("VSG_ALPHA_TEST");
+	gpConfig->assignTexture("diffuseMap",image,sampler);
+	gpConfig->assignDescriptor("material",matValue);
+	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	if (vsgOptions->sharedObjects)
+		vsgOptions->sharedObjects->share(gpConfig,
+		  [](auto gpc) { gpc->init(); });
+	else
+		gpConfig->init();
+	vsg::StateCommands commands;
+	gpConfig->copyTo(commands,vsgOptions->sharedObjects);
+	stateGroup->stateCommands.swap(commands);
+	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
+	return stateGroup;
 }
 
 MstsWorldReader::MstsWorldReader()
