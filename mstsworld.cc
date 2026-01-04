@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 #include <vsg/all.h>
+#include <iostream>
 #include <string>
 #include <vector>
 using namespace std;
@@ -116,8 +117,8 @@ void MSTSRoute::loadModels(Tile* tile)
 			} else if (*(node->value)=="Dyntrack") {
 				model= makeDynTrack(next);
 			} else if (*(node->value)=="Transfer") {
-//				model= makeTransfer(next,
-//				  file->getChild(0)->value,tile,pos,qdir);
+				model= makeTransfer(next,
+				  file->getChild(0)->value,tile,pos,qdir);
 			} else if (*(node->value)=="Forest") {
 				model= makeForest(next,tile,pos,qdir);
 			} else if (*(node->value)=="Hazard" && file!=NULL) {
@@ -1445,6 +1446,131 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);;
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().ambient= vsg::vec4(0,0,0,0);
+	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().specular= vsg::vec4(0,0,0,1);
+	matValue->value().shininess= 0;
+	auto sampler= vsg::Sampler::create();
+	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	vsgOptions->sharedObjects->share(sampler);
+	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
+	matValue->value().alphaMask= 1;
+	matValue->value().alphaMaskCutoff= .6;
+	gpConfig->shaderHints->defines.insert("VSG_ALPHA_TEST");
+	gpConfig->assignTexture("diffuseMap",image,sampler);
+	gpConfig->assignDescriptor("material",matValue);
+	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	if (vsgOptions->sharedObjects)
+		vsgOptions->sharedObjects->share(gpConfig,
+		  [](auto gpc) { gpc->init(); });
+	else
+		gpConfig->init();
+	vsg::StateCommands commands;
+	gpConfig->copyTo(commands,vsgOptions->sharedObjects);
+	stateGroup->stateCommands.swap(commands);
+	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
+	return stateGroup;
+}
+
+vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(MSTSFileNode* transfer, string* filename,
+  Tile* tile, MSTSFileNode* pos, MSTSFileNode* qdir)
+{
+	vsg::quat q(-atof(qdir->getChild(0)->value->c_str()),
+	  -atof(qdir->getChild(1)->value->c_str()),
+	  -atof(qdir->getChild(2)->value->c_str()),
+	  atof(qdir->getChild(3)->value->c_str()));
+	vsg::vec3 center= vsg::vec3(atof(pos->getChild(0)->value->c_str()),
+	  atof(pos->getChild(1)->value->c_str()),
+	  atof(pos->getChild(2)->value->c_str()));
+	MSTSFileNode* wid= transfer->children->find("Width");
+	MSTSFileNode* hgt= transfer->children->find("Height");
+	float w= atof(wid->getChild(0)->value->c_str());
+	float h= atof(hgt->getChild(0)->value->c_str());
+	return makeTransfer(filename,tile,center,q,w,h);
+}
+
+vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
+  vsg::vec3 center, vsg::quat quat, float w, float h)
+{
+	float x0= 2048*(tile->x-centerTX);
+	float z0= 2048*(tile->z-centerTZ);
+	Tile* t12= findTile(tile->x,tile->z-1);
+	Tile* t21= findTile(tile->x+1,tile->z);
+	Tile* t22= findTile(tile->x+1,tile->z-1);
+	float radius= std::sqrt(w*w + h*h)/2;
+	int minX= (int)std::floor((center.x-radius)/8);
+	int maxX= (int)std::ceil((center.x+radius)/8);
+	int minZ= (int)std::floor((center.z-radius)/8);
+	int maxZ= (int)std::ceil((center.z+radius)/8);
+	vsg::mat4 rot= vsg::rotate(quat);
+	vsg::mat3 invrot= vsg::inverse_3x3(rot);
+	int nx= maxX-minX+1;
+	int nz= maxZ-minZ+1;
+	int nv= nx*nz;
+	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
+	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
+	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(nv));
+	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	auto indices= vsg::ushortArray::create(6*(nx-1)*(nz-1));
+	int vi= 0;
+	int ii= 0;
+	for (int i=0; i<nx; i++) {
+		for (int j=0; j<nz; j++) {
+			float x= (i+minX)*8;
+			float z= (j+minZ)*8;
+			vsg::vec3 p= invrot*(vsg::vec3(x,0,z)-center);
+			float y= getAltitude(x,z,tile,t12,t21,t22);
+			verts->at(vi)= vsg::vec3(p.x,y-center.y+.01,p.z);
+			float u= p.x/w + .5;
+			float v= -p.z/h + .5;
+			texCoords->at(vi)= vsg::vec2(u,v);
+			normals->at(vi)= getNormal(x,z,tile,t12,t21,t22);
+			colors->at(vi)= vsg::vec4(1,1,1,1);
+			if (i<nx-1 && j<nz-1) {
+				float a11= getAltitude(x+8,z+8,tile,t12,t21,t22);
+				float a01= getAltitude(x,z+8,tile,t12,t21,t22);
+				float a10= getAltitude(x+8,z,tile,t12,t21,t22);
+				if (fabs(a11-y) < fabs(a10-a01)) {
+					indices->set(ii++,vi);
+					indices->set(ii++,vi+nz);
+					indices->set(ii++,vi+nz+1);
+					indices->set(ii++,vi+nz+1);
+					indices->set(ii++,vi+1);
+					indices->set(ii++,vi);
+				} else {
+					indices->set(ii++,vi);
+					indices->set(ii++,vi+nz);
+					indices->set(ii++,vi+1);
+					indices->set(ii++,vi+1);
+					indices->set(ii++,vi+nz);
+					indices->set(ii++,vi+nz+1);
+				}
+			}
+			vi++;
+		}
+	}
+	string path= rTexturesDir+dirSep+(*filename);
+	vsg::ref_ptr<vsg::Data> image= readCacheACEFile(path.c_str());
+	if (!image)
+		return {};
+	auto attributeArrays= vsg::DataList{verts,normals,texCoords,colors};
+	auto vid= vsg::VertexIndexDraw::create();
+	vid->assignArrays(attributeArrays);
+	vid->assignIndices(indices);
+	vid->indexCount= indices->size();
+	vid->instanceCount= 1;
+	vid->firstIndex= 0;
+	vid->vertexOffset= 0;
+	vid->firstInstance= 0;
+	auto stateGroup= vsg::StateGroup::create();
+	stateGroup->addChild(vid);
+	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);;
+//	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
+	auto matValue= vsg::PhongMaterialValue::create();
+	matValue->value().ambient= vsg::vec4(1,1,1,1);
 	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
 	matValue->value().specular= vsg::vec4(0,0,0,1);
 	matValue->value().shininess= 0;

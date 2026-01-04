@@ -1182,182 +1182,6 @@ void addClipTriangle(int j1, int j2, int j3, osg::Vec3Array* verts,
 #endif
 
 #if 0
-osg::Node* MSTSRoute::makeTransfer(MSTSFileNode* transfer, string* filename,
-  Tile* tile, MSTSFileNode* pos, MSTSFileNode* qdir)
-{
-	osg::Quat quat(
-	  atof(qdir->getChild(0)->value->c_str()),
-	  atof(qdir->getChild(1)->value->c_str()),
-	  atof(qdir->getChild(2)->value->c_str()),
-	  atof(qdir->getChild(3)->value->c_str()));
-	osg::Vec3 center= osg::Vec3(atof(pos->getChild(0)->value->c_str()),
-	  atof(pos->getChild(1)->value->c_str()),
-	  atof(pos->getChild(2)->value->c_str()));
-	MSTSFileNode* wid= transfer->children->find("Width");
-	MSTSFileNode* hgt= transfer->children->find("Height");
-	float w= atof(wid->getChild(0)->value->c_str());
-	float h= atof(hgt->getChild(0)->value->c_str());
-	return makeTransfer(filename,tile,center,quat,w,h);
-}
-#endif
-
-#if 0
-osg::Node* MSTSRoute::makeTransfer(string* filename, Tile* tile,
-  osg::Vec3 center, osg::Quat quat, float w, float h)
-{
-	float x0= 2048*(tile->x-centerTX);
-	float z0= 2048*(tile->z-centerTZ);
-	double a,x,y,z;
-	quat.getRotate(a,x,y,z);
-	osg::Quat q;
-	q.makeRotate(a,x,y,z);
-	osg::Matrix rot(q);
-	q.makeRotate(-a,x,y,z);
-	osg::Matrix rot1(q);
-//	if (w<8 || h<8)
-//		fprintf(stderr,"small transfer %s %f %f\n",
-//		  filename->c_str(),w,h);
-//	fprintf(stderr,"transfer %s %f %f\n",filename->c_str(),w,h);
-//	fprintf(stderr,"transfer rot %lf %lf %lf %lf\n",180*a/3.14159,x,y,z);
-//	fprintf(stderr,"transfer pos %lf %lf %lf\n",
-//	  center[0],center[1],center[2]);
-	osg::Texture2D* t= new osg::Texture2D;
-	t->setDataVariance(osg::Object::DYNAMIC);
-	string path= rTexturesDir+dirSep+(*filename);
-	osg::Image* image= readMSTSACE(path.c_str());
-	if (image != NULL)
-		t->setImage(image);
-	t->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::CLAMP_TO_EDGE);
-	t->setWrap(osg::Texture2D::WRAP_T,osg::Texture2D::CLAMP_TO_EDGE);
-	t->setBorderColor(osg::Vec4(.3,.3,.3,0));
-	osg::Material* mat= new osg::Material;
-//	mat->setAmbient(osg::Material::FRONT_AND_BACK,osg::Vec4(.6,.6,.6,1));
-//	mat->setDiffuse(osg::Material::FRONT_AND_BACK,osg::Vec4(.4,.4,.4,1));
-	mat->setAmbient(osg::Material::FRONT_AND_BACK,osg::Vec4(1,1,1,1));
-	mat->setDiffuse(osg::Material::FRONT_AND_BACK,osg::Vec4(0,0,0,1));
-	osg::Geode* geode= new osg::Geode;
-	for (int i=0; i<tile->terrModel->getNumDrawables(); i++) {
-		osg::Geometry* patchGeom=
-		  dynamic_cast<osg::Geometry*>(tile->terrModel->getDrawable(i));
-		if (!patchGeom)
-			continue;
-		osg::Vec3Array* pVerts=
-		  (osg::Vec3Array*) patchGeom->getVertexArray();
-		float* v= (float*) pVerts->getDataPointer();
-		float minx= 1e10;
-		float maxx= -1e10;
-		float minz= 1e10;
-		float maxz= -1e10;
-		for (int j=0; j<pVerts->getNumElements(); j++) {
-			int j3= j*3;
-			osg::Vec3 p=
-			  rot1*(osg::Vec3(v[j3]-x0,v[j3+2],v[j3+1]-z0)-center);
-			if (minx > p[0])
-				minx= p[0];
-			if (maxx < p[0])
-				maxx= p[0];
-			if (minz > p[2])
-				minz= p[2];
-			if (maxz < p[2])
-				maxz= p[2];
-		}
-		if (maxx<-w/2 || minx>w/2 || maxz<-h/2 || minz>h/2)
-			continue;
-//		fprintf(stderr,"transfer patch %d %p\n",i,tile);
-		osg::Vec3Array* pNormals=
-		  (osg::Vec3Array*) patchGeom->getVertexArray();
-		float* n= (float*) pNormals->getDataPointer();
-		osg::Vec3Array* verts= new osg::Vec3Array;
-		osg::Vec3Array* normals= new osg::Vec3Array;
-		for (int j=0; j<pVerts->getNumElements(); j++) {
-			int j3= j*3;
-			osg::Vec3 p= rot1*
-			  (osg::Vec3(v[j3]-x0,v[j3+2],v[j3+1]-z0)-center);
-//			if ((-w/2<=p[0] && p[0]<=w/2) &&
-//			  (-h/2<=p[2] && p[2]<=h/2)) {
-//				p[1]+= .05;
-//			}
-			verts->push_back(p);
-			p= rot1*(osg::Vec3(n[j3],n[j3+2],n[j3+1]));
-			normals->push_back(p);
-		}
-		osg::Vec3 sum(0,0,0);
-		osg::Geometry* geometry= new osg::Geometry;
-		for (int j=0; j<patchGeom->getNumPrimitiveSets(); j++) {
-			osg::DrawElementsUInt* patchDE= (osg::DrawElementsUInt*)
-			  patchGeom->getPrimitiveSet(j)->getDrawElements();
-			osg::DrawElementsUInt* drawElements=
-			  new osg::DrawElementsUInt(GL_TRIANGLES);;
-			for (int k=0; k<patchDE->getNumIndices(); k+=3) {
-				int j1= patchDE->getElement(k);
-				int j2= patchDE->getElement(k+1);
-				int j3= patchDE->getElement(k+2);
-				addClipTriangle(j1,j2,j3,verts,drawElements,
-				  0,w,h,normals);
-			}
-//			fprintf(stderr,"transfer triangles %d\n",
-//			  drawElements->getNumIndices());
-			if (drawElements->getNumIndices() == 0) {
-				drawElements->unref();
-				continue;
-			}
-			geometry->addPrimitiveSet(drawElements);
-			v= (float*) verts->getDataPointer();
-			for (int k=0; k<drawElements->getNumIndices(); k+=3) {
-				int j1= drawElements->getElement(k);
-				int j2= drawElements->getElement(k+1);
-				int j3= drawElements->getElement(k+2);
-				osg::Vec3 p1(v[j1*3],v[j1*3+1],v[j1*3+2]);
-				osg::Vec3 p2(v[j2*3],v[j2*3+1],v[j2*3+2]);
-				osg::Vec3 p3(v[j3*3],v[j3*3+1],v[j3*3+2]);
-				osg::Vec3 cross= (p2-p1)^(p3-p1);
-				cross.normalize();
-				sum+= cross;
-			}
-		}
-		geometry->setVertexArray(verts);
-		geometry->setColorArray(patchGeom->getColorArray());
-		geometry->setColorBinding(osg::Geometry::BIND_OVERALL);
-		geometry->setNormalArray(normals);
-		geometry->setNormalBinding(osg::Geometry::BIND_PER_VERTEX);
-		sum.normalize();
-//		fprintf(stderr,"transfer normal %f %f %f\n",
-//		  sum[0],sum[1],sum[2]);
-		osg::Vec2Array* texCoords= new osg::Vec2Array;
-		float* xyz= (float*) verts->getDataPointer();
-		for (int j=0; j<verts->getNumElements(); j++) {
-			int j3= j*3;
-			float u= xyz[j3]/w + .5;
-			float v= -xyz[j3+2]/h + .5;
-			texCoords->push_back(osg::Vec2(u,v));
-//			for (int k=0; k<3; k++)
-//				xyz[j3+k]-= .03*sum[k];
-		}
-		geometry->setTexCoordArray(0,texCoords);
-		osg::StateSet* stateSet= geometry->getOrCreateStateSet();
-		stateSet->setTextureAttributeAndModes(0,t,
-		  osg::StateAttribute::ON);
-	//	stateSet->setAttribute(mat,osg::StateAttribute::ON);
-		stateSet->setAttributeAndModes(mat,osg::StateAttribute::ON);
-//		stateSet->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-//		stateSet->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
-		stateSet->setRenderBinDetails(3,"DepthSortedBin");
-		osg::Depth* depth= new osg::Depth(osg::Depth::LEQUAL,0,1,false);
-		stateSet->setAttribute(depth,osg::StateAttribute::ON);
-		osg::PolygonOffset* offset= new osg::PolygonOffset(-10,-10);
-		stateSet->setAttributeAndModes(offset,osg::StateAttribute::ON);
-		osg::BlendFunc* bf= new osg::BlendFunc();
-		bf->setFunction(osg::BlendFunc::SRC_ALPHA,
-		  osg::BlendFunc::ONE_MINUS_SRC_ALPHA);
-		stateSet->setAttributeAndModes(bf,osg::StateAttribute::ON);
-		stateSet->setMode(GL_LIGHTING,osg::StateAttribute::ON);
-		geode->addDrawable(geometry);
-	}
-	return geode;
-}
-#endif
-
-#if 0
 //	Changes the navigable water to match the route
 //	can also adjust the route's terrain to match the water depth
 void MSTSRoute::adjustWater(int setTerrain)
@@ -1632,6 +1456,30 @@ vsg::vec3 MSTSRoute::getNormal(int i, int j,
 //	fprintf(stderr,"normal %f %f %f %f %f %f\n",
 //	  a00,a10,a01,n.x(),n.y(),n.z());
 	return n;
+}
+
+vsg::vec3 MSTSRoute::getNormal(float x, float z,
+  Tile* tile, Tile* t12, Tile* t21, Tile* t22)
+{
+	int j= (int)floor(x/8) + 128;
+	int i= 128 - (int)floor(z/8);
+	if (j < 0) {
+		j+= 256;
+		x+= 2048;
+		t21= tile;
+		t22= t12;
+		tile= findTile(t21->x-1,t21->z);
+		t12= findTile(t21->x-1,t21->z-1);
+	}
+	if (i < 0) {
+		i+= 256;
+		z-= 2048;
+		t12= tile;
+		t22= t21;
+		tile= findTile(t12->x,t12->z+1);
+		t21= findTile(t12->x+1,t12->z+1);
+	}
+	return getNormal(i,j,tile,t12,t21,t22);
 }
 
 //	returns true if terrain vertex is hidden

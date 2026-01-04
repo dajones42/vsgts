@@ -178,7 +178,7 @@ struct MSTSRoute {
 	void cleanStaticModelMap();
 	vsg::ref_ptr<vsg::Node> makeDynTrack(MSTSFileNode* dynTrack);
 	vsg::ref_ptr<vsg::Node> makeDynTrack(TrackSections& trackSections,bool bridge);
-	vsg::Node* makeTransfer(MSTSFileNode* transfer, std::string* filename,
+	vsg::ref_ptr<vsg::Node> makeTransfer(MSTSFileNode* transfer, std::string* filename,
 	  Tile* tile, MSTSFileNode* pos, MSTSFileNode* qdir);
 	vsg::ref_ptr<vsg::Node> makeTransfer(std::string* filename, Tile* tile,
 	  vsg::vec3 center, vsg::quat quat, float w, float h);
@@ -206,6 +206,8 @@ struct MSTSRoute {
 	int getNormalIndex(int i, int j, Tile* tile,
 	  Tile* t12, Tile* t21, Tile* t22);
 	vsg::vec3 getNormal(int i, int j, Tile* tile,
+	  Tile* t12, Tile* t21, Tile* t22);
+	vsg::vec3 getNormal(float x, float z, Tile* tile,
 	  Tile* t12, Tile* t21, Tile* t22);
 	bool getVertexHidden(int i, int j, Tile* tile,
 	  Tile* t12, Tile* t21, Tile* t22);
