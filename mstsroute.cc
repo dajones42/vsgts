@@ -1199,6 +1199,7 @@ void MSTSRoute::loadActivity(osg::Group* root, int activityFlags)
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	activity.readFile(path.c_str());
 	simTime= activity.startTime;
+#if 0
 	if (timeTable) {
 		tt::Station* start= timeTable->findStation("start");
 		if (start == NULL)
@@ -1214,9 +1215,11 @@ void MSTSRoute::loadActivity(osg::Group* root, int activityFlags)
 			train->path= path;
 		}
 	}
+#endif
 	if ((activityFlags&01) != 0) {
 		Track::Path* playerPath=
 		  loadService(activity.playerService,root,true,0);
+#if 0
 		if (playerPath && timeTable) {
 			for (int i=0; i<timeTable->getNumTrains(); i++) {
 				tt::Train* train= timeTable->getTrain(i);
@@ -1225,6 +1228,7 @@ void MSTSRoute::loadActivity(osg::Group* root, int activityFlags)
 					  playerPath);
 			}
 		}
+#endif
 	}
 	for (LooseConsist* c=activity.consists; c!=NULL; c=c->next) {
 //		fprintf(stderr,"consist %d %d %d %d %f %f\n",

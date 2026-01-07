@@ -105,5 +105,6 @@ class MSTSFile {
 };
 
 std::string fixFilenameCase(const char* path);
+std::string fixFilenameCase(std::string);
 
 #endif

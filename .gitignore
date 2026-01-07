@@ -70,3 +70,5 @@ DerivedData/
 build/
 local.properties
 
+imgui.ini
+junk

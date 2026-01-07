@@ -18,6 +18,7 @@ if (VULKAN_SDK)
 endif()
 find_package(vsg 1.0.0 REQUIRED)
 find_package(vsgXchange 1.0.0 REQUIRED)
+find_package(vsgImGui 0.7.0 REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -26,7 +27,6 @@ add_custom_target(clobber
 )
 
 set(SOURCES
-    tsviewer.cc
     mstsfile.cc
     mstsbfile.cc
     mstsace.cc
@@ -41,11 +41,16 @@ set(SOURCES
     camerac.cc
 )
 
-add_executable(tsviewer ${SOURCES})
+add_executable(tsviewer tsviewer.cc ${SOURCES})
 target_link_libraries(tsviewer vsg::vsg z plibul)
 target_compile_definitions(tsviewer PRIVATE vsgXchange_FOUND)
 target_link_libraries(tsviewer vsgXchange::vsgXchange)
 
-install(TARGETS tsviewer
+add_executable(vsgts vsgts.cc tsgui.cc ${SOURCES})
+target_link_libraries(vsgts vsgImGui::vsgImGui vsg::vsg z plibul)
+target_compile_definitions(vsgts PRIVATE vsgXchange_FOUND)
+target_link_libraries(vsgts vsgXchange::vsgXchange)
+
+install(TARGETS tsviewer vsgts
         RUNTIME DESTINATION bin
 )

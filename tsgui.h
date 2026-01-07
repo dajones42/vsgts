@@ -1,6 +1,7 @@
-The MIT License
-
-Copyright © 2025,2026 Doug Jones
+//	GUI for vsgts
+//
+/*
+Copyright © 2026 Doug Jones
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +20,34 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+*/
+#ifndef TSGUI_H
+#define TSGUI_H
+
+#include <vsg/all.h>
+
+class TSGui : public vsg::Inherit<vsg::Command, TSGui>
+{
+public:
+	TSGui() {
+	}
+	void record(vsg::CommandBuffer& cb) const override;
+};
+
+class TSGuiData {
+public:
+	static TSGuiData& instance() {
+		static TSGuiData data;
+		return data;
+	}
+	bool showGui;
+	std::vector<std::string> listItems;
+	std::string selected;
+	void loadActivityList();
+private:
+	TSGuiData() {
+		showGui= false;
+	}
+};
+
+#endif

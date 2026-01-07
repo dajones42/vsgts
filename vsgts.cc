@@ -1,4 +1,4 @@
-//	train simulator file viewer
+//	main for vsg train simulator
 //
 /*
 Copyright © 2026 Doug Jones
@@ -24,31 +24,36 @@ THE SOFTWARE.
 
 #include <vsg/all.h>
 #include <vsgXchange/all.h>
+#include <vsgImGui/RenderImGui.h>
+#include <vsgImGui/SendEventsToImGui.h>
 #include <iostream>
+
 #include "mstsace.h"
 #include "mstsshape.h"
 #include "mstsroute.h"
+#include "mstsfile.h"
 #include "camerac.h"
+#include "tsgui.h"
 
-vsg::ref_ptr<vsg::Node> createTextureQuad(vsg::ref_ptr<vsg::Data> sourceData,
-  vsg::ref_ptr<vsg::Options> options)
+void initSim(vsg::ref_ptr<vsg::Group>& root)
 {
-	auto builder= vsg::Builder::create();
-	builder->options= options;
-	vsg::StateInfo state;
-	state.image= sourceData;
-	state.lighting= false;
-	vsg::GeometryInfo geom;
-	geom.dy.set(0.0f, 0.0f, 1.0f);
-	geom.dz.set(0.0f, -1.0f, 0.0f);
-	return builder->createQuad(geom, state);
+	if (mstsRoute && mstsRoute->activityName.size()==0)
+		TSGuiData::instance().loadActivityList();
+}
+
+void updateSim(vsg::ref_ptr<vsg::Group>& root)
+{
+	if (mstsRoute && mstsRoute->activityName.size()>0) {
+		cerr<<"activity "<<mstsRoute->activityName<<"\n";
+		mstsRoute->activityName.clear();
+	}
 }
 
 int main(int argc, char** argv)
 {
 	auto options= vsg::Options::create();
 	auto windowTraits= vsg::WindowTraits::create();
-	windowTraits->windowTitle= "tsviewer";
+	windowTraits->windowTitle= "vsgts";
 	vsg::CommandLine arguments(&argc, argv);
 	windowTraits->debugLayer= arguments.read({"--debug","-d"});
 	windowTraits->apiDumpLayer= arguments.read({"--api","-a"});
@@ -73,14 +78,8 @@ int main(int argc, char** argv)
 	for (int i=1; i<argc; ++i) {
 		vsg::Path filename= arguments[i];
 		auto object= vsg::read(filename, options);
-		if (auto node= object.cast<vsg::Node>()) {
+		if (auto node= object.cast<vsg::Node>())
 			scene->addChild(node);
-		} else if (auto data= object.cast<vsg::Data>()) {
-			if (auto textureGeometry=
-			  createTextureQuad(data, options)) {
-				scene->addChild(textureGeometry);
-			}
-		}
 		arguments.remove(i, 1);
 		--i;
 	}
@@ -89,20 +88,21 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	auto aLight= vsg::AmbientLight::create();
-	aLight->color.set(.8,.8,.8);
+	aLight->color.set(.5,.5,.5);
 	aLight->intensity= 1;
 	scene->addChild(aLight);
 	auto dLight1= vsg::DirectionalLight::create();
-	dLight1->color.set(.8,.8,.8);
+	dLight1->color.set(.5,.5,.5);
 	dLight1->intensity= 1;
 	dLight1->direction.set(0,-1,-1);
 	scene->addChild(dLight1);
 	auto dLight2= vsg::DirectionalLight::create();
-	dLight2->color.set(.8,.8,.8);
+	dLight2->color.set(.5,.5,.5);
 	dLight2->intensity= 1;
 	dLight2->direction.set(-1,1,.5);
 	scene->addChild(dLight2);
 //	vsg::write(scene,"test.vsgt");
+	initSim(scene);
 
 	auto viewer= vsg::Viewer::create();
 	vsg::ref_ptr<vsg::Window> window(vsg::Window::create(windowTraits));
@@ -143,14 +143,25 @@ int main(int argc, char** argv)
 	viewer->addEventHandler(vsg::WindowResizeHandler::create());
 	if (mstsRoute)
 		viewer->addEventHandler(CameraController::create(camera,scene));
+#if 0
 	auto tb= vsg::Trackball::create(camera);
 	tb->panButtonMask= vsg::BUTTON_MASK_3;
 	tb->zoomButtonMask= vsg::BUTTON_MASK_2;
 	tb->supportsThrow= false;
 	viewer->addEventHandler(tb);
+#endif
 
-	auto commandGraph=
-	  vsg::createCommandGraphForView(window, camera, scene);
+//	auto commandGraph=
+//	  vsg::createCommandGraphForView(window, camera, scene);
+        auto commandGraph= vsg::CommandGraph::create(window);
+        auto renderGraph= vsg::RenderGraph::create(window);
+        commandGraph->addChild(renderGraph);
+        auto view= vsg::View::create(camera);
+        view->addChild(scene);
+        renderGraph->addChild(view);
+        auto renderImGui= vsgImGui::RenderImGui::create(window, TSGui::create());
+        renderGraph->addChild(renderImGui);
+        viewer->addEventHandler(vsgImGui::SendEventsToImGui::create());
 	viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 	viewer->compile();
 	for (auto& task: viewer->recordAndSubmitTasks) {
@@ -162,6 +173,7 @@ int main(int argc, char** argv)
 
 	while (viewer->advanceToNextFrame()) {
 		viewer->handleEvents();
+		updateSim(scene);
 		viewer->update();
 		viewer->recordAndSubmit();
 		viewer->present();
