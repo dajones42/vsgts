@@ -28,6 +28,8 @@ THE SOFTWARE.
 
 #include <vsg/all.h>
 
+#define NOSEPWHEELS
+
 //	reads an uncompressed shape file
 void MSTSShape::readFile(const char* filename, const char* texDir1,
   const char* texDir2)
@@ -1138,7 +1140,11 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 				continue;
 			if (parent < 0)
 				top= mt;
+#ifdef SEPWHEELS
 			else if (matrices[j].part < 0)// ||
+#else
+			else
+#endif
 			  //mt->getUpdateCallback())
 				matrices[parent].transform->addChild(
 				  vsg::ref_ptr(mt));
@@ -1251,6 +1257,152 @@ void MSTSShape::fixTop()
 			m[2][3]= 0;
 		}
 	}
+}
+
+//	devides the shape file parts into railcar parts
+void MSTSShape::createRailCar(RailCarDef* car)
+{
+	DistLevel& dl= distLevels[0];
+	car->parts.clear();
+	map<int,int> partMap;
+	set<int> wheelParents;
+	for (int j=0; j<matrices.size(); j++) {
+		if (strncasecmp(matrices[j].name.c_str(),"WHEELS",6) == 0) {
+			int id= atoi(matrices[j].name.c_str()+6);
+			if (partMap.find(id) == partMap.end())
+				partMap[id]= j;
+			else
+				fprintf(stderr,"duplicate wheel %s %s\n",
+				  car->name.c_str(),matrices[j].name.c_str());
+			int parent= dl.hierarchy[j];
+			if (parent >= 0)
+				wheelParents.insert(parent);
+		}
+	}
+	for (map<int,int>::iterator i=partMap.begin(); i!=partMap.end(); ++i) {
+		matrices[i->second].part= car->parts.size();
+		car->parts.push_back(RailCarPart(-1,0,0));
+	}
+	car->axles= partMap.size();
+//	fprintf(stderr,"axles=%d\n",car->axles);
+	partMap.clear();
+	for (int j=0; j<matrices.size(); j++)
+		if (matrices[j].name.size()==6 &&
+		  strncasecmp(matrices[j].name.c_str(),"BOGIE",5)==0 &&
+		  wheelParents.find(j)!=wheelParents.end())
+			partMap[atoi(matrices[j].name.c_str()+5)]= j;
+	if (partMap.size()<2 && car->axles<3)
+		partMap.clear();
+	for (map<int,int>::iterator i=partMap.begin(); i!=partMap.end(); ++i) {
+		matrices[i->second].part= car->parts.size();
+		car->parts.push_back(RailCarPart(-1,0,0));
+	}
+	for (int j=0; j<dl.hierarchy.size(); j++) {
+		int parent= dl.hierarchy[j];
+		if (parent < 0)
+			continue;
+		if (matrices[j].part>=0 && matrices[parent].part<0) {
+			const double* m1= matrices[parent].matrix.data();
+			const double* m2= matrices[j].matrix.data();
+			int p= matrices[j].part;
+			car->parts[p].xoffset= m1[14]+m2[14];
+			car->parts[p].zoffset= m1[13]+m2[13];//-.05;
+			car->parts[p].parent= car->parts.size();
+			fprintf(stderr,"p1 %d %s %d %d %s %f %f\n",
+			  j,matrices[j].name.c_str(),p,
+			  parent,matrices[parent].name.c_str(),
+			  car->parts[p].xoffset,car->parts[p].zoffset);
+			while (parent>=0) {
+				parent= dl.hierarchy[parent];
+				if (parent < 0)
+					break;
+				m1= matrices[parent].matrix.data();
+				car->parts[p].xoffset+= m1[14];
+				car->parts[p].zoffset+= m1[13];
+				fprintf(stderr," pp1 %f %f\n",
+				  car->parts[p].xoffset,car->parts[p].zoffset);
+			}
+		}
+	}
+	if (car->axles == 1) {
+		car->parts.push_back(RailCarPart(-1,0,0));
+		car->parts[1].xoffset= -car->parts[0].xoffset;
+		car->parts[1].zoffset= car->parts[0].zoffset;
+		car->parts[1].parent= 2;
+		car->parts[0].parent= 2;
+		car->axles= 2;
+	}
+	for (int j=0; j<dl.hierarchy.size(); j++) {
+		int parent= dl.hierarchy[j];
+		if (parent < 0)
+			continue;
+		if (matrices[j].part>=0 && matrices[parent].part>=0) {
+			const double* m= matrices[j].matrix.data();
+			int pp= matrices[parent].part;
+			int p= matrices[j].part;
+			car->parts[p].xoffset= m[14]+car->parts[pp].xoffset;
+			car->parts[p].zoffset= m[13]+car->parts[pp].zoffset;
+			car->parts[p].parent= pp;
+//			fprintf(stderr,"p2 %d %s %d %d %s %d %f %f\n",
+//			  j,matrices[j].name.c_str(),p,
+//			  parent,matrices[parent].name.c_str(),pp,
+//			  car->parts[p].xoffset,car->parts[p].zoffset);
+		}
+	}
+	int i= car->parts.size();
+	car->parts.push_back(RailCarPart(-1,0,0));
+	car->parts[i].model= createModel(1,11,false,true);
+#if 0
+	if (car->headlights.size() > 0) {
+		osgSim::LightPointNode* node= new osgSim::LightPointNode;
+		for (list<HeadLight>::iterator j=car->headlights.begin();
+		  j!=car->headlights.end(); j++) {
+			osgSim::LightPoint lp;
+			lp._on= false;
+			lp._position= osg::Vec3d(j->x,j->y,
+			  j->z+(j->z>0?.005:-.005));
+			lp._color= osg::Vec4d((j->color>>16)&0xff,
+			  (j->color>>8)&0xff,j->color&0xff,
+			  (j->color>>24)&0xff);
+			lp._radius= j->radius>.5?.1*j->radius:.2*j->radius;
+			if (j->unit == 2)
+				lp._radius= .15;
+			else
+				lp._radius= .06;
+			node->addLightPoint(lp);
+//			fprintf(stderr,"headlight %f %f %f %f %d %x\n",
+//			  j->x,j->y,j->z,j->radius,j->unit,j->color);
+		}
+		osg::MatrixTransform* mt=
+		  (osg::MatrixTransform*)car->parts[i].model;
+		if (mt != NULL)
+			mt->addChild(node);
+	}
+#endif
+#ifdef SEPWHEELS
+	for (int j=0; j<matrices.size(); j++) {
+		int p= matrices[j].part;
+		if (p<0 )//|| matrices[j].transform->getUpdateCallback())
+			continue;
+		auto m= matrices[j].matrix;
+		double* mp= m.data();
+		fprintf(stderr,"%d %d %lf %lf\n",j,p,mp[13],mp[14]);
+		mp[13]= 0;
+		mp[14]= 0;
+		matrices[j].matrix= m;
+		vsg::ref_ptr<vsg::MatrixTransform> mt= vsg::MatrixTransform::create();
+		mt->matrix= vsg::dmat4(0,-1,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,1);
+		mt->addChild(vsg::ref_ptr(matrices[j].transform));
+		car->parts[p].model= mt;
+	}
+#endif
+#if 0
+	for (int i=0; i<car->parts.size(); i++) {
+		fprintf(stderr,"part %d %d %f %f %p\n",i,car->parts[i].parent,
+		  car->parts[i].xoffset,car->parts[i].zoffset,
+		  car->parts[i].model);
+	}
+#endif
 }
 
 MstsShapeReaderWriter::MstsShapeReaderWriter()

@@ -26,6 +26,9 @@ THE SOFTWARE.
 
 #include <vsg/io/ReaderWriter.h>
 
+#include "track.h"
+#include "railcar.h"
+
 struct MSTSSignal;
 
 struct MSTSShape {
@@ -175,6 +178,7 @@ struct MSTSShape {
 	int readBinFile(const char* filename);
 	void readFile(const char* filename, const char* texDir1=NULL,
 	 const char* texDir2=NULL);
+	void createRailCar(RailCarDef* def);
 	void makeGeometry(SubObject& subObject, TriList& triList,
 	  int& transparentBin, bool incTransparentBin= false);
 	vsg::ref_ptr<vsg::Node> createModel(int transform=1,

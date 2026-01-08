@@ -27,6 +27,7 @@ THE SOFTWARE.
 #include <vsgImGui/RenderImGui.h>
 #include <vsgImGui/SendEventsToImGui.h>
 #include <iostream>
+#include <chrono>
 
 #include "mstsace.h"
 #include "mstsshape.h"
@@ -34,18 +35,35 @@ THE SOFTWARE.
 #include "mstsfile.h"
 #include "camerac.h"
 #include "tsgui.h"
+#include "train.h"
+#include "listener.h"
+#include "ttosim.h"
+#include "timetable.h"
 
 void initSim(vsg::ref_ptr<vsg::Group>& root)
 {
-	if (mstsRoute && mstsRoute->activityName.size()==0)
+	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()==0)
 		TSGuiData::instance().loadActivityList();
 }
 
-void updateSim(vsg::ref_ptr<vsg::Group>& root)
+void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::Viewer>& viewer)
 {
-	if (mstsRoute && mstsRoute->activityName.size()>0) {
+	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()>0) {
+		auto railCars= vsg::Group::create();
+		mstsRoute->activityName+= ".act";
+		mstsRoute->loadActivity(railCars.get(),0);//-1);
 		cerr<<"activity "<<mstsRoute->activityName<<"\n";
 		mstsRoute->activityName.clear();
+		cerr<<trainList.size()<<" trains\n";
+		auto ct= vsg::CompileTraversal::create(*viewer);
+		ct->compile(railCars);
+		root->addChild(railCars);
+	}
+	if (trainList.size() > 0) {
+		simTime+= dt;
+		listener.setGain(1);
+		updateTrains(dt);
+		ttoSim.processEvents(simTime);
 	}
 }
 
@@ -83,9 +101,20 @@ int main(int argc, char** argv)
 		arguments.remove(i, 1);
 		--i;
 	}
+	timeTable= new TimeTable();
+	timeTable->addRow(timeTable->addStation("start"));
+	timeTable->setIgnoreOther(true);
 	if (scene->children.empty()) {
-		std::cout<<"No scene loaded."<<std::endl;
-		return 1;
+		cerr<<"default\n";
+		auto object= vsg::read("/home/daj/msts/ROUTES/StL_NA/StL_NA.tdb", options);
+		if (auto node= object.cast<vsg::Node>())
+			scene->addChild(node);
+		auto railCars= vsg::Group::create();
+		mstsRoute->activityName= "NA_10Cake2.act";
+		mstsRoute->loadActivity(railCars.get(),-1);
+		cerr<<"activity "<<mstsRoute->activityName<<"\n";
+		mstsRoute->activityName.clear();
+		scene->addChild(railCars);
 	}
 	auto aLight= vsg::AmbientLight::create();
 	aLight->color.set(.5,.5,.5);
@@ -141,6 +170,7 @@ int main(int argc, char** argv)
 
 	viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 	viewer->addEventHandler(vsg::WindowResizeHandler::create());
+        viewer->addEventHandler(vsgImGui::SendEventsToImGui::create());
 	if (mstsRoute)
 		viewer->addEventHandler(CameraController::create(camera,scene));
 #if 0
@@ -161,7 +191,6 @@ int main(int argc, char** argv)
         renderGraph->addChild(view);
         auto renderImGui= vsgImGui::RenderImGui::create(window, TSGui::create());
         renderGraph->addChild(renderImGui);
-        viewer->addEventHandler(vsgImGui::SendEventsToImGui::create());
 	viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 	viewer->compile();
 	for (auto& task: viewer->recordAndSubmitTasks) {
@@ -171,9 +200,13 @@ int main(int argc, char** argv)
 		}
 	}
 
+	auto prevTime= std::chrono::system_clock::now();
 	while (viewer->advanceToNextFrame()) {
 		viewer->handleEvents();
-		updateSim(scene);
+		auto now= std::chrono::system_clock::now();
+		double dt= .001*std::chrono::duration<double,std::chrono::seconds::period>(now-prevTime).count();
+		prevTime= now;
+		updateSim(dt,scene,viewer);
 		viewer->update();
 		viewer->recordAndSubmit();
 		viewer->present();

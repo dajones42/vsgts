@@ -215,9 +215,9 @@ struct MSTSRoute {
 	void loadActivity(vsg::Group* root, int activityFlags);
 	void loadConsist(LooseConsist* consist, vsg::Group* root);
 	void loadExploreConsist(vsg::Group* root);
-//	Track::Path* loadPath(std::string filename, bool align);
-//	Track::Path* loadService(std::string filename, vsg::Group* root,
-//	  bool player, int id);
+	Track::Path* loadPath(std::string filename, bool align);
+	Track::Path* loadService(std::string filename, vsg::Group* root,
+	  bool player, int id);
 	bool signalSwitchStands;
 	bool createSignals;
 	MSTSSignal* findSignalInfo(MSTSFileNode* node);

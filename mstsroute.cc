@@ -29,14 +29,16 @@ THE SOFTWARE.
 #include "mstsbfile.h"
 #include "trackdb.h"
 #include "track.h"
-//#include "activity.h"
-//#include "service.h"
-//#include "consist.h"
-//#include "trackpath.h"
+#include "activity.h"
+#include "service.h"
+#include "consist.h"
+#include "trackpath.h"
 //#include "ghproj.h"
 //#include "trigrid.h"
-//#include "mstswag.h"
-//#include "train.h"
+#include "railcar.h"
+#include "mstswag.h"
+#include "train.h"
+#include "timetable.h"
 
 using namespace std;
 
@@ -1161,7 +1163,6 @@ bool MSTSRoute::getVertexHidden(int i, int j,
 	return false;
 }
 
-#if 0
 void findPassingPoints(Track::Path* aiPath, Track::Path* playerPath)
 {
 	typedef set<Track::SSEdge*> SSEdgeSet;
@@ -1182,12 +1183,10 @@ void findPassingPoints(Track::Path* aiPath, Track::Path* playerPath)
 		overlap= i!=ssEdgeSet.end();
 	}
 }
-#endif
 
-#if 0
 extern double simTime;
 
-void MSTSRoute::loadActivity(osg::Group* root, int activityFlags)
+void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 {
 	if (activityName.size()==0) {
 		simTime= 12*3600;
@@ -1199,7 +1198,6 @@ void MSTSRoute::loadActivity(osg::Group* root, int activityFlags)
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	activity.readFile(path.c_str());
 	simTime= activity.startTime;
-#if 0
 	if (timeTable) {
 		tt::Station* start= timeTable->findStation("start");
 		if (start == NULL)
@@ -1215,11 +1213,9 @@ void MSTSRoute::loadActivity(osg::Group* root, int activityFlags)
 			train->path= path;
 		}
 	}
-#endif
 	if ((activityFlags&01) != 0) {
 		Track::Path* playerPath=
 		  loadService(activity.playerService,root,true,0);
-#if 0
 		if (playerPath && timeTable) {
 			for (int i=0; i<timeTable->getNumTrains(); i++) {
 				tt::Train* train= timeTable->getTrain(i);
@@ -1228,7 +1224,6 @@ void MSTSRoute::loadActivity(osg::Group* root, int activityFlags)
 					  playerPath);
 			}
 		}
-#endif
 	}
 	for (LooseConsist* c=activity.consists; c!=NULL; c=c->next) {
 //		fprintf(stderr,"consist %d %d %d %d %f %f\n",
@@ -1243,7 +1238,7 @@ void MSTSRoute::loadActivity(osg::Group* root, int activityFlags)
 	}
 }
 
-void MSTSRoute::loadExploreConsist(osg::Group* root)
+void MSTSRoute::loadExploreConsist(vsg::Group* root)
 {
 	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
 	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
@@ -1336,7 +1331,7 @@ void MSTSRoute::loadExploreConsist(osg::Group* root)
 	train->calcPerf();
 }
 
-void MSTSRoute::loadConsist(LooseConsist* consist, osg::Group* root)
+void MSTSRoute::loadConsist(LooseConsist* consist, vsg::Group* root)
 {
 	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
 	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
@@ -1418,7 +1413,7 @@ void MSTSRoute::loadConsist(LooseConsist* consist, osg::Group* root)
 	  loc.coord[0],loc.coord[1],loc.coord[2]);
 }
 
-Track::Path* MSTSRoute::loadService(string filename, osg::Group* root,
+Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
   bool player, int serviceId)
 {
 	string servicesDir= fixFilenameCase(routeDir+dirSep+"SERVICES");
@@ -1550,7 +1545,7 @@ Track::Path* MSTSRoute::loadService(string filename, osg::Group* root,
 	train->location.getWLocation(&loc);
 	fprintf(stderr,"service %s at %lf %lf %f\n",filename.c_str(),
 	  loc.coord[0],loc.coord[1],loc.coord[2]);
-	currentPerson.setLocation(loc.coord);
+//	currentPerson.setLocation(loc.coord);
 	return trackPath;
 }
 
@@ -1622,7 +1617,6 @@ Track::Path* MSTSRoute::loadPath(string filename, bool align)
 		track->alignSwitches(path->firstNode,NULL,false);
 	return path;
 }
-#endif
 
 #if 0
 void MSTSRoute::addSwitchStands(double offset, double zoffset,

@@ -328,7 +328,7 @@ Track::SwVertex* Track::findSwitch(double x, double y, double z, double tol)
 			bestsw= (SwVertex*) v;
 		}
 	}
-	fprintf(stderr,"findsw distsq %f %p\n",bestd,bestsw);
+//	fprintf(stderr,"findsw distsq %f %p\n",bestd,bestsw);
 	return bestsw;
 }
 

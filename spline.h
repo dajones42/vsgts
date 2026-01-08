@@ -25,6 +25,7 @@ THE SOFTWARE.
 #define SPLINE_H
 
 #include <vector>
+#include "commandreader.h"
 
 template <class T> class Spline {
 	std::vector<T> x;
@@ -133,7 +134,6 @@ template <class T> class Spline {
 	}
 };
 
-#if 0
 template <class T> class SplineParser : public CommandBlockHandler {
 	Spline<T>* spline;
 	bool linear;
@@ -157,6 +157,5 @@ template <class T> class SplineParser : public CommandBlockHandler {
 			spline->compute();
 	};
 };
-#endif
 
 #endif
