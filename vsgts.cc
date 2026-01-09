@@ -51,17 +51,20 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()>0) {
 		auto railCars= vsg::Group::create();
 		mstsRoute->activityName+= ".act";
-		mstsRoute->loadActivity(railCars.get(),0);//-1);
+		mstsRoute->loadActivity(railCars.get(),-1);
 		cerr<<"activity "<<mstsRoute->activityName<<"\n";
 		mstsRoute->activityName.clear();
 		cerr<<trainList.size()<<" trains\n";
-		auto ct= vsg::CompileTraversal::create(*viewer);
-		ct->compile(railCars);
+		auto cr= viewer->compileManager->compile(railCars);
+		updateViewer(*viewer,cr);
 		root->addChild(railCars);
+		ttoSim.init(false);
+		for (auto t: trainList)
+			listener.addTrain(t);
+		listener.setGain(1);
 	}
 	if (trainList.size() > 0) {
 		simTime+= dt;
-		listener.setGain(1);
 		updateTrains(dt);
 		ttoSim.processEvents(simTime);
 	}
@@ -104,17 +107,20 @@ int main(int argc, char** argv)
 	timeTable= new TimeTable();
 	timeTable->addRow(timeTable->addStation("start"));
 	timeTable->setIgnoreOther(true);
+	listener.init();
 	if (scene->children.empty()) {
-		cerr<<"default\n";
 		auto object= vsg::read("/home/daj/msts/ROUTES/StL_NA/StL_NA.tdb", options);
 		if (auto node= object.cast<vsg::Node>())
 			scene->addChild(node);
 		auto railCars= vsg::Group::create();
 		mstsRoute->activityName= "NA_10Cake2.act";
 		mstsRoute->loadActivity(railCars.get(),-1);
-		cerr<<"activity "<<mstsRoute->activityName<<"\n";
 		mstsRoute->activityName.clear();
 		scene->addChild(railCars);
+		ttoSim.init(false);
+		for (auto t: trainList)
+			listener.addTrain(t);
+		listener.setGain(1);
 	}
 	auto aLight= vsg::AmbientLight::create();
 	aLight->color.set(.5,.5,.5);
@@ -204,7 +210,7 @@ int main(int argc, char** argv)
 	while (viewer->advanceToNextFrame()) {
 		viewer->handleEvents();
 		auto now= std::chrono::system_clock::now();
-		double dt= .001*std::chrono::duration<double,std::chrono::seconds::period>(now-prevTime).count();
+		double dt= std::chrono::duration<double,std::chrono::seconds::period>(now-prevTime).count();
 		prevTime= now;
 		updateSim(dt,scene,viewer);
 		viewer->update();

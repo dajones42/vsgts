@@ -757,6 +757,8 @@ double TTOSim::init(bool isClient)
 	}
 	if (start == 1e10)
 		start= 0;
+	if (simTime==0 || simTime>start)
+		simTime= start;
 	return start;
 }
 

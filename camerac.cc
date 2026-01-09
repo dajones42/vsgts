@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include <vsg/all.h>
 
 #include "camerac.h"
+#include "mstsroute.h"
 
 CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<vsg::Node> node) :
   scene(node),
@@ -85,6 +86,12 @@ void CameraController::setZoom(int z)
 		double dist= std::pow(zoom1Dist,zoom);
 		lookAt->eye= lookAt->center - dist*lookDir;
 	}
+	if (mstsRoute && mstsRoute->trackLines) {
+		if (zoom > 20)
+			mstsRoute->trackLines->setAllChildren(true);
+		else
+			mstsRoute->trackLines->setAllChildren(false);
+	}
 }
 
 void CameraController::apply(vsg::KeyPressEvent& keyPress)
@@ -95,7 +102,13 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		incPitch(5);
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == vsg::KEY_Down) {
-		incPitch(-5);
+		if (fabs(lookAt->up.z) < .01) {
+			setPitch(-10);
+			if (zoom > 10)
+				setZoom(10);
+		} else {
+			incPitch(-5);
+		}
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == vsg::KEY_Left) {
 		incHeading(5);
