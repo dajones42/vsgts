@@ -130,6 +130,17 @@ void RailCarDef::copyWheels(RailCarDef* other)
 	}
 }
 
+vsg::ref_ptr<vsg::TransformKeyframes> getWheelKeyframes()
+{
+	auto keyframes= vsg::TransformKeyframes::create();
+	for (int i=0; i<=16; i++) {
+		double time= i/16.;
+		auto r= vsg::dquat(time*2*M_PI,vsg::dvec3(1,0,0));
+		keyframes->rotations.push_back(vsg::time_dquat{time,r});
+	}
+	return keyframes;
+}
+
 //	creates an instance of a rail car
 RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
   std::string brakeValve)
@@ -150,7 +161,6 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 		}
 	}
 	animState= 0;
-//	SetCarVisitor visitor(this);
 	for (int i=0; i<def->parts.size(); i++) {
 		if (i < def->axles) {
 			float r= def->parts[i].zoffset;
@@ -158,22 +168,25 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 				r= maxr;
 			wheels.push_back(RailCarWheel(r));
 		}
-		models.push_back({});
 		linReg.push_back(new LinReg);
-		if (!def->parts[i].model)
-			continue;
-		models[i]= vsg::MatrixTransform::create();
-		modelsSw->addChild(true,models[i]);
-		models[i]->addChild(def->parts[i].model);
-		cerr<<"addchild "<<def->name<<" "<<i<<" "<<def->parts.size()<<"\n";
-#if 0
-		node->addChild((vsg::Node*)def->parts[i].model->clone(
-		  vsg::CopyOp::DEEP_COPY_NODES));
-		node->accept(visitor);
-#endif
+		models.push_back({});
 	}
-//	if (visitor.nRods > 0)
-//		fprintf(stderr,"%d rods\n",visitor.nRods);
+	auto model= vsg::MatrixTransform::create();
+	modelsSw->addChild(true,model);
+	model->addChild(def->parts[def->parts.size()-1].model);
+	models[def->parts.size()-1]= model;
+	if (def->rodAnimation)
+		rodAnimation= def->rodAnimation;
+	for (int i=0; i<wheels.size(); i++) {
+		auto& w= wheels[i];
+		if (auto mt= dynamic_cast<vsg::MatrixTransform*>(def->parts[i].model.get())) {
+			auto sampler= vsg::TransformSampler::create();
+			vsg::decompose(mt->matrix,sampler->position,sampler->rotation,sampler->scale);
+			sampler->object= mt;
+			sampler->keyframes= getWheelKeyframes();
+			w.sampler= sampler;
+		}
+	}
 	setLoad(0);
 	grade= 0;
 	curvature= 0;
@@ -395,6 +408,17 @@ void RailCarInst::move(float distance)
 #endif
 		}
 	}
+	if (rodAnimation) {
+		float state= 1-std::fmod(getMainWheelState(),1);
+		for (auto& s: rodAnimation->samplers) {
+			s->update(state);
+		}
+	}
+	for (int i=0; i<wheels.size(); i++) {
+		auto w= wheels[i];
+		if (w.sampler)
+			w.sampler->update(1-std::fmod(w.state,1));
+	}
 }
 
 float cosTable[]={
@@ -430,6 +454,7 @@ void RailCarWheel::move(float distance, int rev)
 		int i= (int)(-state);
 		state+= i+1;
 	}
+#if 0
 	float s= 16*state;
 	int i= (int) s;
 	s-= i;
@@ -438,6 +463,7 @@ void RailCarWheel::move(float distance, int rev)
 	float x= .5 + .5*(cs*cs+sn*sn);
 	cs/= x;
 	sn/= x;
+#endif
 }
 
 #if 0

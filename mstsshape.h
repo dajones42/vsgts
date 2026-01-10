@@ -76,11 +76,13 @@ struct MSTSShape {
 		vsg::dmat4 matrix;
 		vsg::Group* group;
 		vsg::MatrixTransform* transform;
+		bool hasAnimation;
 		Matrix(std::string& s) {
 			name= s;
 			group= nullptr;
 			transform= nullptr;
 			part= -1;
+			hasAnimation= false;
 		};
 	};
 	std::vector<Matrix> matrices;
@@ -201,6 +203,7 @@ struct MSTSShape {
 		mtUVMult= 0;
 	}
 	vsg::ref_ptr<vsg::Options> vsgOptions;
+	vsg::ref_ptr<vsg::Animation> rodAnimation;
 };
 
 class MstsShapeReaderWriter : public vsg::Inherit<vsg::CompositeReaderWriter,

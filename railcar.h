@@ -118,6 +118,7 @@ struct RailCarDef {
 	RailCarDef();
 	void copy(RailCarDef* other);
 	void copyWheels(RailCarDef* other);
+	vsg::ref_ptr<vsg::Animation> rodAnimation;
 };
 
 struct Waybill {
@@ -136,6 +137,7 @@ struct RailCarWheel {
 	float mult;
 	RailCarWheel(float radius);
 	void move(float distance, int rev);
+	vsg::ref_ptr<vsg::TransformSampler> sampler;
 };
 
 struct RailCarInst {
@@ -167,6 +169,7 @@ struct RailCarInst {
 	vsg::ref_ptr<vsg::Switch> modelsSw;
 	std::vector<vsg::ref_ptr<vsg::MatrixTransform> > models;
 	std::vector<LinReg*> linReg;
+	vsg::ref_ptr<vsg::Animation> rodAnimation;
 	int mainWheel;
 	float mass;
 	float massInv;

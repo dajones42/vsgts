@@ -123,17 +123,17 @@ int main(int argc, char** argv)
 		listener.setGain(1);
 	}
 	auto aLight= vsg::AmbientLight::create();
-	aLight->color.set(.5,.5,.5);
-	aLight->intensity= 1;
+	aLight->color.set(1,1,1);
+	aLight->intensity= .4;
 	scene->addChild(aLight);
 	auto dLight1= vsg::DirectionalLight::create();
-	dLight1->color.set(.5,.5,.5);
-	dLight1->intensity= 1;
+	dLight1->color.set(1,1,1);
+	dLight1->intensity= .4;
 	dLight1->direction.set(0,-1,-1);
 	scene->addChild(dLight1);
 	auto dLight2= vsg::DirectionalLight::create();
-	dLight2->color.set(.5,.5,.5);
-	dLight2->intensity= 1;
+	dLight2->color.set(1,1,1);
+	dLight2->intensity= .4;
 	dLight2->direction.set(-1,1,.5);
 	scene->addChild(dLight2);
 //	vsg::write(scene,"test.vsgt");

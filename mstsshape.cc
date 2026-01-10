@@ -28,8 +28,6 @@ THE SOFTWARE.
 
 #include <vsg/all.h>
 
-#define NOSEPWHEELS
-
 //	reads an uncompressed shape file
 void MSTSShape::readFile(const char* filename, const char* texDir1,
   const char* texDir2)
@@ -1011,11 +1009,12 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 				nSigHead++;
 		}
 	}
-#if 0
+	vsg::ref_ptr<vsg::Animation> anim;
 	for (int i=0; i<animations.size(); i++) {
 		Animation& a= animations[i];
 		if (a.nFrames < 2)
 			continue;
+		anim= vsg::Animation::create();
 #if 0
 		fprintf(stderr,"animnodes %d %d\n",
 		  a.nodes.size(),matrices.size());
@@ -1029,7 +1028,10 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 			AnimNode& n= a.nodes[j];
 			if (n.positions.size()<2 && n.quats.size()<2)
 				continue;
-#if 1
+			if (strncasecmp(n.name.c_str(),"Door",4)==0 ||
+			  strncasecmp(n.name.c_str(),"Mirror",6)==0)
+				continue;
+#if 0
 			fprintf(stderr,"anim %s %d %d\n",
 			  n.name.c_str(),a.nFrames,a.frameRate);
 			for (map<int,vsg::dvec3>::iterator
@@ -1042,13 +1044,13 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 				  k->first,k->second[0],k->second[1],
 				  k->second[2],k->second[3]);
 #endif
-//			if (strncasecmp(n.name.c_str(),"WHEELS",6) == 0)
-//				continue;
 			vsg::MatrixTransform* mt= NULL;
 			if (j < matrices.size()) {
 				Matrix& m= matrices[j];
-				if (m.transform!=NULL && m.name==n.name)
+				if (m.transform!=NULL && m.name==n.name) {
 					mt= m.transform;
+					m.hasAnimation= true;
+				}
 			}
 			if (mt == NULL) {
 				for (int k=0; k<matrices.size(); k++) {
@@ -1056,6 +1058,7 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 					if (m.transform==NULL || m.name!=n.name)
 						continue;
 					mt= m.transform;
+					matrices[k].hasAnimation= true;
 					break;
 				}
 			}
@@ -1063,34 +1066,59 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 				Matrix& m= matrices[j];
 //				fprintf(stderr," anim j %s %s\n",
 //				  m.name.c_str(),n.name.c_str());
-				if (m.transform!=NULL)
+				if (m.transform!=NULL) {
 					mt= m.transform;
+					m.hasAnimation= true;
+				}
 			}
 			if (mt == NULL)
 				continue;
-			vsg::AnimationPath* ap= new vsg::AnimationPath;
-			ap->mode= vsg::AnimationPath::ONCE;
+			auto keyframes= vsg::TransformKeyframes::create();
 			if (n.quats.size() < n.positions.size()) {
-				vsg::dquat q= mt->getMatrix().getRotate();
 				for (map<int,vsg::dvec3>::iterator
 				  k=n.positions.begin(); k!=n.positions.end();
 				  ++k)
-					ap->add(k->first,k->second,q);
+					keyframes->positions.push_back(vsg::time_dvec3{(double)k->first,k->second});
 			} else if(n.positions.size() < n.quats.size()) {
-				vsg::dvec3 p= mt->getMatrix().getTrans();
 				for (map<int,vsg::dquat>::iterator
 				  k=n.quats.begin(); k!=n.quats.end(); ++k)
-					ap->add(k->first,p,k->second);
+					keyframes->rotations.push_back(vsg::time_dquat{(double)k->first,k->second});
 			} else {
 				for (map<int,vsg::dquat>::iterator
 				  k=n.quats.begin(); k!=n.quats.end(); ++k) {
 					map<int,vsg::dvec3>::iterator k1=
 					  n.positions.find(k->first);
 					if (k1 != n.positions.end())
-						ap->add(k->first,
-						  k1->second,k->second);
+						keyframes->add((double)k->first,k1->second,k->second);
 				}
 			}
+			auto sampler= vsg::TransformSampler::create();
+			vsg::decompose(mt->matrix,sampler->position,sampler->rotation,sampler->scale);
+			sampler->object= mt;
+			sampler->keyframes= keyframes;
+			sampler->name= n.name;
+			if (hasWheels && (a.nFrames==16 ||
+			  strncasecmp(n.name.c_str(),"WHEELS",6) == 0 ||
+			  strncasecmp(n.name.c_str(),"ROD",3) == 0)) {
+				if (keyframes->positions.size()>0 &&
+				  keyframes->positions[keyframes->positions.size()-1].time<a.nFrames)
+					keyframes->positions.push_back(
+					  vsg::time_dvec3{(double)a.nFrames,n.positions.begin()->second});
+				if (keyframes->rotations.size()>0 &&
+				  keyframes->rotations[keyframes->rotations.size()-1].time<a.nFrames)
+					keyframes->rotations.push_back(
+					  vsg::time_dquat{(double)a.nFrames,n.quats.begin()->second});
+				for (auto& p: keyframes->positions)
+					p.time/= a.nFrames;
+				for (auto& r: keyframes->rotations)
+					r.time/= a.nFrames;
+				if (!rodAnimation)
+					rodAnimation= vsg::Animation::create();
+				rodAnimation->samplers.push_back(sampler);
+			} else {
+				anim->samplers.push_back(sampler);
+			}
+#if 0
 			if (strncasecmp(n.name.c_str(),
 			  "Pantograph",10) == 0) {
 				int len= n.name.length();
@@ -1127,10 +1155,10 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 				  new TwoStateAnimPathCB(NULL,ap,-1);
 				mt->setUpdateCallback(apc);
 			}
+#endif
 		}
 	}
-#endif
-	vsg::MatrixTransform* top= nullptr;
+	vsg::Group* top= nullptr;
 	for (int i=0; i<1 && i<distLevels.size(); i++) {
 		DistLevel& dl= distLevels[i];
 		for (int j=0; j<dl.hierarchy.size(); j++) {
@@ -1140,12 +1168,7 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 				continue;
 			if (parent < 0)
 				top= mt;
-#ifdef SEPWHEELS
-			else if (matrices[j].part < 0)// ||
-#else
 			else
-#endif
-			  //mt->getUpdateCallback())
 				matrices[parent].transform->addChild(
 				  vsg::ref_ptr(mt));
 #if 0
@@ -1208,6 +1231,12 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 		top->addChild(node);
 	}
 #endif
+	if (anim && anim->samplers.size()>0) {
+		vsg::AnimationGroup* agroup= new vsg::AnimationGroup;
+		agroup->animations.push_back(anim);
+		agroup->addChild(vsg::ref_ptr(top));
+		top= agroup;
+	}
 	if (transform) {
 		vsg::MatrixTransform* mt= new vsg::MatrixTransform;
 		mt->matrix= vsg::dmat4(0,-1,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,1);
@@ -1308,10 +1337,10 @@ void MSTSShape::createRailCar(RailCarDef* car)
 			car->parts[p].xoffset= m1[14]+m2[14];
 			car->parts[p].zoffset= m1[13]+m2[13];//-.05;
 			car->parts[p].parent= car->parts.size();
-			fprintf(stderr,"p1 %d %s %d %d %s %f %f\n",
-			  j,matrices[j].name.c_str(),p,
-			  parent,matrices[parent].name.c_str(),
-			  car->parts[p].xoffset,car->parts[p].zoffset);
+//			fprintf(stderr,"p1 %d %s %d %d %s %f %f\n",
+//			  j,matrices[j].name.c_str(),p,
+//			  parent,matrices[parent].name.c_str(),
+//			  car->parts[p].xoffset,car->parts[p].zoffset);
 			while (parent>=0) {
 				parent= dl.hierarchy[parent];
 				if (parent < 0)
@@ -1319,8 +1348,8 @@ void MSTSShape::createRailCar(RailCarDef* car)
 				m1= matrices[parent].matrix.data();
 				car->parts[p].xoffset+= m1[14];
 				car->parts[p].zoffset+= m1[13];
-				fprintf(stderr," pp1 %f %f\n",
-				  car->parts[p].xoffset,car->parts[p].zoffset);
+//				fprintf(stderr," pp1 %f %f\n",
+//				  car->parts[p].xoffset,car->parts[p].zoffset);
 			}
 		}
 	}
@@ -1352,6 +1381,8 @@ void MSTSShape::createRailCar(RailCarDef* car)
 	int i= car->parts.size();
 	car->parts.push_back(RailCarPart(-1,0,0));
 	car->parts[i].model= createModel(1,11,false,true);
+	if (rodAnimation)
+		car->rodAnimation= rodAnimation;
 #if 0
 	if (car->headlights.size() > 0) {
 		osgSim::LightPointNode* node= new osgSim::LightPointNode;
@@ -1379,28 +1410,17 @@ void MSTSShape::createRailCar(RailCarDef* car)
 			mt->addChild(node);
 	}
 #endif
-#ifdef SEPWHEELS
 	for (int j=0; j<matrices.size(); j++) {
 		int p= matrices[j].part;
-		if (p<0 )//|| matrices[j].transform->getUpdateCallback())
+		if (p<0 || matrices[j].hasAnimation)
 			continue;
-		auto m= matrices[j].matrix;
-		double* mp= m.data();
-		fprintf(stderr,"%d %d %lf %lf\n",j,p,mp[13],mp[14]);
-		mp[13]= 0;
-		mp[14]= 0;
-		matrices[j].matrix= m;
-		vsg::ref_ptr<vsg::MatrixTransform> mt= vsg::MatrixTransform::create();
-		mt->matrix= vsg::dmat4(0,-1,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,1);
-		mt->addChild(vsg::ref_ptr(matrices[j].transform));
-		car->parts[p].model= mt;
+		car->parts[p].model= matrices[j].transform;
 	}
-#endif
 #if 0
 	for (int i=0; i<car->parts.size(); i++) {
 		fprintf(stderr,"part %d %d %f %f %p\n",i,car->parts[i].parent,
 		  car->parts[i].xoffset,car->parts[i].zoffset,
-		  car->parts[i].model);
+		  car->parts[i].model.get());
 	}
 #endif
 }
