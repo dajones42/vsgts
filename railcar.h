@@ -119,6 +119,8 @@ struct RailCarDef {
 	void copy(RailCarDef* other);
 	void copyWheels(RailCarDef* other);
 	vsg::ref_ptr<vsg::Animation> rodAnimation;
+	int nInst;
+	std::set<vsg::MatrixTransform*> animatedTransforms;
 };
 
 struct Waybill {
@@ -131,13 +133,10 @@ struct Waybill {
 
 struct RailCarWheel {
 	Track::Location location;
-	float cs;
-	float sn;
 	float state;
 	float mult;
 	RailCarWheel(float radius);
 	void move(float distance, int rev);
-	vsg::ref_ptr<vsg::TransformSampler> sampler;
 };
 
 struct RailCarInst {
@@ -166,10 +165,11 @@ struct RailCarInst {
 	RailCarDef* def;
 	LocoEngine* engine;
 	std::vector<RailCarWheel> wheels;
-	vsg::ref_ptr<vsg::Switch> modelsSw;
-	std::vector<vsg::ref_ptr<vsg::MatrixTransform> > models;
+	vsg::ref_ptr<vsg::Switch> modelSw;
+	vsg::ref_ptr<vsg::MatrixTransform> model;
 	std::vector<LinReg*> linReg;
 	vsg::ref_ptr<vsg::Animation> rodAnimation;
+	std::vector<vsg::ref_ptr<vsg::TransformSampler> > partSamplers;
 	int mainWheel;
 	float mass;
 	float massInv;
@@ -206,8 +206,8 @@ struct RailCarInst {
 	  float dt);
 	void setLoad(float f);
 	float calcBrakes(float dt, int n);
-	void setModelsOn() { modelsSw->setAllChildren(true); };
-	void setModelsOff() { modelsSw->setAllChildren(false); };
+	void setModelsOn() { modelSw->setAllChildren(true); };
+	void setModelsOff() { modelSw->setAllChildren(false); };
 	void decHandBrakes() {
 		handBControl-= .25;
 		if (handBControl < 0)

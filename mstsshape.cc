@@ -1163,6 +1163,7 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 		DistLevel& dl= distLevels[i];
 		for (int j=0; j<dl.hierarchy.size(); j++) {
 			int parent= dl.hierarchy[j];
+			matrices[j].parent= parent;
 			vsg::MatrixTransform* mt= matrices[j].transform;
 			if (mt == nullptr)
 				continue;
@@ -1417,7 +1418,9 @@ void MSTSShape::createRailCar(RailCarDef* car)
 		if (p<0 || matrices[j].hasAnimation)
 			continue;
 		car->parts[p].model= matrices[j].transform;
+		matrices[j].hasAnimation= true;
 	}
+	car->animatedTransforms= getAnimatedTransforms();
 #if 0
 	for (int i=0; i<car->parts.size(); i++) {
 		fprintf(stderr,"part %d %d %f %f %p\n",i,car->parts[i].parent,
@@ -1425,6 +1428,24 @@ void MSTSShape::createRailCar(RailCarDef* car)
 		  car->parts[i].model.get());
 	}
 #endif
+}
+
+std::set<vsg::MatrixTransform*> MSTSShape::getAnimatedTransforms()
+{
+	std::set<vsg::MatrixTransform*> mtSet;
+	for (int i=0; i<matrices.size(); i++) {
+		auto& mat= matrices[i];
+		if (mat.hasAnimation) {
+			if (mat.transform)
+				mtSet.insert(mat.transform);
+			while (mat.parent >= 0) {
+				mat= matrices[mat.parent];
+				if (mat.transform)
+					mtSet.insert(mat.transform);
+			}
+		}
+	}
+	return mtSet;
 }
 
 MstsShapeReaderWriter::MstsShapeReaderWriter()

@@ -152,10 +152,9 @@ void CameraController::apply(vsg::ButtonPressEvent& buttonPress)
 	follow= nullptr;
 	for (auto train: trainList) {
 		for (auto car= train->firstCar; car; car=car->next) {
-			auto i= car->def->parts.size()-1;
 			for (auto& node: intersection->nodePath) {
 				auto mt= dynamic_cast<const vsg::MatrixTransform*>(node);
-				if (car->models[i] == mt)
+				if (car->model == mt)
 					follow= mt;
 			}
 		}

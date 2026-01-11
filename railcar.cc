@@ -72,6 +72,7 @@ RailCarDef::RailCarDef()
 	maxSlack= .1;
 	couplerGap= .02;
 	brakeValve= "K";
+	nInst= 0;
 };
 
 void RailCarDef::copy(RailCarDef* other)
@@ -141,12 +142,24 @@ vsg::ref_ptr<vsg::TransformKeyframes> getWheelKeyframes()
 	return keyframes;
 }
 
+vsg::ref_ptr<vsg::TransformKeyframes> getBogieKeyframes()
+{
+	auto keyframes= vsg::TransformKeyframes::create();
+	for (int i=-1; i<=1; i++) {
+		double time= i*M_PI/8;
+		auto r= vsg::dquat(time,vsg::dvec3(0,1,0));
+		keyframes->rotations.push_back(vsg::time_dquat{time,r});
+	}
+	return keyframes;
+}
+
 //	creates an instance of a rail car
 RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
   std::string brakeValve)
 {
-	modelsSw= vsg::Switch::create();
-	group->addChild(modelsSw);
+	def->nInst++;
+	modelSw= vsg::Switch::create();
+	group->addChild(modelSw);
 	this->def= def;
 	engine= NULL;
 	if (def->engine)
@@ -169,22 +182,39 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 			wheels.push_back(RailCarWheel(r));
 		}
 		linReg.push_back(new LinReg);
-		models.push_back({});
+		partSamplers.push_back({});
 	}
-	auto model= vsg::MatrixTransform::create();
-	modelsSw->addChild(true,model);
-	model->addChild(def->parts[def->parts.size()-1].model);
-	models[def->parts.size()-1]= model;
+	auto& topPart= def->parts[def->parts.size()-1];
+	model= vsg::MatrixTransform::create();
+	modelSw->addChild(true,model);
+	auto duplicate= new vsg::Duplicate;
+	vsg::CopyOp copyop;
+	copyop.duplicate= duplicate;
+	if (def->nInst > 1) {
+		for (auto mt: def->animatedTransforms)
+			duplicate->insert(mt);
+		duplicate->insert(topPart.model);
+		auto clone= copyop(topPart.model);
+		model->addChild(clone);
+	} else {
+		model->addChild(topPart.model);
+	}
 	if (def->rodAnimation)
 		rodAnimation= def->rodAnimation;
-	for (int i=0; i<wheels.size(); i++) {
-		auto& w= wheels[i];
+	for (int i=0; i<def->parts.size()-1; i++) {
 		if (auto mt= dynamic_cast<vsg::MatrixTransform*>(def->parts[i].model.get())) {
 			auto sampler= vsg::TransformSampler::create();
 			vsg::decompose(mt->matrix,sampler->position,sampler->rotation,sampler->scale);
-			sampler->object= mt;
-			sampler->keyframes= getWheelKeyframes();
-			w.sampler= sampler;
+			auto dup= duplicate->find(mt);
+			if (dup == duplicate->end())
+				sampler->object= mt;
+			else
+				sampler->object= dup->second;
+			partSamplers[i]= sampler;
+			if (i < wheels.size())
+				sampler->keyframes= getWheelKeyframes();
+			else
+				sampler->keyframes= getBogieKeyframes();
 		}
 	}
 	setLoad(0);
@@ -344,20 +374,12 @@ void RailCarInst::move(float distance)
 			lr->calc();
 		}
 	}
-	for (int i=0; i<def->parts.size(); i++) {
-		LinReg* lr= linReg[i];
-		RailCarPart& part= def->parts[i];
-		if (i < n) {
-			lr->bx= linReg[part.parent]->bx;
-			lr->by= linReg[part.parent]->by;
-			lr->bz= linReg[part.parent]->bz;
-		}
-		if (models[i] == NULL)
-			continue;
-		vsg::vec3 fwd= vsg::normalize(vsg::vec3(lr->bx,lr->by,lr->bz));
-//		vsg::vec3 side= vsg::vec3(-lr->by,lr->bx,0);
-		vsg::vec3 side= vsg::normalize(vsg::cross(lr->up,fwd));
-		vsg::vec3 up= vsg::cross(fwd,side);
+	int i=def->parts.size()-1;
+	LinReg* lr= linReg[i];
+	RailCarPart& part= def->parts[i];
+	vsg::vec3 fwd= vsg::normalize(vsg::vec3(lr->bx,lr->by,lr->bz));
+	vsg::vec3 side= vsg::normalize(vsg::cross(lr->up,fwd));
+	vsg::vec3 up= vsg::cross(fwd,side);
 //		if (n>4) {
 //		fprintf(stderr,"%d\n",i);
 //		fprintf(stderr,"lrup %f %f %f\n",lr->up[0],lr->up[1],lr->up[2]);
@@ -366,31 +388,15 @@ void RailCarInst::move(float distance)
 //		fprintf(stderr,"side %f %f %f\n",side[0],side[1],side[2]);
 //		}
 //		fprintf(stderr,"up %f %f %f\n",up[0],up[1],up[2]);
-		float xo= part.xoffset;
-		float zo= part.zoffset;
-		if (i < n) {
-			RailCarWheel& w= wheels[i];
-			models[i]->matrix= vsg::dmat4(
-			  w.cs,0,w.sn,0,
-			  0,1,0,0,
-			  -w.sn,0,w.cs,0,
-			  0,0,0,1)*vsg::dmat4(
-			  fwd[0],fwd[1],fwd[2],0,
-			  side[0],side[1],side[2],0,
-			  up[0],up[1],up[2],0,
-			  lr->ax,
-			  lr->ay,
-			  lr->az+zo*up[0]+zo*up[2],1);
-		} else {
-			models[i]->matrix= vsg::dmat4(
-			  fwd[0],fwd[1],fwd[2],0,
-			  side[0],side[1],side[2],0,
-			  up[0],up[1],up[2],0,
-			  lr->ax+xo*lr->bx,//+xo*lr->bz,
-			  lr->ay+xo*lr->by,
-			  lr->az+zo*up[0]+zo*up[2]+xo*lr->bz,1);
-		}
-	}
+	float xo= part.xoffset;
+	float zo= part.zoffset;
+	model->matrix= vsg::dmat4(
+	  fwd[0],fwd[1],fwd[2],0,
+	  side[0],side[1],side[2],0,
+	  up[0],up[1],up[2],0,
+	  lr->ax+xo*lr->bx,//+xo*lr->bz,
+	  lr->ay+xo*lr->by,
+	  lr->az+zo*up[0]+zo*up[2]+xo*lr->bz,1);
 	if (engine) {
 		for (vector<RailCarSmoke>::iterator i=def->smoke.begin();
 		  i!=def->smoke.end(); ++i) {
@@ -414,26 +420,28 @@ void RailCarInst::move(float distance)
 			s->update(state);
 		}
 	}
-	for (int i=0; i<wheels.size(); i++) {
-		auto w= wheels[i];
-		if (w.sampler)
-			w.sampler->update(1-std::fmod(w.state,1));
+	for (int i=0; i<wheels.size()-1; i++) {
+		if (partSamplers[i])
+			partSamplers[i]->update(1-std::fmod(wheels[i].state,1));
+	}
+	for (int i=wheels.size(); i<def->parts.size()-1; i++) {
+		RailCarPart& part= def->parts[i];
+		if (!partSamplers[i] || part.parent<0)
+			continue;
+		LinReg* lr= linReg[i];
+		LinReg* plr= linReg[part.parent];
+		auto fwd= vsg::normalize(vsg::dvec3(lr->bx,lr->by,0));
+		auto pfwd= vsg::normalize(vsg::dvec3(plr->bx,plr->by,0));
+		auto dot= vsg::dot(fwd,pfwd);
+		auto angle= dot<1 ? acos(dot) : 0;
+		if (vsg::cross(fwd,pfwd).z < 0)
+			angle*= -1;
+		partSamplers[i]->update(angle);
 	}
 }
 
-float cosTable[]={
-	1., .923880, .707107, .382683, 0, -.382683, -.707107, -.923880,
-	-1., -.923880, -.707107, -.382683, 0, .382683, .707107, .923880, 1
-};
-float sinTable[]={
-	0, .382683, .707107, .923880, 1., .923880, .707107, .382683,
-	0, -.382683, -.707107, -.923880, -1., -.923880, -.707107, -.382683, 0
-};
-
 RailCarWheel::RailCarWheel(float radius)
 {
-	cs= 1;
-	sn= 0;
 	state= 0;
 	mult= 1./(2.*3.14159*radius);
 }
@@ -454,16 +462,6 @@ void RailCarWheel::move(float distance, int rev)
 		int i= (int)(-state);
 		state+= i+1;
 	}
-#if 0
-	float s= 16*state;
-	int i= (int) s;
-	s-= i;
-	cs= cosTable[i] + s*(cosTable[i+1]-cosTable[i]);
-	sn= sinTable[i] + s*(sinTable[i+1]-sinTable[i]);
-	float x= .5 + .5*(cs*cs+sn*sn);
-	cs/= x;
-	sn/= x;
-#endif
 }
 
 #if 0
@@ -583,7 +581,7 @@ void RailCarInst::addWaybill(string& dest, float r, float g, float b, int p)
 	text->setCharacterSizeMode(osgText::Text::SCREEN_COORDS);
 	waybill->label->addChild(bb);
 	waybill->label->setAllChildrenOff();
-	models[def->parts.size()-1]->addChild(waybill->label);
+	model->addChild(waybill->label);
 #endif
 }
 
@@ -641,21 +639,21 @@ void RailCarInst::addSmoke()
 		 new osgParticle::FluidFrictionOperator;
 		op2->setFluidToAir();
 		program->addOperator(op2);
-		models[models.size()-1]->addChild(program);
+		model->addChild(program);
 #endif
 		osg::MatrixTransform* mt= new osg::MatrixTransform;
 		mt->setMatrix(osg::Matrix::translate(
 		  i->position[0],-i->position[1],i->position[2]));
 		mt->addChild(emitter);
-		models[models.size()-1]->addChild(mt);
+		model->addChild(mt);
 		osg::Geode* g= new osg::Geode;
 		g->addDrawable(ps);
-//		models[models.size()-1]->addChild(g);
-		modelsSw->addChild(g);
+//		model->addChild(g);
+		modelSw->addChild(g);
 		osgParticle::ParticleSystemUpdater* updater=
 		 new osgParticle::ParticleSystemUpdater;
 		updater->addParticleSystem(ps);
-		models[models.size()-1]->addChild(updater);
+		model->addChild(updater);
 	}
 }
 #endif
@@ -693,7 +691,7 @@ void RailCarInst::setHeadLight(int unit, bool rev, bool on)
 #if 0
 	if (def->headlights.size() > 0) {
 		HeadLightVisitor visitor(def,unit,rev,on);
-		models[models.size()-1]->accept(visitor);
+		model->accept(visitor);
 	}
 #endif
 }

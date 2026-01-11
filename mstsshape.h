@@ -25,6 +25,7 @@ THE SOFTWARE.
 #define MSTSSHAPE_H
 
 #include <vsg/io/ReaderWriter.h>
+#include <set>
 
 #include "track.h"
 #include "railcar.h"
@@ -77,12 +78,14 @@ struct MSTSShape {
 		vsg::Group* group;
 		vsg::MatrixTransform* transform;
 		bool hasAnimation;
+		int parent;
 		Matrix(std::string& s) {
 			name= s;
 			group= nullptr;
 			transform= nullptr;
 			part= -1;
 			hasAnimation= false;
+			parent= -1;
 		};
 	};
 	std::vector<Matrix> matrices;
@@ -204,6 +207,7 @@ struct MSTSShape {
 	}
 	vsg::ref_ptr<vsg::Options> vsgOptions;
 	vsg::ref_ptr<vsg::Animation> rodAnimation;
+	std::set<vsg::MatrixTransform*> getAnimatedTransforms();
 };
 
 class MstsShapeReaderWriter : public vsg::Inherit<vsg::CompositeReaderWriter,
