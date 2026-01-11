@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "camerac.h"
 #include "mstsroute.h"
 #include "train.h"
+#include "listener.h"
 
 CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<vsg::Node> node) :
   scene(node),
@@ -108,6 +109,7 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 			setPitch(-10);
 			if (zoom > 10)
 				setZoom(10);
+			lookAt->up= vsg::dvec3(0,0,1);
 		} else {
 			incPitch(-5);
 		}
@@ -133,6 +135,30 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		if (zoom < 15)
 			setZoom(15);
 		setPitch(-90);
+		keyPress.handled= true;
+	} else if (keyPress.keyBase=='1' && myTrain && myTrain->firstCar->def->inside.size()>0) {
+		auto car= myTrain->firstCar;
+		follow= car->model;
+		auto& inside= car->def->inside[0];
+		followOffset= inside.position;
+		setZoom(0);
+		//setHeading(inside.angle);
+		setPitch(inside.vAngle);
+		lookAt->up= vsg::dvec3(0,0,1);
+		keyPress.handled= true;
+	} else if (keyPress.keyBase=='2' && myTrain) {
+		follow= myTrain->firstCar->model;
+		followOffset= vsg::vec3(0,0,1.6);
+		setZoom(9);
+		setPitch(-15);
+		lookAt->up= vsg::dvec3(0,0,1);
+		keyPress.handled= true;
+	} else if (keyPress.keyBase=='3' && myTrain) {
+		follow= myTrain->lastCar->model;
+		followOffset= vsg::vec3(0,0,1.6);
+		setZoom(9);
+		setPitch(-15);
+		lookAt->up= vsg::dvec3(0,0,1);
 		keyPress.handled= true;
 	}
 }
@@ -170,6 +196,7 @@ void CameraController::apply(vsg::ButtonPressEvent& buttonPress)
 		prevRotation= rotation;
 	}
 	lookAt->eye= lookAt->center + lookV;
+	updateListener();
 }
 
 void CameraController::apply(vsg::ScrollWheelEvent& scroll)
@@ -196,4 +223,16 @@ void CameraController::apply(vsg::FrameEvent& frame)
 		lookAt->eye= lookAt->center + lookV;
 		prevRotation= rotation;
 	}
+	updateListener();
+}
+
+void CameraController::updateListener()
+{
+	auto lookV= lookAt->center - lookAt->eye;
+	auto dir= vsg::vec2(lookV.x,lookV.y);
+	auto len= vsg::length(dir);
+	if (len > 0)
+		listener.update(lookAt->center,dir.x/len,dir.y/len);
+	else
+		listener.update(lookAt->center,1,0);
 }

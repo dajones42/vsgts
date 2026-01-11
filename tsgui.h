@@ -41,12 +41,14 @@ public:
 		return data;
 	}
 	bool showGui;
+	double fps;
 	std::vector<std::string> listItems;
 	std::string selected;
 	void loadActivityList();
 private:
 	TSGuiData() {
 		showGui= false;
+		fps= 0;
 	}
 };
 

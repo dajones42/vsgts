@@ -1514,6 +1514,8 @@ Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
 		train->targetSpeed= 8.9;
 		train->bControl= 1;
 		train->modelCouplerSlack= 0;
+	} else {
+		myTrain= train;
 	}
 	Track* track= trackMap[routeID];
 	train->endLocation= trackPath->firstNode->loc;

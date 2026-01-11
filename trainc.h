@@ -1,4 +1,4 @@
-//	camera controller
+//	Train controller
 //
 /*
 Copyright © 2026 Doug Jones
@@ -21,34 +21,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#ifndef CAMERAC_H
-#define CAMERAC_H
+#pragma once
 
 #include <vsg/all.h>
 
-class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
+class TrainController : public vsg::Inherit<vsg::Visitor, TrainController>
 {
  public:
-	CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<vsg::Node> node);
+	TrainController();
 	void apply(vsg::KeyPressEvent& keyPress) override;
-	void apply(vsg::ButtonPressEvent& buttonPress) override;
-	void apply(vsg::ScrollWheelEvent& ScrollPress) override;
-	void apply(vsg::FrameEvent& frame) override;
-	vsg::ref_ptr<vsg::Node> scene;
-	vsg::ref_ptr<vsg::Camera> camera;
-	vsg::ref_ptr<vsg::LookAt> lookAt;
-	vsg::ref_ptr<const vsg::MatrixTransform> follow;
-	vsg::dvec3 followOffset;
-	vsg::dquat prevRotation;
-	int zoom;
-	int maxZoom;
-	double zoom1Dist;
-	void setZoom(int z);
-	void incZoom(int dz) { setZoom(zoom+dz); }
-	void incHeading(double degrees);
-	void incPitch(double degrees);
-	void setPitch(double degrees);
-	void updateListener();
 };
-
-#endif

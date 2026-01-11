@@ -34,11 +34,34 @@ using namespace filesystem;
 #include "tsgui.h"
 #include "mstsroute.h"
 #include "mstsfile.h"
+#include "train.h"
+#include "ttosim.h"
 
 void TSGui::record(vsg::CommandBuffer& cb) const
 {
 	TSGuiData& data= TSGuiData::instance();
-	if (data.showGui && mstsRoute) {
+	if (data.showGui && myTrain) {
+		ImGui::Begin("vsgts",&data.showGui);
+		int t= (int)simTime;
+		ImGui::Text("Time: %d:%2.2d:%2.2d fps %.1lf",t/3600,t/60%60,t%60,data.fps);
+		ImGui::Text("Speed: %.1f mph",myTrain->speed*2.23693);
+		ImGui::Text("Accel: %6.3f g %6.3f",myTrain->accel/9.8,myTrain->location.grade());
+		ImGui::Text("Reverser: %.0f%%",100*myTrain->dControl);
+		ImGui::Text("Throttle: %.0f%%",100*myTrain->tControl);
+		if (myTrain->engAirBrake)
+			ImGui::Text("Brakes: %s %.0f %.0f %.0f %.0f %.0f %.1f",
+			  myTrain->bControl<0?"R":myTrain->bControl>0?"S":"L",
+			  myTrain->engAirBrake->getEqResPressure(),
+			  myTrain->engAirBrake->getPipePressure(),
+			  myTrain->engAirBrake->getAuxResPressure(),
+			  myTrain->engAirBrake->getCylPressure(),
+			  myTrain->engAirBrake->getMainResPressure(),
+			  myTrain->engAirBrake->getAirFlowCFM());
+		else
+			ImGui::Text("Brakes: %.1f",myTrain->bControl);
+		ImGui::Text("Eng Brakes: %.0f%%",100*myTrain->engBControl);
+		ImGui::End();
+	} else if (data.showGui && mstsRoute) {
 		ImGui::Begin("vsgts",&data.showGui);
 //		ImGui::Text("Select an activiy:.");
 		if (ImGui::BeginCombo("",data.selected.c_str())) {

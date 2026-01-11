@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "mstsroute.h"
 #include "mstsfile.h"
 #include "camerac.h"
+#include "trainc.h"
 #include "tsgui.h"
 #include "train.h"
 #include "listener.h"
@@ -67,6 +68,11 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 		simTime+= dt;
 		updateTrains(dt);
 		ttoSim.processEvents(simTime);
+		if (myTrain) {
+			WLocation loc;
+			myTrain->location.getWLocation(&loc);
+		}
+		TSGuiData::instance().fps= 1/dt;
 	}
 }
 
@@ -177,8 +183,8 @@ int main(int argc, char** argv)
 	viewer->addEventHandler(vsg::CloseHandler::create(viewer));
 	viewer->addEventHandler(vsg::WindowResizeHandler::create());
         viewer->addEventHandler(vsgImGui::SendEventsToImGui::create());
-	if (mstsRoute)
-		viewer->addEventHandler(CameraController::create(camera,scene));
+	viewer->addEventHandler(CameraController::create(camera,scene));
+	viewer->addEventHandler(TrainController::create());
 #if 0
 	auto tb= vsg::Trackball::create(camera);
 	tb->panButtonMask= vsg::BUTTON_MASK_3;
