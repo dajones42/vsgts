@@ -25,10 +25,12 @@ THE SOFTWARE.
 #include <iostream>
 #include <cmath>
 #include <numbers>
+#include <list>
 #include <vsg/all.h>
 
 #include "camerac.h"
 #include "mstsroute.h"
+#include "train.h"
 
 CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<vsg::Node> node) :
   scene(node),
@@ -146,8 +148,28 @@ void CameraController::apply(vsg::ButtonPressEvent& buttonPress)
 		return;
 	std::sort(intersector->intersections.begin(),intersector->intersections.end(),
 	  [](auto& lhs, auto& rhs) { return lhs->ratio < rhs->ratio; });
+	auto& intersection= intersector->intersections.front();
+	follow= nullptr;
+	for (auto train: trainList) {
+		for (auto car= train->firstCar; car; car=car->next) {
+			auto i= car->def->parts.size()-1;
+			for (auto& node: intersection->nodePath) {
+				auto mt= dynamic_cast<const vsg::MatrixTransform*>(node);
+				if (car->models[i] == mt)
+					follow= mt;
+			}
+		}
+	}
 	auto lookV= lookAt->eye - lookAt->center;
-	lookAt->center= intersector->intersections.front()->worldIntersection + vsg::dvec3(0,0,1.7);
+	lookAt->center= intersection->worldIntersection + vsg::dvec3(0,0,1.6);
+	if (follow) {
+		vsg::dvec3 position;
+		vsg::dquat rotation;
+		vsg::dvec3 scale;
+		vsg::decompose(follow->matrix,position,rotation,scale);
+		followOffset= (-rotation)*(lookAt->center-position);
+		prevRotation= rotation;
+	}
 	lookAt->eye= lookAt->center + lookV;
 }
 
@@ -160,4 +182,19 @@ void CameraController::apply(vsg::ScrollWheelEvent& scroll)
 		incZoom(1);
 	if (scroll.delta.y > 0)
 		incZoom(-1);
+}
+
+void CameraController::apply(vsg::FrameEvent& frame)
+{
+	if (follow) {
+		auto lookV= lookAt->eye - lookAt->center;
+		vsg::dvec3 position;
+		vsg::dquat rotation;
+		vsg::dvec3 scale;
+		vsg::decompose(follow->matrix,position,rotation,scale);
+		lookAt->center= position + rotation*followOffset;
+		lookV= rotation*((-prevRotation)*lookV);
+		lookAt->eye= lookAt->center + lookV;
+		prevRotation= rotation;
+	}
 }

@@ -206,8 +206,8 @@ struct RailCarInst {
 	  float dt);
 	void setLoad(float f);
 	float calcBrakes(float dt, int n);
-	void setModelsOn() { }; //modelsSw->setAllChildrenOn(); };
-	void setModelsOff() { }; //modelsSw->setAllChildrenOff(); };
+	void setModelsOn() { modelsSw->setAllChildren(true); };
+	void setModelsOff() { modelsSw->setAllChildren(false); };
 	void decHandBrakes() {
 		handBControl-= .25;
 		if (handBControl < 0)

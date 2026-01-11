@@ -1231,12 +1231,14 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 		top->addChild(node);
 	}
 #endif
+#if 0
 	if (anim && anim->samplers.size()>0) {
 		vsg::AnimationGroup* agroup= new vsg::AnimationGroup;
 		agroup->animations.push_back(anim);
 		agroup->addChild(vsg::ref_ptr(top));
 		top= agroup;
 	}
+#endif
 	if (transform) {
 		vsg::MatrixTransform* mt= new vsg::MatrixTransform;
 		mt->matrix= vsg::dmat4(0,-1,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,1);

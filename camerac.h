@@ -33,9 +33,13 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	void apply(vsg::KeyPressEvent& keyPress) override;
 	void apply(vsg::ButtonPressEvent& buttonPress) override;
 	void apply(vsg::ScrollWheelEvent& ScrollPress) override;
+	void apply(vsg::FrameEvent& frame) override;
 	vsg::ref_ptr<vsg::Node> scene;
 	vsg::ref_ptr<vsg::Camera> camera;
 	vsg::ref_ptr<vsg::LookAt> lookAt;
+	vsg::ref_ptr<const vsg::MatrixTransform> follow;
+	vsg::dvec3 followOffset;
+	vsg::dquat prevRotation;
 	int zoom;
 	int maxZoom;
 	double zoom1Dist;
