@@ -33,6 +33,7 @@ using namespace std;
 #include "mstsbfile.h"
 #include "mstsshape.h"
 #include "trackshape.h"
+#include "animation.h"
 
 extern string fixFilenameCase(string);
 
@@ -588,24 +589,47 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 {
 	if (filename == NULL)
 		return {};
+	if (swVertex && swVertex->model)
+		return swVertex->model;
 	int idx= filename->rfind("\\");
 	if (idx != string::npos) {
 		filename->erase(0,idx+1);
 //		fprintf(stderr,"remove tm path %s\n",filename->c_str());
 	}
-	ModelMap::iterator i= trackModelMap.find(*filename);
-	if (i != trackModelMap.end() && i->second) {
-		return i->second;
-#if 0
-		osg::Node* model= i->second;
-		if (swVertex) {
-			model= (osg::Node*)
-			  model->clone(osg::CopyOp::DEEP_COPY_NODES);
-			SetSwVertexVisitor visitor(swVertex);
-			model->accept(visitor);
+	auto i= trackModelMap.find(*filename);
+	if (i != trackModelMap.end() && i->second->model) {
+		if (!i->second->animation) {
+			if (swVertex)
+				swVertex->model= i->second->model;
+			return i->second->model;
 		}
-		return model;
-#endif
+		auto duplicate= new vsg::Duplicate;
+		vsg::CopyOp copyop;
+		copyop.duplicate= duplicate;
+		for (auto mt: i->second->animatedTransforms)
+			duplicate->insert(mt);
+		auto clone= copyop(i->second->model);
+		auto animation= TwoStateAnimation::create();
+		for (auto& sampler1: i->second->animation->samplers) {
+			if (auto tsSampler= dynamic_cast<vsg::TransformSampler*>(sampler1.get())) {
+				auto sampler2= vsg::TransformSampler::create();
+				sampler2->position= tsSampler->position;
+				sampler2->rotation= tsSampler->rotation;
+				sampler2->scale= tsSampler->scale;
+				sampler2->keyframes= tsSampler->keyframes;
+				auto dup= duplicate->find(tsSampler->object);
+				if (dup!=duplicate->end() && dup->second)
+					sampler2->object= dup->second;
+				else
+					sampler2->object= tsSampler->object;
+				animation->samplers.push_back(sampler2);
+			}
+		}
+		if (swVertex) {
+			swVertex->model= clone;
+			swVertex->animation= animation;
+		}
+		return clone;
 	}
 	string path= idx != string::npos ?
 	  rShapesDir+dirSep+*filename : gShapesDir+dirSep+*filename;
@@ -617,6 +641,14 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 		  gTexturesDir.c_str());
 		shape.fixTop();
 		auto model= shape.createModel(0,10,false,true);
+		auto animation= shape.animation;
+		auto animated= shape.getAnimatedTransforms();
+		if (animation) {
+			auto tsAnimation= TwoStateAnimation::create();
+			for (auto& sampler: animation->samplers)
+				tsAnimation->samplers.push_back(sampler);
+			animation= tsAnimation;
+		}
 #if 0
 		if (wireHeight > 0) {
 			string path= wireModelsDir+dirSep+*filename+".osg";
@@ -626,12 +658,13 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 			g->addChild(model);
 			model= g;
 		}
-		if (swVertex) {
-			SetSwVertexVisitor visitor(swVertex);
-			model->accept(visitor);
-		}
 #endif
-		trackModelMap[*filename]= model;
+		TrackModelInfo* tmi= new TrackModelInfo(model,animation,animated);
+		trackModelMap[*filename]= tmi;
+		if (swVertex) {
+			swVertex->model= model;
+			swVertex->animation= animation;
+		}
 		return model;
 	} catch (const char* msg) {
 		fprintf(stderr,"loadTrackModel caught %s\n",msg);

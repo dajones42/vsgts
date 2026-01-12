@@ -102,5 +102,8 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 		}
 		myTrain->targetSpeed/= 1.4;
 		keyPress.handled= true;
+	} else if (keyPress.keyBase == 'g') {
+		myTrain->throwSwitch(keyPress.keyModifier==vsg::MODKEY_Shift);
+		keyPress.handled= true;
 	}
 }

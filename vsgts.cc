@@ -47,6 +47,29 @@ void initSim(vsg::ref_ptr<vsg::Group>& root)
 		TSGuiData::instance().loadActivityList();
 }
 
+void startSwitchAnimation(vsg::ref_ptr<vsg::AnimationManager> manager)
+{
+	for (auto i: trackMap) {
+		for (auto v: i.second->vertexList) {
+			if (v->type == Track::VT_SWITCH) {
+				auto sw= (Track::SwVertex*)v;
+				if (!sw->animation || sw->animation->active())
+					continue;
+				if (sw->edge2==sw->swEdges[sw->mainEdge] && sw->animation->time>.5) {
+					sw->animation->speed= -.1;
+					manager->play(sw->animation,sw->animation->time);
+					std::cerr<<"play "<<sw->animation->time<<" "<<sw->animation->speed<<"\n";
+				}
+				if (sw->edge2!=sw->swEdges[sw->mainEdge] && sw->animation->time<.5) {
+					sw->animation->speed= .1;
+					manager->play(sw->animation,sw->animation->time);
+					std::cerr<<"play "<<sw->animation->time<<" "<<sw->animation->speed<<"\n";
+				}
+			}
+		}
+	}
+}
+
 void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::Viewer>& viewer)
 {
 	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()>0) {
@@ -73,6 +96,7 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			myTrain->location.getWLocation(&loc);
 		}
 		TSGuiData::instance().fps= 1/dt;
+		startSwitchAnimation(viewer->animationManager);
 	}
 }
 

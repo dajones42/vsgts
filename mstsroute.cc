@@ -1866,6 +1866,10 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 		indices->set(j++,e->v1->occupied);
 		indices->set(j++,e->v2->occupied);
 	}
+	for (auto i=track->vertexList.begin(); i!=track->vertexList.end(); i++) {
+		auto v= *i;
+		v->occupied= 0;
+	}
 	auto attributeArrays= vsg::DataList{verts,colors};
 	auto vid= vsg::VertexIndexDraw::create();
 	vid->assignArrays(attributeArrays);

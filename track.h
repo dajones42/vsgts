@@ -102,6 +102,8 @@ struct Track {
 		short hasInterlocking;
 		bool locked;
 		int id;
+		vsg::ref_ptr<vsg::Animation> animation;
+		vsg::ref_ptr<vsg::Node> model;
 		void throwSwitch(Edge* edge, bool force);
 		SwVertex() {
 			id= -1;

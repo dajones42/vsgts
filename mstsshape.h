@@ -207,6 +207,7 @@ struct MSTSShape {
 	}
 	vsg::ref_ptr<vsg::Options> vsgOptions;
 	vsg::ref_ptr<vsg::Animation> rodAnimation;
+	vsg::ref_ptr<vsg::Animation> animation;
 	std::set<vsg::MatrixTransform*> getAnimatedTransforms();
 };
 

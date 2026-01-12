@@ -22,7 +22,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-
+#include <iostream>
 using namespace std;
 
 #include "track.h"
@@ -1699,4 +1699,16 @@ void Train::stopAtSwitch(Track::SwVertex* sw)
 		nextStopDist= d;
 	fprintf(stderr,"stopAtSwitch %f %f %d %d\n",
 	  nextStopDist,speed,sw->occupied,facing);
+}
+
+void Train::throwSwitch(bool behind)
+{
+	Track::Location loc= location;
+	if (behind) {
+		loc= endLocation;
+		loc.rev= !loc.rev;
+	}
+	Track::SwVertex* sw= loc.getNextSwitch();
+	if (sw && !sw->occupied)
+		sw->throwSwitch(nullptr,false);
 }

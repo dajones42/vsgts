@@ -34,6 +34,7 @@ struct LooseConsist;
 struct MSTSSignal;
 
 #include <mutex>
+#include <set>
 
 #include "track.h"
 
@@ -121,8 +122,20 @@ struct MSTSRoute {
 	TileMap tileMap;
 	TerrainTileMap terrainTileMap;
 	typedef std::map<std::string,vsg::ref_ptr<vsg::Node>> ModelMap;
-	ModelMap trackModelMap;
 	ModelMap staticModelMap;
+	struct TrackModelInfo {
+		vsg::ref_ptr<vsg::Node> model;
+		vsg::ref_ptr<vsg::Animation> animation;
+		std::set<vsg::MatrixTransform*> animatedTransforms;
+		TrackModelInfo(vsg::ref_ptr<vsg::Node> m, vsg::ref_ptr<vsg::Animation> anim,
+		  std::set<vsg::MatrixTransform*> animated) {
+			model= m;
+			animation= anim;
+			animatedTransforms= animated;
+		}
+	};
+	typedef std::map<std::string,TrackModelInfo*> TrackModelMap;
+	TrackModelMap trackModelMap;
 	TrackShape* dynTrackBase;
 	TrackShape* dynTrackRails;
 	TrackShape* dynTrackWire;
