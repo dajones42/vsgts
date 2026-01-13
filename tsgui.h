@@ -40,14 +40,19 @@ public:
 		static TSGuiData data;
 		return data;
 	}
-	bool showGui;
+	bool showMessage;
+	bool showStatus;
+	bool showSelect;
 	double fps;
 	std::vector<std::string> listItems;
 	std::string selected;
 	void loadActivityList();
+	void displayMessage(std::string message);
 private:
 	TSGuiData() {
-		showGui= false;
+		showMessage= false;
+		showStatus= false;
+		showSelect= false;
 		fps= 0;
 	}
 };

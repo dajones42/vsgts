@@ -53,6 +53,7 @@ void Activity::readFile(const char* path)
 	MSTSFileNode* act= file.find("Tr_Activity");
 	if (act == NULL)
 		return;
+	events= NULL;
 	MSTSFileNode* trActFile= act->children->find("Tr_Activity_File");
 	if (trActFile != NULL) {
 		MSTSFileNode* player=
@@ -92,7 +93,6 @@ void Activity::readFile(const char* path)
 			  ao!=NULL; ao=ao->find("ActivityObject"))
 				saveConsist(ao->children);
 		MSTSFileNode* eventNodes= trActFile->children->find("Events");
-		events= NULL;
 		if (eventNodes != NULL) {
 			int i= 0;
 			for (MSTSFileNode* n=eventNodes->getChild(i++); n!=NULL;
@@ -164,6 +164,11 @@ void Activity::readFile(const char* path)
 	if (trActHdr != NULL) {
 		MSTSFileNode* briefing= trActHdr->children->find("Briefing");
 		if (briefing) {
+			Event* event= new Event;
+			event->next= events;
+			events= event;
+			event->time= 1;
+			event->message= briefing->catChildren();
 			fprintf(stderr,"Briefing:\n");
 			for (MSTSFileNode* line=briefing->getFirstChild();
 			  line!=NULL; line=line->next) {

@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "listener.h"
 #include "ttosim.h"
 #include "timetable.h"
+#include "activity.h"
 
 void initSim(vsg::ref_ptr<vsg::Group>& root)
 {
@@ -70,6 +71,38 @@ void startSwitchAnimation(vsg::ref_ptr<vsg::AnimationManager> manager)
 	}
 }
 
+void updateActivityEvents()
+{
+	if (!mstsRoute)
+		return;
+	for (auto i=mstsRoute->eventMap.begin(); i!=mstsRoute->eventMap.end(); i++) {
+		auto event= i->second;
+		if (event->time>0 && event->time<simTime) {
+			TSGuiData::instance().displayMessage(event->message);
+			mstsRoute->eventMap.erase(i);
+			return;
+		}
+	}
+	if (!myTrain)
+		return;
+	WLocation loc;
+	myTrain->location.getWLocation(&loc);
+	for (auto i=mstsRoute->eventMap.begin(); i!=mstsRoute->eventMap.end(); i++) {
+		auto event= i->second;
+		if (event->time>0)
+			continue;
+		auto dx= mstsRoute->convX(event->tx,event->x) - loc.coord[0];
+		auto dy= mstsRoute->convZ(event->tz,event->z) - loc.coord[1];
+		if (event->radius*event->radius < dx*dx+dy*dy)
+			continue;
+		if (event->onStop && myTrain->speed != 0)
+			continue;
+		TSGuiData::instance().displayMessage(event->message);
+		mstsRoute->eventMap.erase(i);
+		return;
+	}
+}
+
 void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::Viewer>& viewer)
 {
 	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()>0) {
@@ -97,6 +130,7 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 		}
 		TSGuiData::instance().fps= 1/dt;
 		startSwitchAnimation(viewer->animationManager);
+		updateActivityEvents();
 	}
 }
 

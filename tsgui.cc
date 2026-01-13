@@ -40,12 +40,12 @@ using namespace filesystem;
 void TSGui::record(vsg::CommandBuffer& cb) const
 {
 	TSGuiData& data= TSGuiData::instance();
-	if (data.showGui && myTrain) {
-		ImGui::Begin("vsgts",&data.showGui);
+	if (data.showStatus && myTrain) {
+		ImGui::Begin("Train Status",&data.showStatus);
 		int t= (int)simTime;
 		ImGui::Text("Time: %d:%2.2d:%2.2d fps %.1lf",t/3600,t/60%60,t%60,data.fps);
 		ImGui::Text("Speed: %.1f mph",myTrain->speed*2.23693);
-		ImGui::Text("Accel: %6.3f g %6.3f",myTrain->accel/9.8,myTrain->location.grade());
+		ImGui::Text("Accel: %6.3f g %6.3f",myTrain->accel/9.8,-100*myTrain->location.grade());
 		ImGui::Text("Reverser: %.0f%%",100*myTrain->dControl);
 		ImGui::Text("Throttle: %.0f%%",100*myTrain->tControl);
 		if (myTrain->engAirBrake)
@@ -61,9 +61,9 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 			ImGui::Text("Brakes: %.1f",myTrain->bControl);
 		ImGui::Text("Eng Brakes: %.0f%%",100*myTrain->engBControl);
 		ImGui::End();
-	} else if (data.showGui && mstsRoute) {
-		ImGui::Begin("vsgts",&data.showGui);
-//		ImGui::Text("Select an activiy:.");
+	}
+	if (data.showSelect && mstsRoute) {
+		ImGui::Begin("Select",&data.showSelect);
 		if (ImGui::BeginCombo("",data.selected.c_str())) {
 			for (auto s: data.listItems) {
 				if (ImGui::Selectable(s.c_str())) {
@@ -74,10 +74,16 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 		}
 		if (data.selected!="Select an activity" && ImGui::Button("Load")) {
 			mstsRoute->activityName= data.selected;
-			data.showGui= false;
+			data.showSelect= false;
 		}
 		ImGui::End();
         }
+	if (data.showMessage) {
+		ImGui::Begin("Message",&data.showMessage);
+		for (auto s: data.listItems)
+			ImGui::TextWrapped("%s",s.c_str());
+		ImGui::End();
+	}
 }
 
 void TSGuiData::loadActivityList()
@@ -91,5 +97,13 @@ void TSGuiData::loadActivityList()
 		sort(listItems.begin(),listItems.end());
 		selected= "Select an activity";
 	}
-	showGui= true;
+	showSelect= true;
+}
+
+void TSGuiData::displayMessage(std::string message)
+{
+	if (!showMessage)
+		listItems.clear();
+	listItems.push_back(message);
+	showMessage= true;
 }

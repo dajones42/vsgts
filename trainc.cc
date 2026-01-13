@@ -69,7 +69,7 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 		myTrain->bailOff();
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == vsg::KEY_F5) {
-		TSGuiData::instance().showGui= !TSGuiData::instance().showGui;
+		TSGuiData::instance().showStatus= !TSGuiData::instance().showStatus;
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == '<') {
 		myTrain->nextStopDist= myTrain->coupleDistance(true);
