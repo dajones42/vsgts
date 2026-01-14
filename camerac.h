@@ -50,5 +50,6 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	void setPitch(double degrees);
 	void updateListener();
 };
+extern vsg::dvec3 clickLocation;
 
 #endif

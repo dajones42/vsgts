@@ -59,12 +59,10 @@ void startSwitchAnimation(vsg::ref_ptr<vsg::AnimationManager> manager)
 				if (sw->edge2==sw->swEdges[sw->mainEdge] && sw->animation->time>.5) {
 					sw->animation->speed= -.1;
 					manager->play(sw->animation,sw->animation->time);
-					std::cerr<<"play "<<sw->animation->time<<" "<<sw->animation->speed<<"\n";
 				}
 				if (sw->edge2!=sw->swEdges[sw->mainEdge] && sw->animation->time<.5) {
 					sw->animation->speed= .1;
 					manager->play(sw->animation,sw->animation->time);
-					std::cerr<<"play "<<sw->animation->time<<" "<<sw->animation->speed<<"\n";
 				}
 			}
 		}

@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "train.h"
 #include "trainc.h"
 #include "tsgui.h"
+#include "camerac.h"
 
 TrainController::TrainController()
 {
@@ -104,6 +105,12 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == 'g') {
 		myTrain->throwSwitch(keyPress.keyModifier==vsg::MODKEY_Shift);
+		keyPress.handled= true;
+	} else if (keyPress.keyBase=='c') {// && keyPress.keyModifier==vsg::MODKEY_Shift) {
+		myTrain->connectAirHoses();
+		keyPress.handled= true;
+	} else if (keyPress.keyBase=='u') {
+		myTrain->uncouple(clickLocation);
 		keyPress.handled= true;
 	}
 }

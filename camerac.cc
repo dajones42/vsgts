@@ -33,6 +33,8 @@ THE SOFTWARE.
 #include "train.h"
 #include "listener.h"
 
+vsg::dvec3 clickLocation;
+
 CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<vsg::Node> node) :
   scene(node),
   camera(cam),
@@ -141,8 +143,15 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		follow= car->model;
 		auto& inside= car->def->inside[0];
 		followOffset= inside.position;
+		vsg::dvec3 position;
+		vsg::dquat rotation;
+		vsg::dvec3 scale;
+		vsg::decompose(follow->matrix,position,rotation,scale);
+		prevRotation= rotation;
+		auto dir= rotation*vsg::dvec3(1,0,0);
+		dir= vsg::dquat(vsg::radians(inside.angle),vsg::dvec3(0,0,1))*dir;
 		setZoom(0);
-		//setHeading(inside.angle);
+		lookAt->eye= lookAt->center - .1*dir;
 		setPitch(inside.vAngle);
 		lookAt->up= vsg::dvec3(0,0,1);
 		keyPress.handled= true;
@@ -194,6 +203,9 @@ void CameraController::apply(vsg::ButtonPressEvent& buttonPress)
 		vsg::decompose(follow->matrix,position,rotation,scale);
 		followOffset= (-rotation)*(lookAt->center-position);
 		prevRotation= rotation;
+		clickLocation= vsg::dvec3(0,0,0);
+	} else {
+		clickLocation= intersection->worldIntersection;
 	}
 	lookAt->eye= lookAt->center + lookV;
 	updateListener();
