@@ -46,8 +46,12 @@ public:
 	double fps;
 	std::vector<std::string> listItems;
 	std::string selected;
+	void loadRouteList();
 	void loadActivityList();
 	void displayMessage(std::string message);
+	void updateFPS(double dt) {
+		fps= .9*fps + .1/dt;
+	}
 private:
 	TSGuiData() {
 		showMessage= false;

@@ -40,6 +40,7 @@ CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<v
   camera(cam),
   lookAt(cam->viewMatrix.cast<vsg::LookAt>())
 {
+	perspective= dynamic_cast<vsg::Perspective*>(cam->projectionMatrix.get());
 	auto dist= vsg::length(lookAt->eye - lookAt->center);
 	zoom1Dist= 1.4;
 	auto z= std::log(dist)/std::log(zoom1Dist);
@@ -87,9 +88,18 @@ void CameraController::setZoom(int z)
 	auto lookDir= vsg::normalize(lookV);
 	if (zoom == 0) {
 		lookAt->eye= lookAt->center - .1*lookDir;
+		perspective->nearDistance= .2;
+		perspective->farDistance= 4000;
 	} else {
 		double dist= std::pow(zoom1Dist,zoom);
 		lookAt->eye= lookAt->center - dist*lookDir;
+		if (dist < 2000) {
+			perspective->nearDistance= .2;
+			perspective->farDistance= 4000;
+		} else {
+			perspective->nearDistance= .0001*dist;
+			perspective->farDistance= 2*dist;
+		}
 	}
 	if (mstsRoute && mstsRoute->trackLines) {
 		if (zoom > 20)

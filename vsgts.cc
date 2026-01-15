@@ -44,6 +44,10 @@ THE SOFTWARE.
 
 void initSim(vsg::ref_ptr<vsg::Group>& root)
 {
+	timeTable= new TimeTable();
+	timeTable->addRow(timeTable->addStation("start"));
+	timeTable->setIgnoreOther(true);
+	listener.init();
 	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()==0)
 		TSGuiData::instance().loadActivityList();
 }
@@ -103,13 +107,18 @@ void updateActivityEvents()
 
 void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::Viewer>& viewer)
 {
-	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()>0) {
+	if (trainList.size() > 0) {
+		simTime+= dt;
+		updateTrains(dt);
+		ttoSim.processEvents(simTime);
+		TSGuiData::instance().updateFPS(dt);
+		startSwitchAnimation(viewer->animationManager);
+		updateActivityEvents();
+	} else if (mstsRoute && mstsRoute->activityName.size()>0) {
 		auto railCars= vsg::Group::create();
 		mstsRoute->activityName+= ".act";
 		mstsRoute->loadActivity(railCars.get(),-1);
-		cerr<<"activity "<<mstsRoute->activityName<<"\n";
 		mstsRoute->activityName.clear();
-		cerr<<trainList.size()<<" trains\n";
 		auto cr= viewer->compileManager->compile(railCars);
 		updateViewer(*viewer,cr);
 		root->addChild(railCars);
@@ -117,18 +126,19 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 		for (auto t: trainList)
 			listener.addTrain(t);
 		listener.setGain(1);
-	}
-	if (trainList.size() > 0) {
-		simTime+= dt;
-		updateTrains(dt);
-		ttoSim.processEvents(simTime);
-		if (myTrain) {
-			WLocation loc;
-			myTrain->location.getWLocation(&loc);
+	} else if (!mstsRoute && !TSGuiData::instance().showSelect && TSGuiData::instance().selected.find(".tdb")) {
+		auto options= vsg::Options::create();
+		options->add(MstsRouteReader::create());
+		options->add(MstsTerrainReader::create());
+		vsg::Path filename= TSGuiData::instance().selected;
+		auto object= vsg::read(filename, options);
+		if (auto node= object.cast<vsg::Node>()) {
+			auto cr= viewer->compileManager->compile(node);
+			updateViewer(*viewer,cr);
+			root->addChild(node);
 		}
-		TSGuiData::instance().fps= 1/dt;
-		startSwitchAnimation(viewer->animationManager);
-		updateActivityEvents();
+		if (mstsRoute)
+			TSGuiData::instance().loadActivityList();
 	}
 }
 
@@ -136,7 +146,7 @@ int main(int argc, char** argv)
 {
 	auto options= vsg::Options::create();
 	auto windowTraits= vsg::WindowTraits::create();
-	windowTraits->windowTitle= "vsgts";
+	windowTraits->windowTitle= "VSG Train Simulator";
 	vsg::CommandLine arguments(&argc, argv);
 	windowTraits->debugLayer= arguments.read({"--debug","-d"});
 	windowTraits->apiDumpLayer= arguments.read({"--api","-a"});
@@ -166,24 +176,8 @@ int main(int argc, char** argv)
 		arguments.remove(i, 1);
 		--i;
 	}
-	timeTable= new TimeTable();
-	timeTable->addRow(timeTable->addStation("start"));
-	timeTable->setIgnoreOther(true);
-	listener.init();
-	if (scene->children.empty()) {
-		auto object= vsg::read("/home/daj/msts/ROUTES/StL_NA/StL_NA.tdb", options);
-		if (auto node= object.cast<vsg::Node>())
-			scene->addChild(node);
-		auto railCars= vsg::Group::create();
-		mstsRoute->activityName= "NA_10Cake2.act";
-		mstsRoute->loadActivity(railCars.get(),-1);
-		mstsRoute->activityName.clear();
-		scene->addChild(railCars);
-		ttoSim.init(false);
-		for (auto t: trainList)
-			listener.addTrain(t);
-		listener.setGain(1);
-	}
+	if (scene->children.empty())
+		TSGuiData::instance().loadRouteList();
 	auto aLight= vsg::AmbientLight::create();
 	aLight->color.set(1,1,1);
 	aLight->intensity= .4;
@@ -198,7 +192,6 @@ int main(int argc, char** argv)
 	dLight2->intensity= .4;
 	dLight2->direction.set(-1,1,.5);
 	scene->addChild(dLight2);
-//	vsg::write(scene,"test.vsgt");
 	initSim(scene);
 
 	auto viewer= vsg::Viewer::create();
@@ -216,18 +209,17 @@ int main(int argc, char** argv)
 	window->setPhysicalDevice(physicalDevice);
 	viewer->addWindow(window);
 
-	vsg::ComputeBounds computeBounds;
-	scene->accept(computeBounds);
-	vsg::dvec3 center=
-	  (computeBounds.bounds.min+computeBounds.bounds.max)*0.5;
-	auto size= computeBounds.bounds.max-computeBounds.bounds.min;
-	double radius= vsg::length(size)*0.6;
+	vsg::dvec3 center= vsg::dvec3(0,0,0);
+	double radius= 20000;
+	if (mstsRoute) {
+		vsg::ComputeBounds computeBounds;
+		scene->accept(computeBounds);
+		center= (computeBounds.bounds.min+computeBounds.bounds.max)*0.5;
+		auto size= computeBounds.bounds.max-computeBounds.bounds.min;
+		radius= vsg::length(size)*0.6;
+	}
 	double nearFarRatio= 0.0001;
-	auto lookAt= vsg::LookAt::create(center+vsg::dvec3(0.0,
-	  -radius*3.5, 0.0), center, vsg::dvec3(0.0, 0.0, 1.0));
-	if (mstsRoute)
-		lookAt= vsg::LookAt::create(center+vsg::dvec3(0,0,radius*3.5),
-		  center,vsg::dvec3(0,1,0));
+	auto lookAt= vsg::LookAt::create(center+vsg::dvec3(0,0,2*radius),center,vsg::dvec3(0,1,0));
 	vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
 	perspective= vsg::Perspective::create(30.0,
 	  static_cast<double>(window->extent2D().width) /
@@ -241,16 +233,7 @@ int main(int argc, char** argv)
         viewer->addEventHandler(vsgImGui::SendEventsToImGui::create());
 	viewer->addEventHandler(CameraController::create(camera,scene));
 	viewer->addEventHandler(TrainController::create());
-#if 0
-	auto tb= vsg::Trackball::create(camera);
-	tb->panButtonMask= vsg::BUTTON_MASK_3;
-	tb->zoomButtonMask= vsg::BUTTON_MASK_2;
-	tb->supportsThrow= false;
-	viewer->addEventHandler(tb);
-#endif
 
-//	auto commandGraph=
-//	  vsg::createCommandGraphForView(window, camera, scene);
         auto commandGraph= vsg::CommandGraph::create(window);
         auto renderGraph= vsg::RenderGraph::create(window);
         commandGraph->addChild(renderGraph);

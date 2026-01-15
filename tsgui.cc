@@ -45,7 +45,7 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 		int t= (int)simTime;
 		ImGui::Text("Time: %d:%2.2d:%2.2d fps %.1lf",t/3600,t/60%60,t%60,data.fps);
 		ImGui::Text("Speed: %.1f mph",myTrain->speed*2.23693);
-		ImGui::Text("Accel: %6.3f g %6.3f",myTrain->accel/9.8,-100*myTrain->location.grade());
+		ImGui::Text("Accel: %6.3f g  %6.3f%%",myTrain->accel/9.8,-100*myTrain->location.grade());
 		ImGui::Text("Reverser: %.0f%%",100*myTrain->dControl);
 		ImGui::Text("Throttle: %.0f%%",100*myTrain->tControl);
 		if (myTrain->engAirBrake)
@@ -60,9 +60,22 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 		else
 			ImGui::Text("Brakes: %.1f",myTrain->bControl);
 		ImGui::Text("Eng Brakes: %.0f%%",100*myTrain->engBControl);
+		float bp= -1;
+		for (auto c=myTrain->firstCar; c; c=c->next) {
+			if (!c->engine)
+				continue;
+			auto e= dynamic_cast<SteamEngine*>(c->engine);
+			if (e) {
+				auto x= e->getBoilerPressure();
+				if (bp < x)
+					bp= x;
+			}
+		}
+		if (bp > 0)
+			ImGui::Text("Boiler Pressure: %.0f",bp);
 		ImGui::End();
 	}
-	if (data.showSelect && mstsRoute) {
+	if (data.showSelect) {
 		ImGui::Begin("Select",&data.showSelect);
 		if (ImGui::BeginCombo("",data.selected.c_str())) {
 			for (auto s: data.listItems) {
@@ -72,8 +85,11 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 			}
 			ImGui::EndCombo();
 		}
-		if (data.selected!="Select an activity" && ImGui::Button("Load")) {
+		if (mstsRoute && data.selected!="Select an activity" && ImGui::Button("Load")) {
 			mstsRoute->activityName= data.selected;
+			data.showSelect= false;
+		}
+		if (!mstsRoute && data.selected!="Select a route" && ImGui::Button("Load")) {
 			data.showSelect= false;
 		}
 		ImGui::End();
@@ -84,6 +100,26 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 			ImGui::TextWrapped("%s",s.c_str());
 		ImGui::End();
 	}
+}
+
+void TSGuiData::loadRouteList()
+{
+	listItems.clear();
+	auto paths= vsg::getEnvPaths("MSTSDIRS");
+	for (auto p: paths) {
+		path mstsDir= p.string();
+		for (const directory_entry& d: recursive_directory_iterator(mstsDir)) {
+			const path& f= d;
+			if (f.extension() == ".tdb") {
+				path tdbFile= mstsDir;
+				tdbFile/= f;
+				listItems.push_back(tdbFile);
+			}
+		}
+	}
+	sort(listItems.begin(),listItems.end());
+	selected= "Select a route";
+	showSelect= true;
 }
 
 void TSGuiData::loadActivityList()

@@ -37,6 +37,7 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	vsg::ref_ptr<vsg::Node> scene;
 	vsg::ref_ptr<vsg::Camera> camera;
 	vsg::ref_ptr<vsg::LookAt> lookAt;
+	vsg::ref_ptr<vsg::Perspective> perspective;
 	vsg::ref_ptr<const vsg::MatrixTransform> follow;
 	vsg::dvec3 followOffset;
 	vsg::dquat prevRotation;

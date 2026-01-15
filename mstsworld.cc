@@ -211,7 +211,6 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 	if (reader.open(wfilename))
 		return 0;
 //	fprintf(stderr,"%s is binary %d\n",wfilename,reader.compressed);
-#if 0
 	Byte buf[16];
 	reader.getBytes(buf,16);
 	int prevCode= 0;
@@ -437,11 +436,11 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 			  case 17: // signal
 			  case 64: // speedpost
 				model= loadStaticModel(&filename);
-				if (prevCode==3 && model)
-					model->setNodeMask(1);
-				if (prevCode==17 && model)
-					model= attachSwitchStand(tile,model,
-					  x0+posX,z0+posZ,posY);
+//				if (prevCode==3 && model)
+//					model->setNodeMask(1);
+//				if (prevCode==17 && model)
+//					model= attachSwitchStand(tile,model,
+//					  x0+posX,z0+posZ,posY);
 				break;
 			  case 5: // trackobj
 				{
@@ -459,25 +458,20 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 				break;
 			  case 63: // transfer
 				model= makeTransfer(&filename,tile,
-				  vsg::dvec3(posX,posY,posZ),
-				  vsg::quat(qDirX,qDirY,qDirZ,qDirW),
+				  vsg::vec3(posX,posY,posZ),
+				  vsg::quat(-qDirX,-qDirY,-qDirZ,qDirW),
 				  width,height);
 			  default:
 				break;
 			}
 			if (model != NULL) {
-				double a,x,y,z;
-				vsg::quat(qDirX,qDirY,qDirZ,qDirW).getRotate(
-				  a,x,y,z);
-				vsg::quat q;
-				q.makeRotate(-a,x,y,z);
-				vsg::MatrixTransform* mt=
+				vsg::dquat q(-qDirX,-qDirY,-qDirZ,qDirW);
+				double x= x0+posX;
+				double y= z0+posZ;
+				double z= posY;
+				vsg::ref_ptr<vsg::MatrixTransform> mt=
 				  vsg::MatrixTransform::create();
-				mt->setMatrix(vsg::dmat4(q)*
-				 vsg::dmat4(1,0,0,0, 0,0,1,0, 0,1,0,0,
-				  0,0,0,1) *
-				 vsg::dmat4(1,0,0,0, 0,1,0,0, 0,0,1,0,
-				  x0+posX,z0+posZ,posY,1) );
+				mt->matrix= vsg::dmat4(1,0,0,0, 0,0,1,0, 0,1,0,0, x,y,z,1) * vsg::rotate(q);
 				mt->addChild(model);
 				tile->models->addChild(mt);
 			}
@@ -486,7 +480,6 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 			prevCode= 0;
 		}
 	}
-#endif
 	return 1;
 }
 
