@@ -1,7 +1,7 @@
-//	camera controller
+//	Gode homolosine map projection functions
 //
 /*
-Copyright © 2026 Doug Jones
+Copyright © 2021 Doug Jones
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,36 +21,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-#ifndef CAMERAC_H
-#define CAMERAC_H
+#ifndef GHPROJ_H
+#define GHPROJ_H
 
-#include <vsg/all.h>
-
-class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
-{
- public:
-	CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<vsg::Node> node);
-	void apply(vsg::KeyPressEvent& keyPress) override;
-	void apply(vsg::ButtonPressEvent& buttonPress) override;
-	void apply(vsg::ScrollWheelEvent& ScrollPress) override;
-	void apply(vsg::FrameEvent& frame) override;
-	vsg::ref_ptr<vsg::Node> scene;
-	vsg::ref_ptr<vsg::Camera> camera;
-	vsg::ref_ptr<vsg::LookAt> lookAt;
-	vsg::ref_ptr<vsg::Perspective> perspective;
-	vsg::ref_ptr<const vsg::MatrixTransform> follow;
-	vsg::dvec3 followOffset;
-	vsg::dquat prevRotation;
-	int zoom;
-	int maxZoom;
-	double zoom1Dist;
-	void setZoom(int z);
-	void incZoom(int dz) { setZoom(zoom+dz); }
-	void incHeading(double degrees);
-	void incPitch(double degrees);
-	void setPitch(double degrees);
-	void updateListener();
+struct GHProjection {
+	double R;
+	double lon_center[12];
+	double feast[12];
+	GHProjection(double r=6370997.);
+	void ll2xy(double lat, double lng, double* x, double *y);
+	int xy2ll(double x, double y, double* lat, double *lng);
 };
-extern vsg::LookAt* myLookAt;
 
 #endif

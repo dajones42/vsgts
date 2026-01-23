@@ -37,6 +37,7 @@ struct MSTSSignal;
 #include <set>
 
 #include "track.h"
+#include "ghproj.h"
 
 struct MSTSRoute {
 	std::string mstsDir;
@@ -163,6 +164,7 @@ struct MSTSRoute {
 	double convZ(int tz, float z) {
 		return 2048*(double)(tz-centerTZ) + z;
 	}
+	GHProjection ghProj;
 	void ll2xy(double lat, double lng, double* x, double *y);
 	void xy2ll(double lat, double lng, double* x, double *y);
 	void makeTrack();

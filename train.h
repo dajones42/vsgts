@@ -188,6 +188,9 @@ extern TrainList oldTrainList;
 extern Train *following;
 extern Train *riding;
 extern Train *myTrain;
+extern RailCarInst *myRailCar;
+extern Train *selectedTrain;
+extern RailCarInst *selectedRailCar;
 
 void updateTrains(double dt);
 Train* findTrain(double x, double y, double z);

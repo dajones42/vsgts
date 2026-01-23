@@ -42,14 +42,78 @@ THE SOFTWARE.
 #include "timetable.h"
 #include "activity.h"
 
+vsg::AmbientLight* ambLight;
+vsg::DirectionalLight* dirLight;
+
 void initSim(vsg::ref_ptr<vsg::Group>& root)
 {
+	auto aLight= vsg::AmbientLight::create();
+	aLight->color.set(1,1,1);
+	aLight->intensity= .4;
+	root->addChild(aLight);
+	ambLight= aLight.get();
+	auto dLight= vsg::DirectionalLight::create();
+	dLight->color.set(1,1,1);
+	dLight->intensity= .8;
+	dLight->direction.set(0,-1,-1);
+	root->addChild(dLight);
+	dirLight= dLight.get();
 	timeTable= new TimeTable();
 	timeTable->addRow(timeTable->addStation("start"));
 	timeTable->setIgnoreOther(true);
 	listener.init();
 	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()==0)
 		TSGuiData::instance().loadActivityList();
+}
+
+std::vector<vsg::dvec3> sunDirection;
+
+void updateLightDirection()
+{
+	if (!mstsRoute || !timeTable)
+		return;
+	if (sunDirection.size() == 0) {
+		double lat,lng;
+		mstsRoute->xy2ll(0,0,&lat,&lng);
+//		fprintf(stderr,"lat %f\n",lat);
+		lat*= M_PI/180;
+		double dec= 0; //day of year not known
+		for (int i=0; i<13; i++) {
+			int hr= i+6;
+			auto z= sin(lat)*sin(dec) +
+			  cos(lat)*cos(dec)*cos(hr*15*M_PI/180);
+			auto y= (-sin(lat)*z - sin(dec)) / cos(lat);
+			auto x= 1 - z*z - y*y;
+			if (x <= 0)
+				x= 0;
+			else
+				x= sqrt(x) * (hr>12?1:-1);
+			sunDirection.push_back(vsg::dvec3(x,y,z));
+//			fprintf(stderr,"sundir %d %d %lf %lf %lf\n",
+//			  i,hr,x,y,z);
+		}
+	}
+	auto h= simTime/3600;
+	if (h<6 || h>18) {
+//		fprintf(stderr,"lightdir %f\n",h);
+		ambLight->intensity= .2;
+		dirLight->intensity= 0;
+	} else {
+		int i= (int)floor(h-6);
+		auto a= h-6-i;
+		auto p= sunDirection[i+1]*a + sunDirection[i]*(1-a);
+//		fprintf(stderr,"lightdir %f %d %f %f %f %f\n",
+//		 h,i,a,p.x,p.y,p.z);
+		dirLight->direction= p;
+		auto z= fabs(p.z);
+		if (z < .05) {
+			ambLight->intensity= .1 + 2*z;
+			dirLight->intensity= .8*20*z;
+		} else {
+			ambLight->intensity= .2;
+			dirLight->intensity= .8;
+		}
+	}
 }
 
 void startSwitchAnimation(vsg::ref_ptr<vsg::AnimationManager> manager)
@@ -114,6 +178,7 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 		TSGuiData::instance().updateFPS(dt);
 		startSwitchAnimation(viewer->animationManager);
 		updateActivityEvents();
+		updateLightDirection();
 	} else if (mstsRoute && mstsRoute->activityName.size()>0) {
 		auto railCars= vsg::Group::create();
 		mstsRoute->activityName+= ".act";
@@ -178,20 +243,6 @@ int main(int argc, char** argv)
 	}
 	if (scene->children.empty())
 		TSGuiData::instance().loadRouteList();
-	auto aLight= vsg::AmbientLight::create();
-	aLight->color.set(1,1,1);
-	aLight->intensity= .4;
-	scene->addChild(aLight);
-	auto dLight1= vsg::DirectionalLight::create();
-	dLight1->color.set(1,1,1);
-	dLight1->intensity= .4;
-	dLight1->direction.set(0,-1,-1);
-	scene->addChild(dLight1);
-	auto dLight2= vsg::DirectionalLight::create();
-	dLight2->color.set(1,1,1);
-	dLight2->intensity= .4;
-	dLight2->direction.set(-1,1,.5);
-	scene->addChild(dLight2);
 	initSim(scene);
 
 	auto viewer= vsg::Viewer::create();

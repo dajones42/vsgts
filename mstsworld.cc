@@ -169,10 +169,10 @@ void MSTSRoute::loadModels(Tile* tile)
 			tile->models->addChild(mt);
 		}
 	} catch (const char* msg) {
-		fprintf(stderr,"loadModels caught %s %s\n",msg,path.c_str());
+		//fprintf(stderr,"loadModels caught %s %s\n",msg,path.c_str());
 	} catch (const std::exception& error) {
-		fprintf(stderr,"loadModels caught %s %s\n",
-		  error.what(),path.c_str());
+		//fprintf(stderr,"loadModels caught %s %s\n",
+		//  error.what(),path.c_str());
 	}
 	}
 	makeWater(tile,waterLevelDelta-1,"waterbot.ace",0);

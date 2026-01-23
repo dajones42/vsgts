@@ -787,6 +787,14 @@ bool TTOSim::convertToAI(Consist* consist)
 		AITrain* t= (AITrain*) timeTable->getTrain(i);
 		if (t->consist!=NULL ||  t->getName()!=consist->name)
 			continue;
+		if (t->path != NULL) {
+			t->consist= consist;
+			consist->targetSpeed= t->targetSpeed;
+			t->osDist= 0;
+			consist->convertFromAirBrakes();
+			t->moveAuth= dispatcher.requestAuth(consist);
+			return true;
+		}
 		int r= t->getCurrentRow();
 		fprintf(stderr,"current row %d\n",r);
 		if (r < 0)

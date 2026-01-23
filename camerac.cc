@@ -33,7 +33,7 @@ THE SOFTWARE.
 #include "train.h"
 #include "listener.h"
 
-vsg::dvec3 clickLocation;
+vsg::LookAt* myLookAt= nullptr;
 
 CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<vsg::Node> node) :
   scene(node),
@@ -45,6 +45,8 @@ CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<v
 	zoom1Dist= 1.4;
 	auto z= std::log(dist)/std::log(zoom1Dist);
 	maxZoom= zoom= (int)z;
+	if (!myLookAt)
+		myLookAt= lookAt.get();
 }
 
 void CameraController::incHeading(double degrees)
@@ -148,10 +150,9 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 			setZoom(15);
 		setPitch(-90);
 		keyPress.handled= true;
-	} else if (keyPress.keyBase=='1' && myTrain && myTrain->firstCar->def->inside.size()>0) {
-		auto car= myTrain->firstCar;
-		follow= car->model;
-		auto& inside= car->def->inside[0];
+	} else if (keyPress.keyBase=='1' && myRailCar && myRailCar->def->inside.size()>0) {
+		follow= myRailCar->model;
+		auto& inside= myRailCar->def->inside[0];
 		followOffset= inside.position;
 		vsg::dvec3 position;
 		vsg::dquat rotation;
@@ -164,6 +165,8 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		lookAt->eye= lookAt->center - .1*dir;
 		setPitch(inside.vAngle);
 		lookAt->up= vsg::dvec3(0,0,1);
+		selectedTrain= myTrain;
+		selectedRailCar= myRailCar;
 		keyPress.handled= true;
 	} else if (keyPress.keyBase=='2' && myTrain) {
 		follow= myTrain->firstCar->model;
@@ -171,6 +174,8 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		setZoom(9);
 		setPitch(-15);
 		lookAt->up= vsg::dvec3(0,0,1);
+		selectedTrain= myTrain;
+		selectedRailCar= myTrain->firstCar;
 		keyPress.handled= true;
 	} else if (keyPress.keyBase=='3' && myTrain) {
 		follow= myTrain->lastCar->model;
@@ -178,6 +183,8 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		setZoom(9);
 		setPitch(-15);
 		lookAt->up= vsg::dvec3(0,0,1);
+		selectedTrain= myTrain;
+		selectedRailCar= myTrain->lastCar;
 		keyPress.handled= true;
 	}
 }
@@ -195,12 +202,17 @@ void CameraController::apply(vsg::ButtonPressEvent& buttonPress)
 	  [](auto& lhs, auto& rhs) { return lhs->ratio < rhs->ratio; });
 	auto& intersection= intersector->intersections.front();
 	follow= nullptr;
+	selectedTrain= nullptr;
+	selectedRailCar= nullptr;
 	for (auto train: trainList) {
 		for (auto car= train->firstCar; car; car=car->next) {
 			for (auto& node: intersection->nodePath) {
 				auto mt= dynamic_cast<const vsg::MatrixTransform*>(node);
-				if (car->model == mt)
+				if (car->model == mt) {
 					follow= mt;
+					selectedTrain= train;
+					selectedRailCar= car;
+				}
 			}
 		}
 	}
@@ -213,9 +225,6 @@ void CameraController::apply(vsg::ButtonPressEvent& buttonPress)
 		vsg::decompose(follow->matrix,position,rotation,scale);
 		followOffset= (-rotation)*(lookAt->center-position);
 		prevRotation= rotation;
-		clickLocation= vsg::dvec3(0,0,0);
-	} else {
-		clickLocation= intersection->worldIntersection;
 	}
 	lookAt->eye= lookAt->center + lookV;
 	updateListener();

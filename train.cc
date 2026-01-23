@@ -36,10 +36,12 @@ using namespace std;
 TrainMap trainMap;
 TrainList trainList;
 TrainList oldTrainList;
-Train* myTrain= NULL;
-Train* following= NULL;
-Train* riding= NULL;
-RailCarInst* myRailCar= NULL;
+Train* myTrain= nullptr;
+Train* following= nullptr;
+Train* riding= nullptr;
+RailCarInst* myRailCar= nullptr;
+Train* selectedTrain= nullptr;
+RailCarInst* selectedRailCar= nullptr;
 
 typedef std::map<int,Train*> TrainIDMap;
 static TrainIDMap trainIDMap;
@@ -47,23 +49,23 @@ static TrainIDMap trainIDMap;
 Train*  Train::findTrain(int id)
 {
 	TrainIDMap::iterator i= trainIDMap.find(id);
-	return i==trainIDMap.end() ? NULL : i->second;
+	return i==trainIDMap.end() ? nullptr : i->second;
 }
 
 Train::Train(int id)
 {
 	if (id < 0) {
 		static int nextID= 0;
-		while (findTrain(nextID) != NULL)
+		while (findTrain(nextID) != nullptr)
 			nextID++;
 		id= nextID++;
 	}
 	this->id= id;
 	trainIDMap[id]= this;
-	firstCar= NULL;
-	lastCar= NULL;
-	otherTrain= NULL;
-	engAirBrake= NULL;
+	firstCar= nullptr;
+	lastCar= nullptr;
+	otherTrain= nullptr;
+	engAirBrake= nullptr;
 	speed= 0;
 	accel= 0;
 	positionError= 0;
@@ -91,7 +93,7 @@ Train::Train(int id)
 Train::~Train()
 {
 	trainIDMap.erase(id);
-	while (firstCar != NULL) {
+	while (firstCar != nullptr) {
 		RailCarInst* t= firstCar;
 		firstCar= t->next;
 		//remove models
@@ -107,7 +109,7 @@ Train::~Train()
 //	is large to prevent overshoot
 void Train::calcAccel2(float dt)
 {
-	if (engAirBrake != NULL)
+	if (engAirBrake != nullptr)
 		engAirBrake->setAutoControl(bControl);
 	int n= (int)(dt/.005)+1;
 	float dt1= dt/n;
@@ -832,6 +834,8 @@ void Train::uncouple(RailCarInst* car, bool keepRear, int newID)
 			myTrain->nextStopDist= 0;
 			myTrain->nextStopTime= 0;
 			myTrain->targetSpeed= 0;
+			if (ttoSim.convertToAI(myTrain))
+				std::cerr<<"front converted to AI\n";
 			myTrain= newt;
 		}
 	}
@@ -854,8 +858,8 @@ void Train::uncouple(RailCarInst* car, bool keepRear, int newID)
 #endif
 }
 
-//	uncouples train nearest a mouse click location
-void Train::uncouple(vsg::dvec3& clickLocation)
+//	uncouples train nearest world location
+void Train::uncouple(vsg::dvec3& worldLocation)
 {
 	float bestd= 1000;
 	RailCarInst* bestc= NULL;
@@ -864,9 +868,9 @@ void Train::uncouple(vsg::dvec3& clickLocation)
 		loc.move(-c->def->length,0,0);
 		WLocation wloc;
 		loc.getWLocation(&wloc);
-		float dx= clickLocation[0]-wloc.coord[0];
-		float dy= clickLocation[1]-wloc.coord[1];
-		float dz= clickLocation[2]-wloc.coord[2];
+		float dx= worldLocation[0]-wloc.coord[0];
+		float dy= worldLocation[1]-wloc.coord[1];
+		float dz= worldLocation[2]-wloc.coord[2];
 		float d= dx*dx + dy*dy + dz*dz;
 //		fprintf(stderr,"%s %f\n",c->def->name.c_str(),d);
 		if (d < bestd) {
@@ -916,8 +920,10 @@ void Train::coupleOther()
 		myTrain->coupleOther();
 		return;
 	}
-	if (ttoSim.takeControlOfAI(otherTrain))
+	if (ttoSim.takeControlOfAI(otherTrain)) {
 		otherTrain->convertToAirBrakes();
+		name= otherTrain->name;
+	}
 	listener.removeTrain(this);
 	listener.removeTrain(otherTrain);
 	if (endLocation.distance(&otherTrain->location) < .001) {

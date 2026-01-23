@@ -472,9 +472,9 @@ float SteamEngine::getForce(float throttle, float reverser,
 				p= cylState[i].pressure*cylState[i].volume/v1;
 			cylState[i].pressure= p;
 		} else  if (v < release(cutoff)) {
-			if (cylState[i].volume > v1)
-				fprintf(stderr,"vol? %d %f %f\n",
-				  i,cylState[i].volume,v1);
+//			if (cylState[i].volume > v1)
+//				fprintf(stderr,"vol? %d %f %f\n",
+//				  i,cylState[i].volume,v1);
 			if (cylState[i].volume > v1)
 				p= cylPressure*
 				  (cutoff+clearanceVolume)/v1;

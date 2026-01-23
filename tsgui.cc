@@ -60,6 +60,8 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 		else
 			ImGui::Text("Brakes: %.1f",myTrain->bControl);
 		ImGui::Text("Eng Brakes: %.0f%%",100*myTrain->engBControl);
+		if (selectedRailCar)
+			ImGui::Text("Hand Brake: %.0f%%",100*selectedRailCar->handBControl);
 		float bp= -1;
 		for (auto c=myTrain->firstCar; c; c=c->next) {
 			if (!c->engine)

@@ -61,11 +61,21 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 		myTrain->incBrakes();
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == '[') {
-		myTrain->decEngBrakes();
-		keyPress.handled= true;
+		if ((keyPress.keyModifier&vsg::MODKEY_Shift) == 0) {
+			myTrain->decEngBrakes();
+			keyPress.handled= true;
+		} else if (selectedRailCar) {
+			selectedRailCar->decHandBrakes();
+			keyPress.handled= true;
+		}
 	} else if (keyPress.keyBase == ']') {
-		myTrain->incEngBrakes();
-		keyPress.handled= true;
+		if ((keyPress.keyModifier&vsg::MODKEY_Shift) == 0) {
+			myTrain->incEngBrakes();
+			keyPress.handled= true;
+		} else if (selectedRailCar) {
+			selectedRailCar->incHandBrakes();
+			keyPress.handled= true;
+		}
 	} else if (keyPress.keyBase == '/') {
 		myTrain->bailOff();
 		keyPress.handled= true;
@@ -109,8 +119,8 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 	} else if (keyPress.keyBase=='c') {// && keyPress.keyModifier==vsg::MODKEY_Shift) {
 		myTrain->connectAirHoses();
 		keyPress.handled= true;
-	} else if (keyPress.keyBase=='u') {
-		myTrain->uncouple(clickLocation);
+	} else if (keyPress.keyBase=='u' && myLookAt) {
+		myTrain->uncouple(myLookAt->center);
 		keyPress.handled= true;
 	}
 }

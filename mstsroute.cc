@@ -33,7 +33,7 @@ THE SOFTWARE.
 #include "service.h"
 #include "consist.h"
 #include "trackpath.h"
-//#include "ghproj.h"
+#include "ghproj.h"
 //#include "trigrid.h"
 #include "railcar.h"
 #include "mstswag.h"
@@ -152,7 +152,6 @@ static int findPin(TrackNode* n1, TrackNode* n2, int end)
 	return -1;
 }
 
-#if 0
 void MSTSRoute::ll2xy(double lat, double lng, double* xp, double* yp)
 {
 	if (centerLat!=0 || centerLong!=0) {
@@ -176,7 +175,6 @@ void MSTSRoute::xy2ll(double x, double y, double* lat, double* lng)
 		  y + centerTZ*2048 + 8673000 - 16385*2048 + 3072, lat,lng);
 	}
 }
-#endif
 
 //	Makes Track class data from tsection and tdb data
 void MSTSRoute::makeTrack()
@@ -1516,6 +1514,12 @@ Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
 		train->modelCouplerSlack= 0;
 	} else {
 		myTrain= train;
+		for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next) {
+			if (!myRailCar && car->engine) {
+				myRailCar= car;
+				break;
+			}
+		}
 	}
 	Track* track= trackMap[routeID];
 	train->endLocation= trackPath->firstNode->loc;
