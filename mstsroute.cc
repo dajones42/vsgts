@@ -39,6 +39,7 @@ THE SOFTWARE.
 #include "mstswag.h"
 #include "train.h"
 #include "timetable.h"
+#include "mstsace.h"
 
 using namespace std;
 
@@ -1912,6 +1913,103 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 	return sw;
 }
 
+vsg::ref_ptr<vsg::MatrixTransform> MSTSRoute::createSkyBox()
+{
+	std::string path= fixFilenameCase(routeDir+dirSep+"ENVFILES"+dirSep+"TEXTURES"+dirSep+"snowsky.ace");
+	auto img= readCacheACEFile(path.c_str());
+	if (!img)
+		return {};
+	const float sz= 2300;
+	const float uvsz= 1;
+	vsg::vec3 v000(-sz,-sz,-sz);
+	vsg::vec3 v001(-sz,-sz,sz);
+	vsg::vec3 v010(-sz,sz,-sz);
+	vsg::vec3 v011(-sz,sz,sz);
+	vsg::vec3 v100(sz,-sz,-sz);
+	vsg::vec3 v101(sz,-sz,sz);
+	vsg::vec3 v110(sz,sz,-sz);
+	vsg::vec3 v111(sz,sz,sz);
+	vsg::vec3 n0(0,-1,0);
+	vsg::vec3 n1(-1,0,0);
+	vsg::vec3 n2(0,1,0);
+	vsg::vec3 n3(1,0,0);
+	vsg::vec3 n4(0,0,-1);
+	vsg::vec3 n5(0,0,1);
+	vsg::vec2 t00(0,0);
+	vsg::vec2 t01(0,uvsz);
+	vsg::vec2 t10(uvsz,0);
+	vsg::vec2 t11(uvsz,uvsz);
+	vsg::ref_ptr<vsg::vec3Array> verts= vsg::vec3Array::create(
+	 {v000,v100,v101,v001,//front
+	  v100,v110,v111,v101,//right
+	  v110,v010,v011,v111,//far
+	  v010,v000,v001,v011,//left
+	  v010,v110,v100,v000,//bottom
+	  v001,v101,v111,v011});//top
+	vsg::ref_ptr<vsg::vec3Array> normals= vsg::vec3Array::create(
+	 {n0,n0,n0,n0,//front
+	  n1,n1,n1,n1,//right
+	  n2,n2,n2,n2,//far
+	  n3,n3,n3,n3,//left
+	  n4,n4,n4,n4,//bottom
+	  n5,n5,n5,n5});//top
+	vsg::ref_ptr<vsg::vec2Array> texCoords= vsg::vec2Array::create(
+	 {t00,t10,t11,t01,//front
+	  t00,t10,t11,t01,//right
+	  t00,t10,t11,t01,//far
+	  t00,t10,t11,t01,//left
+	  t00,t10,t11,t01,//bottom
+	  t00,t10,t11,t01});//top
+	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
+	vsg::ref_ptr<vsg::ushortArray> indices= vsg::ushortArray::create(
+	  {0,3,2,0,2,1, 4,7,6,4,6,5, 8,11,10,8,10,9, 12,15,14,12,14,13, 16,19,18,16,18,17, 20,23,22,20,22,21});
+	auto attributeArrays= vsg::DataList{verts,normals,texCoords,colors};
+	auto vid= vsg::VertexIndexDraw::create();
+	vid->assignArrays(attributeArrays);
+	vid->assignIndices(indices);
+	vid->indexCount= indices->valueCount();
+	vid->instanceCount= 1;
+	vid->firstIndex= 0;
+	vid->vertexOffset= 0;
+	vid->firstInstance= 0;
+	auto stateGroup= vsg::StateGroup::create();
+	stateGroup->addChild(vid);
+	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);
+	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
+	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_INSTANCE,16);
+	auto sampler= vsg::Sampler::create();
+	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	vsgOptions->sharedObjects->share(sampler);
+	gpConfig->assignTexture("diffuseMap",img,sampler);
+	auto matValue= vsg::PhongMaterialValue::create();
+	matValue->value().ambient= vsg::vec4(0,0,0,0);
+	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().specular= vsg::vec4(0,0,0,1);
+	matValue->value().shininess= 0;
+	gpConfig->assignDescriptor("material",matValue);
+	auto depthState= vsg::DepthStencilState::create();
+	depthState->depthTestEnable= VK_TRUE;
+	depthState->depthWriteEnable= VK_FALSE;
+	depthState->depthCompareOp= VK_COMPARE_OP_GREATER_OR_EQUAL;
+	gpConfig->pipelineStates.push_back(depthState);
+	if (vsgOptions->sharedObjects)
+		vsgOptions->sharedObjects->share(gpConfig,
+		  [](auto gpc) { gpc->init(); });
+	else
+		gpConfig->init();
+	vsg::StateCommands commands;
+	gpConfig->copyTo(commands,vsgOptions->sharedObjects);
+	stateGroup->stateCommands.swap(commands);
+	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
+	skyBox= vsg::MatrixTransform::create();
+	skyBox->addChild(stateGroup);
+	return skyBox;
+}
+
 MstsRouteReader::MstsRouteReader()
 {
 }
@@ -1941,5 +2039,7 @@ vsg::ref_ptr<vsg::Object> MstsRouteReader::read(
 	auto group= vsg::Group::create();
 	route->makeTileMap(group);
 	group->addChild(route->createTrackLines());
+	if (route->createSkyBox())
+		group->addChild(route->skyBox);
 	return group;
 }

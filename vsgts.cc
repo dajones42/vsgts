@@ -56,6 +56,8 @@ void initSim(vsg::ref_ptr<vsg::Group>& root)
 	dLight->color.set(1,1,1);
 	dLight->intensity= .8;
 	dLight->direction.set(0,-1,-1);
+//	dLight->angleSubtended= .009;
+//	dLight->shadowSettings= vsg::HardShadows::create(1);
 	root->addChild(dLight);
 	dirLight= dLight.get();
 	timeTable= new TimeTable();
@@ -179,6 +181,8 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 		startSwitchAnimation(viewer->animationManager);
 		updateActivityEvents();
 		updateLightDirection();
+		if (mstsRoute && mstsRoute->skyBox)
+			mstsRoute->skyBox->matrix= vsg::translate(myLookAt->eye);
 	} else if (mstsRoute && mstsRoute->activityName.size()>0) {
 		auto railCars= vsg::Group::create();
 		mstsRoute->activityName+= ".act";
@@ -289,8 +293,12 @@ int main(int argc, char** argv)
         auto renderGraph= vsg::RenderGraph::create(window);
         commandGraph->addChild(renderGraph);
         auto view= vsg::View::create(camera);
+	view->viewDependentState->maxShadowDistance= 1e8;
+	view->viewDependentState->shadowMapBias= .005;
+	view->viewDependentState->lambda= .5;
         view->addChild(scene);
         renderGraph->addChild(view);
+	renderGraph->setClearValues(vsg::vec4(.4,.4,.4,1));
         auto renderImGui= vsgImGui::RenderImGui::create(window, TSGui::create());
         renderGraph->addChild(renderImGui);
 	viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
