@@ -1133,7 +1133,19 @@ vsg::vec3 MSTSRoute::getNormal(float x, float z,
 		tile= findTile(t12->x,t12->z+1);
 		t21= findTile(t12->x+1,t12->z+1);
 	}
+#if 0
 	return getNormal(i,j,tile,t12,t21,t22);
+#else
+	float x0= 8*(j-128);
+	float z0= 8*(128-i);
+	float wx= (x-x0)/8;
+	float wz= (z-z0)/8;
+	auto n00= getNormal(i,j,tile,t12,t21,t22);
+	auto n01= getNormal(i-1,j,tile,t12,t21,t22);
+	auto n11= getNormal(i-1,j+1,tile,t12,t21,t22);
+	auto n10= getNormal(i,j+1,tile,t12,t21,t22);
+	return (1-wx)*(1-wz)*n00 + wx*(1-wz)*n10 + wx*wz*n11 + (1-wx)*wz*n01;
+#endif
 }
 
 //	returns true if terrain vertex is hidden

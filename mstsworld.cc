@@ -1535,7 +1535,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
 	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(nv));
-	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
 	auto indices= vsg::ushortArray::create(6*(nx-1)*(nz-1));
 	int vi= 0;
 	int ii= 0;
@@ -1550,7 +1550,6 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 			float v= -p.z/h + .5;
 			texCoords->at(vi)= vsg::vec2(u,v);
 			normals->at(vi)= getNormal(x,z,tile,t12,t21,t22);
-			colors->at(vi)= vsg::vec4(1,1,1,1);
 			if (i<nx-1 && j<nz-1) {
 				float a11= getAltitude(x+8,z+8,tile,t12,t21,t22);
 				float a01= getAltitude(x,z+8,tile,t12,t21,t22);
@@ -1589,16 +1588,17 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	vid->firstInstance= 0;
 	auto stateGroup= vsg::StateGroup::create();
 	stateGroup->addChild(vid);
-	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);;
-//	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
+//	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);;
+	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().ambient= vsg::vec4(1,1,1,1);
 	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
 	matValue->value().specular= vsg::vec4(0,0,0,1);
 	matValue->value().shininess= 0;
 	auto sampler= vsg::Sampler::create();
-	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	sampler->borderColor= VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
 	vsgOptions->sharedObjects->share(sampler);
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
 	matValue->value().alphaMask= 1;
@@ -1609,7 +1609,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
 	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
 	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
-	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_INSTANCE,16);
 	if (vsgOptions->sharedObjects)
 		vsgOptions->sharedObjects->share(gpConfig,
 		  [](auto gpc) { gpc->init(); });

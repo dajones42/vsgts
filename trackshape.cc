@@ -122,7 +122,7 @@ vsg::ref_ptr<vsg::StateGroup> Track::makeGeometry(vsg::ref_ptr<vsg::Options> vsg
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
 	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(nv));
-	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
 	int nvi= 0;
 	for (EdgeList::iterator i=edgeList.begin(); i!=edgeList.end();
 	  ++i) {
@@ -203,8 +203,6 @@ vsg::ref_ptr<vsg::StateGroup> Track::makeGeometry(vsg::ref_ptr<vsg::Options> vsg
 					texCoords->at(nvi+5)= vsg::vec2(u1,0);
 				}
 			}
-			for (int k=0; k<6; k++)
-				colors->at(nvi+k)= vsg::vec4(1,1,1,1);
 			nvi+= 6;
 		}
 //		firstTime= false;
@@ -241,8 +239,6 @@ vsg::ref_ptr<vsg::StateGroup> Track::makeGeometry(vsg::ref_ptr<vsg::Options> vsg
 					texCoords->at(nvi+1)= vsg::vec2(u1,v1);
 					texCoords->at(nvi+2)= vsg::vec2(u2,v2);
 				}
-				for (int k=0; k<3; k++)
-					colors->at(nvi+k)= vsg::vec4(1,1,1,1);
 				nvi+= 3;
 			}
 		}
@@ -268,12 +264,15 @@ vsg::ref_ptr<vsg::StateGroup> Track::makeGeometry(vsg::ref_ptr<vsg::Options> vsg
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	vsgOptions->sharedObjects->share(sampler);
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
+	matValue->value().alphaMask= 1;
+	matValue->value().alphaMaskCutoff= .6;
+	gpConfig->shaderHints->defines.insert("VSG_ALPHA_TEST");
 	gpConfig->assignTexture("diffuseMap",shape->image,sampler);
 	gpConfig->assignDescriptor("material",matValue);
 	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
 	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
 	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
-	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_INSTANCE,16);
 	if (vsgOptions->sharedObjects)
 		vsgOptions->sharedObjects->share(gpConfig,
 		  [](auto gpc) { gpc->init(); });
