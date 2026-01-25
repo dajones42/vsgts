@@ -1197,6 +1197,8 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	activity.readFile(path.c_str());
 	simTime= activity.startTime;
+	if (!skyBox && createSkyBox())
+		root->addChild(skyBox);
 	if (timeTable) {
 		tt::Station* start= timeTable->findStation("start");
 		if (start == NULL)
@@ -2039,7 +2041,5 @@ vsg::ref_ptr<vsg::Object> MstsRouteReader::read(
 	auto group= vsg::Group::create();
 	route->makeTileMap(group);
 	group->addChild(route->createTrackLines());
-	if (route->createSkyBox())
-		group->addChild(route->skyBox);
 	return group;
 }

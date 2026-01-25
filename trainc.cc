@@ -33,6 +33,7 @@ THE SOFTWARE.
 #include "trainc.h"
 #include "tsgui.h"
 #include "camerac.h"
+#include "ttosim.h"
 
 TrainController::TrainController()
 {
@@ -40,6 +41,25 @@ TrainController::TrainController()
 
 void TrainController::apply(vsg::KeyPressEvent& keyPress)
 {
+	if (keyPress.handled)
+		return;
+	if (keyPress.keyBase=='c' && (keyPress.keyModifier&vsg::MODKEY_Shift)!=0) {
+		myTrain= selectedTrain;
+		myRailCar= selectedRailCar;
+		keyPress.handled= true;
+	} else if (keyPress.keyBase == vsg::KEY_F5) {
+		TSGuiData::instance().showStatus= !TSGuiData::instance().showStatus;
+		keyPress.handled= true;
+	} else if (keyPress.keyBase == 'z') {
+		timeMult/= 2;
+		keyPress.handled= true;
+	} else if (keyPress.keyBase == 'x') {
+		if (timeMult == 0)
+			timeMult= 1;
+		else if (timeMult < 1000)
+			timeMult*= 2;
+		keyPress.handled= true;
+	}
 	if (keyPress.handled || !myTrain)
 		return;
 	if (keyPress.keyBase == 'a') {
@@ -79,9 +99,6 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 	} else if (keyPress.keyBase == '/') {
 		myTrain->bailOff();
 		keyPress.handled= true;
-	} else if (keyPress.keyBase == vsg::KEY_F5) {
-		TSGuiData::instance().showStatus= !TSGuiData::instance().showStatus;
-		keyPress.handled= true;
 	} else if (keyPress.keyBase == '<') {
 		myTrain->nextStopDist= myTrain->coupleDistance(true);
 		if (myTrain->targetSpeed < -myTrain->speed)
@@ -116,7 +133,7 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 	} else if (keyPress.keyBase == 'g') {
 		myTrain->throwSwitch((keyPress.keyModifier&vsg::MODKEY_Shift));
 		keyPress.handled= true;
-	} else if (keyPress.keyBase=='c') {// && keyPress.keyModifier==vsg::MODKEY_Shift) {
+	} else if (keyPress.keyBase=='c' && (keyPress.keyModifier&vsg::MODKEY_Shift)==0) {
 		myTrain->connectAirHoses();
 		keyPress.handled= true;
 	} else if (keyPress.keyBase=='u' && myLookAt) {

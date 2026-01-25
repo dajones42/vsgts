@@ -60,6 +60,8 @@ set(SOURCES
 	trainc.cc
 	animation.cc
 	ghproj.cc
+	parser.cc
+	rmparser.cc
 )
 
 add_executable(tsviewer tsviewer.cc ${SOURCES})

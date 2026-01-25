@@ -36,45 +36,72 @@ using namespace filesystem;
 #include "mstsfile.h"
 #include "train.h"
 #include "ttosim.h"
+#include "camerac.h"
 
 void TSGui::record(vsg::CommandBuffer& cb) const
 {
 	TSGuiData& data= TSGuiData::instance();
-	if (data.showStatus && myTrain) {
+	if (data.showStatus) {
 		ImGui::Begin("Train Status",&data.showStatus);
 		int t= (int)simTime;
-		ImGui::Text("Time: %d:%2.2d:%2.2d fps %.1lf",t/3600,t/60%60,t%60,data.fps);
-		ImGui::Text("Speed: %.1f mph",myTrain->speed*2.23693);
-		ImGui::Text("Accel: %6.3f g  %6.3f%%",myTrain->accel/9.8,-100*myTrain->location.grade());
-		ImGui::Text("Reverser: %.0f%%",100*myTrain->dControl);
-		ImGui::Text("Throttle: %.0f%%",100*myTrain->tControl);
-		if (myTrain->engAirBrake)
-			ImGui::Text("Brakes: %s %.0f %.0f %.0f %.0f %.0f %.1f",
-			  myTrain->bControl<0?"R":myTrain->bControl>0?"S":"L",
-			  myTrain->engAirBrake->getEqResPressure(),
-			  myTrain->engAirBrake->getPipePressure(),
-			  myTrain->engAirBrake->getAuxResPressure(),
-			  myTrain->engAirBrake->getCylPressure(),
-			  myTrain->engAirBrake->getMainResPressure(),
-			  myTrain->engAirBrake->getAirFlowCFM());
-		else
-			ImGui::Text("Brakes: %.1f",myTrain->bControl);
-		ImGui::Text("Eng Brakes: %.0f%%",100*myTrain->engBControl);
-		if (selectedRailCar)
-			ImGui::Text("Hand Brake: %.0f%%",100*selectedRailCar->handBControl);
-		float bp= -1;
-		for (auto c=myTrain->firstCar; c; c=c->next) {
-			if (!c->engine)
-				continue;
-			auto e= dynamic_cast<SteamEngine*>(c->engine);
-			if (e) {
-				auto x= e->getBoilerPressure();
-				if (bp < x)
-					bp= x;
+		ImGui::Text("Time: %d:%2.2d:%2.2d Time Mult: %d fps %.1lf",t/3600,t/60%60,t%60,timeMult,data.fps);
+		if (myTrain) {
+			ImGui::Text("Speed: %.1f mph",myTrain->speed*2.23693);
+			ImGui::Text("Accel: %6.3f g  %6.3f%%",myTrain->accel/9.8,-100*myTrain->location.grade());
+			ImGui::Text("Reverser: %.0f%%",100*myTrain->dControl);
+			ImGui::Text("Throttle: %.0f%%",100*myTrain->tControl);
+			if (myTrain->engAirBrake)
+				ImGui::Text("Brakes: %s %.0f %.0f %.0f %.0f %.0f %.1f",
+				  myTrain->bControl<0?"R":myTrain->bControl>0?"S":"L",
+				  myTrain->engAirBrake->getEqResPressure(),
+				  myTrain->engAirBrake->getPipePressure(),
+				  myTrain->engAirBrake->getAuxResPressure(),
+				  myTrain->engAirBrake->getCylPressure(),
+				  myTrain->engAirBrake->getMainResPressure(),
+				  myTrain->engAirBrake->getAirFlowCFM());
+			else
+				ImGui::Text("Brakes: %.1f",myTrain->bControl);
+			ImGui::Text("Eng Brakes: %.0f%%",100*myTrain->engBControl);
+			if (selectedRailCar)
+				ImGui::Text("Hand Brake: %.0f%%",100*selectedRailCar->handBControl);
+			float bp= -1;
+			for (auto c=myTrain->firstCar; c; c=c->next) {
+				if (!c->engine)
+					continue;
+				auto e= dynamic_cast<SteamEngine*>(c->engine);
+				if (e) {
+					auto x= e->getBoilerPressure();
+					if (bp < x)
+						bp= x;
+				}
+			}
+			if (bp > 0)
+				ImGui::Text("Boiler Pressure: %.0f",bp);
+		}
+		if (timeTable) {
+			for (int i=timeTable->getNumTrains()-1; i>=0; i--) {
+				AITrain* train= (AITrain*) timeTable->getTrain(i);
+				int r= train->getRow();
+				int a= train->getActualAr(r);
+				int d= train->getActualLv(r);
+				if (!train->consist || r<0 || a<0)
+					continue;
+				if (d < 0)
+					d= a;
+				d/= 60;
+				WLocation wl;
+				train->consist->location.getWLocation(&wl);
+				ImGui::Text("train %-5.5s %s %2d:%2.2d %s %4.1f m %2.0f mph %2.0f %3.0f",
+				  train->getName().c_str(),
+				  timeTable->getRow(r)->getCallSign().c_str(),
+				  d/60,d%60,train->route.c_str(),
+				  vsg::length(myLookAt->center-wl.coord)*3.281/5280,
+				  train->consist->speed*2.24,
+				  8*train->consist->tControl,100*train->consist->bControl);
+				if (train->message.size() > 0)
+					ImGui::Text(" %s",train->message.c_str());
 			}
 		}
-		if (bp > 0)
-			ImGui::Text("Boiler Pressure: %.0f",bp);
 		ImGui::End();
 	}
 	if (data.showSelect) {

@@ -93,5 +93,6 @@ struct TTOSim : public tt::EventSim<double> {
 };
 extern TTOSim ttoSim;
 extern double simTime;
+extern int timeMult;
 
 #endif

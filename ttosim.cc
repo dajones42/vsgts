@@ -47,6 +47,7 @@ THE SOFTWARE.
 #include "signal.h"
 
 double simTime;
+int timeMult= 1;
 TTOSim ttoSim;
 
 using namespace std;
@@ -403,7 +404,7 @@ void Departure::handleAI(tt::EventSim<double>* sim)
 	float d= train->findNextStop(nextRow,1);
 	if (d > 0) {
 		train->message= "** track occupied";
-		fprintf(stderr,"track occupied %f\n",d);
+		fprintf(stderr,"track occupied %f %d\n",d,nextRow);
 		sim->schedule(new Departure(time+60,train,row));
 		return;
 	}
@@ -881,15 +882,13 @@ void TTOSim::processEvents(double time)
 		} else if (t->osDist>0 && t->consist->nextStopDist<t->osDist) {
 			t->osDist= 0;
 			int row= t->getNextRow(0);
-#if 0
-			if (timeTable->getRow(row)->getCallSign()!=
-			  userOSCallSign) {
+//			if (timeTable->getRow(row)->getCallSign()!=
+//			  userOSCallSign) {
 				t->setArrival(row,time);
 				t->recordOnSheet(row,time,true);
 				fprintf(stderr,"os %s at %f\n",
 				  t->getName().c_str(),time);
-			}
-#endif
+//			}
 		}
 	}
 	tt::EventSim<double>::processEvents(time);

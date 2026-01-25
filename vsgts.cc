@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include <iostream>
 #include <chrono>
 
+#include "parser.h"
 #include "mstsace.h"
 #include "mstsshape.h"
 #include "mstsroute.h"
@@ -54,16 +55,21 @@ void initSim(vsg::ref_ptr<vsg::Group>& root)
 	ambLight= aLight.get();
 	auto dLight= vsg::DirectionalLight::create();
 	dLight->color.set(1,1,1);
-	dLight->intensity= .8;
-	dLight->direction.set(0,-1,-1);
+	dLight->intensity= .6;
+	dLight->direction.set(0,.6,-.8);
 //	dLight->angleSubtended= .009;
 //	dLight->shadowSettings= vsg::HardShadows::create(1);
 	root->addChild(dLight);
 	dirLight= dLight.get();
-	timeTable= new TimeTable();
-	timeTable->addRow(timeTable->addStation("start"));
-	timeTable->setIgnoreOther(true);
+	if (!timeTable) {
+		timeTable= new TimeTable();
+		timeTable->addRow(timeTable->addStation("start"));
+		timeTable->setIgnoreOther(true);
+	}
 	listener.init();
+	for (auto t: trainList)
+		listener.addTrain(t);
+	listener.setGain(1);
 	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()==0)
 		TSGuiData::instance().loadActivityList();
 }
@@ -109,11 +115,11 @@ void updateLightDirection()
 		dirLight->direction= p;
 		auto z= fabs(p.z);
 		if (z < .05) {
-			ambLight->intensity= .1 + 2*z;
-			dirLight->intensity= .8*20*z;
+			ambLight->intensity= .2 + 4*z;
+			dirLight->intensity= .6*20*z;
 		} else {
-			ambLight->intensity= .2;
-			dirLight->intensity= .8;
+			ambLight->intensity= .4;
+			dirLight->intensity= .6;
 		}
 	}
 }
@@ -174,15 +180,21 @@ void updateActivityEvents()
 void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::Viewer>& viewer)
 {
 	if (trainList.size() > 0) {
-		simTime+= dt;
-		updateTrains(dt);
-		ttoSim.processEvents(simTime);
 		TSGuiData::instance().updateFPS(dt);
-		startSwitchAnimation(viewer->animationManager);
-		updateActivityEvents();
-		updateLightDirection();
-		if (mstsRoute && mstsRoute->skyBox)
-			mstsRoute->skyBox->matrix= vsg::translate(myLookAt->eye);
+		if (timeMult > 0) {
+			dt*= timeMult;
+			simTime+= dt;
+			updateTrains(dt);
+			ttoSim.processEvents(simTime);
+			startSwitchAnimation(viewer->animationManager);
+			updateActivityEvents();
+			updateLightDirection();
+			if (mstsRoute && mstsRoute->skyBox)
+				mstsRoute->skyBox->matrix= vsg::translate(myLookAt->eye);
+			listener.setGain(1);
+		} else {
+			listener.setGain(0);
+		}
 	} else if (mstsRoute && mstsRoute->activityName.size()>0) {
 		auto railCars= vsg::Group::create();
 		mstsRoute->activityName+= ".act";
@@ -237,13 +249,12 @@ int main(int argc, char** argv)
 //	vsg::Logger::instance()->level= vsg::Logger::LOGGER_DEBUG;;
 
 	auto scene= vsg::Group::create();
-	for (int i=1; i<argc; ++i) {
-		vsg::Path filename= arguments[i];
-		auto object= vsg::read(filename, options);
-		if (auto node= object.cast<vsg::Node>())
-			scene->addChild(node);
-		arguments.remove(i, 1);
-		--i;
+	vsg::dvec3 startLocation;
+	if (argc>1) {
+		const char* fname= argv[1];
+		argc--;
+		argv++;
+		startLocation= parseFile(fname,scene,argc,argv);
 	}
 	if (scene->children.empty())
 		TSGuiData::instance().loadRouteList();
@@ -264,17 +275,15 @@ int main(int argc, char** argv)
 	window->setPhysicalDevice(physicalDevice);
 	viewer->addWindow(window);
 
-	vsg::dvec3 center= vsg::dvec3(0,0,0);
 	double radius= 20000;
 	if (mstsRoute) {
 		vsg::ComputeBounds computeBounds;
 		scene->accept(computeBounds);
-		center= (computeBounds.bounds.min+computeBounds.bounds.max)*0.5;
 		auto size= computeBounds.bounds.max-computeBounds.bounds.min;
 		radius= vsg::length(size)*0.6;
 	}
 	double nearFarRatio= 0.0001;
-	auto lookAt= vsg::LookAt::create(center+vsg::dvec3(0,0,2*radius),center,vsg::dvec3(0,1,0));
+	auto lookAt= vsg::LookAt::create(startLocation+vsg::dvec3(0,0,2*radius),startLocation,vsg::dvec3(0,1,0));
 	vsg::ref_ptr<vsg::ProjectionMatrix> perspective;
 	perspective= vsg::Perspective::create(30.0,
 	  static_cast<double>(window->extent2D().width) /
