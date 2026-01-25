@@ -1311,25 +1311,17 @@ struct Random {
 
 int addCrossTree(int vIndex, float w, float h, float scale,
   float x, float y, float z, vsg::ref_ptr<vsg::vec3Array>& verts,
-  vsg::ref_ptr<vsg::vec3Array>& normals, vsg::ref_ptr<vsg::vec2Array>& texCoords,
-  vsg::ref_ptr<vsg::vec4Array>& colors, vsg::ref_ptr<vsg::ushortArray>& indices)
+  vsg::ref_ptr<vsg::vec2Array>& texCoords,
+  vsg::ref_ptr<vsg::ushortArray>& indices)
 {
 	verts->at(vIndex)= vsg::vec3(-w/2*scale+x,y,z);
 	verts->at(vIndex+1)= vsg::vec3(w/2*scale+x,y,z);
 	verts->at(vIndex+2)= vsg::vec3(w/2*scale+x,h*scale+y,z);
 	verts->at(vIndex+3)= vsg::vec3(-w/2*scale+x,h*scale+y,z);
-	normals->at(vIndex)= vsg::vec3(0,0,1);
-	normals->at(vIndex+1)= vsg::vec3(0,0,1);
-	normals->at(vIndex+2)= vsg::vec3(0,0,1);
-	normals->at(vIndex+3)= vsg::vec3(0,0,1);
 	texCoords->at(vIndex)= vsg::vec2(0,1);
 	texCoords->at(vIndex+1)= vsg::vec2(1,1);
 	texCoords->at(vIndex+2)= vsg::vec2(1,0);
 	texCoords->at(vIndex+3)= vsg::vec2(0,0);
-	colors->at(vIndex)= vsg::vec4(1,1,1,1);
-	colors->at(vIndex+1)= vsg::vec4(1,1,1,1);
-	colors->at(vIndex+2)= vsg::vec4(1,1,1,1);
-	colors->at(vIndex+3)= vsg::vec4(1,1,1,1);
 	int ii= 3*vIndex;
 	indices->set(ii++,0+vIndex);
 	indices->set(ii++,1+vIndex);
@@ -1348,18 +1340,10 @@ int addCrossTree(int vIndex, float w, float h, float scale,
 	verts->at(vIndex+1)= vsg::vec3(x,y,w/2*scale+z);
 	verts->at(vIndex+2)= vsg::vec3(x,h*scale+y,w/2*scale+z);
 	verts->at(vIndex+3)= vsg::vec3(x,h*scale+y,-w/2*scale+z);
-	normals->at(vIndex)= vsg::vec3(1,0,0);
-	normals->at(vIndex+1)= vsg::vec3(1,0,0);
-	normals->at(vIndex+2)= vsg::vec3(1,0,0);
-	normals->at(vIndex+3)= vsg::vec3(1,0,0);
 	texCoords->at(vIndex)= vsg::vec2(0,1);
 	texCoords->at(vIndex+1)= vsg::vec2(1,1);
 	texCoords->at(vIndex+2)= vsg::vec2(1,0);
 	texCoords->at(vIndex+3)= vsg::vec2(0,0);
-	colors->at(vIndex)= vsg::vec4(1,1,1,1);
-	colors->at(vIndex+1)= vsg::vec4(1,1,1,1);
-	colors->at(vIndex+2)= vsg::vec4(1,1,1,1);
-	colors->at(vIndex+3)= vsg::vec4(1,1,1,1);
 	indices->set(ii++,0+vIndex);
 	indices->set(ii++,1+vIndex);
 	indices->set(ii++,2+vIndex);
@@ -1424,8 +1408,8 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 	int numInd= 3*numVert;
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(numVert));
 	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(numVert));
-	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(numVert));
-	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(numVert));
+	vsg::ref_ptr<vsg::vec3Array> normals= vsg::vec3Array::create({vsg::vec3(0,1,0)});
+	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
 	auto indices= vsg::ushortArray::create(3*numVert);
 	int vIndex= 0;
 	Random random;
@@ -1444,7 +1428,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 			vsg::vec3 p= rot*vsg::vec3(x,0,z) + center;
 			float a= getAltitude(p.x,p.z,tile,t12,t21,t22);
 			vIndex= addCrossTree(vIndex,w,h,size,x,a-a0,z,
-			  verts,normals,texCoords,colors,indices);
+			  verts,texCoords,indices);
 			if (vIndex >= numVert)
 				break;
 //			fprintf(stderr,"forest %d %d %f %f %d\n",i,j,s,t,pop);
@@ -1465,9 +1449,9 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 	vid->firstInstance= 0;
 	auto stateGroup= vsg::StateGroup::create();
 	stateGroup->addChild(vid);
-	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);;
+	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
 	auto matValue= vsg::PhongMaterialValue::create();
-	matValue->value().ambient= vsg::vec4(0,0,0,0);
+	matValue->value().ambient= vsg::vec4(1,1,1,1);
 	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
 	matValue->value().specular= vsg::vec4(0,0,0,1);
 	matValue->value().shininess= 0;
@@ -1482,9 +1466,9 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 	gpConfig->assignTexture("diffuseMap",image,sampler);
 	gpConfig->assignDescriptor("material",matValue);
 	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
-	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_INSTANCE,12);
 	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
-	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_INSTANCE,16);
 	if (vsgOptions->sharedObjects)
 		vsgOptions->sharedObjects->share(gpConfig,
 		  [](auto gpc) { gpc->init(); });
@@ -1588,7 +1572,6 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	vid->firstInstance= 0;
 	auto stateGroup= vsg::StateGroup::create();
 	stateGroup->addChild(vid);
-//	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);;
 	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().ambient= vsg::vec4(1,1,1,1);
@@ -1644,8 +1627,8 @@ void MSTSRoute::makeWater(Tile* tile, float dl, const char* texture,
 	int ni= 6*npw;
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
-	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(nv));
-	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	vsg::ref_ptr<vsg::vec3Array> normals= vsg::vec3Array::create({vsg::vec3(0,0,1)});
+	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
 	auto indices= vsg::ushortArray::create(ni);
 	float x0= 2048*(float)(tile->x-centerTX);
 	float z0= 2048*(float)(tile->z-centerTZ);
@@ -1670,14 +1653,6 @@ void MSTSRoute::makeWater(Tile* tile, float dl, const char* texture,
 			texCoords->at(vi+1)= vsg::vec2(.05,.95);
 			texCoords->at(vi+2)= vsg::vec2(.95,.95);
 			texCoords->at(vi+3)= vsg::vec2(.95,.05);
-			normals->at(vi)= vsg::vec3(0,0,1);
-			normals->at(vi+1)= vsg::vec3(0,0,1);
-			normals->at(vi+2)= vsg::vec3(0,0,1);
-			normals->at(vi+3)= vsg::vec3(0,0,1);
-			colors->at(vi)= vsg::vec4(1,1,1,1);
-			colors->at(vi+1)= vsg::vec4(1,1,1,1);
-			colors->at(vi+2)= vsg::vec4(1,1,1,1);
-			colors->at(vi+3)= vsg::vec4(1,1,1,1);
 			indices->set(ii++,vi);
 			indices->set(ii++,vi+1);
 			indices->set(ii++,vi+2);
@@ -1729,9 +1704,9 @@ void MSTSRoute::makeWater(Tile* tile, float dl, const char* texture,
 		gpConfig->pipelineStates.push_back(colorBlendState);
 	}
 	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
-	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_INSTANCE,12);
 	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
-	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_INSTANCE,16);
 	if (vsgOptions->sharedObjects)
 		vsgOptions->sharedObjects->share(gpConfig,
 		  [](auto gpc) { gpc->init(); });

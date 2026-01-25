@@ -1869,13 +1869,12 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 	auto ne= track->edgeList.size();
 //	fprintf(stderr,"nv %ld ne %ld\n",nv,ne);
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
-	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(0,0,0,1)});
 	int j= 0;
 	for (auto i=track->vertexList.begin(); i!=track->vertexList.end();
 	  i++) {
 		auto v= *i;
 		verts->at(j)= v->location.coord;
-		colors->at(j)= vsg::vec4(0,0,0,1);
 		v->occupied= j++;
 	}
 	auto indices= vsg::ushortArray::create(2*ne);
@@ -1911,7 +1910,7 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 //	gpConfig->accept(setLineList); this doesn't work for some reason
 	for (auto& ps : gpConfig->pipelineStates) ps->accept(setLineList);
 	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
-	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_INSTANCE,16);
 	if (vsgOptions->sharedObjects)
 		vsgOptions->sharedObjects->share(gpConfig,
 		  [](auto gpc) { gpc->init(); });

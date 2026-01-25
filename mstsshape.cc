@@ -736,10 +736,15 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 		if (subObject.vertices[j].index < 0)
 			subObject.vertices[j].index= nv++;
 	}
+	bool ignoreNormals= vtxStates[primStates[triList.primStateIndex].vStateIndex].lightMaterialIndex == -9;
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
-	vsg::ref_ptr<vsg::vec3Array> norms(new vsg::vec3Array(nv));
-	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	vsg::ref_ptr<vsg::vec3Array> norms;
+	if (ignoreNormals)
+		norms= vsg::vec3Array::create({vsg::vec3(0,1,0)});
+	else
+		norms= new vsg::vec3Array(nv);
+	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
 #if 0
 	osg::Vec2Array* mtTexCoords= NULL;
 	if (mtStateSet) {
@@ -780,12 +785,12 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 				texCoords->at(vi)=
 				  vsg::vec2(uvPoints[j].u,uvPoints[j].v);
 //		}
-		j= subObject.vertices[i].normalIndex;
-		if (j >= normals.size())
-			fprintf(stderr,"normalIndex too big\n");
-		norms->at(vi)=
-		  vsg::vec3(normals[j].x,normals[j].y,normals[j].z);
-		colors->at(vi)= vsg::vec4(1,1,1,1);
+		if (!ignoreNormals) {
+			j= subObject.vertices[i].normalIndex;
+			if (j >= normals.size())
+				fprintf(stderr,"normalIndex too big\n");
+			norms->at(vi)= vsg::vec3(normals[j].x,normals[j].y,normals[j].z);
+		}
 	}
 	auto indices= vsg::ushortArray::create(triList.vertexIndices.size());
 	for (int i=0; i<triList.vertexIndices.size(); i++) {
@@ -813,7 +818,6 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 		matrices[mi].group= new vsg::Group();
 //	fprintf(stderr,"vsi %d\n",ps->vStateIndex);
 //	fprintf(stderr,"lmi %d\n",vtxStates[ps->vStateIndex].lightMaterialIndex);
-	bool useFlatShader= false;
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().ambient= vsg::vec4(1,1,1,1);// multiplied by diffuse in shader
 	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
@@ -833,15 +837,12 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 		break;
 	 case -8: // full bright
 	 case -9: // cruciform
-		useFlatShader= true;
 		break;
 	 case -11: // half bright
 		matValue->value().diffuse= vsg::vec4(.375,.375,.375,1);
-		useFlatShader= true;
 		break;
 	 case -12: // dark bright
 		matValue->value().diffuse= vsg::vec4(.25,.25,.25,1);
-		useFlatShader= true;
 		break;
 	 case -10: // emissive
 		matValue->value().emissive= vsg::vec4(1,1,1,1);
@@ -852,8 +853,7 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 //		  filename.c_str());
 		break;
 	}
-	auto shaderSet= useFlatShader ? vsg::createFlatShadedShaderSet(vsgOptions) :
-	  vsg::createPhongShaderSet(vsgOptions);
+	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);
 	matValue->value().alphaMask= 0;
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
 	auto& defines= gpConfig->shaderHints->defines;
@@ -922,9 +922,12 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 	}
 	gpConfig->assignDescriptor("material",matValue);
 	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
-	gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	if (ignoreNormals)
+		gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_INSTANCE,12);
+	else
+		gpConfig->enableArray("vsg_Normal",VK_VERTEX_INPUT_RATE_VERTEX,12);
 	gpConfig->enableArray("vsg_TexCoord0",VK_VERTEX_INPUT_RATE_VERTEX,8);
-	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_VERTEX,16);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_INSTANCE,16);
 //	defines.insert("VSG_TWO_SIDED_LIGHTING");
 	if (vsgOptions)
 		vsgOptions->sharedObjects->share(gpConfig,

@@ -112,7 +112,7 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 			gpConfig->enableArray("vsg_TexCoord0",
 			  VK_VERTEX_INPUT_RATE_VERTEX,8);
 			gpConfig->enableArray("vsg_Color",
-			  VK_VERTEX_INPUT_RATE_VERTEX,16);
+			  VK_VERTEX_INPUT_RATE_INSTANCE,16);
 			if (vsgOptions->sharedObjects)
 				vsgOptions->sharedObjects->share(gpConfig,
 				  [](auto gpc) { gpc->init(); });
@@ -170,7 +170,7 @@ vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
 	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(nv));
-	vsg::ref_ptr<vsg::vec4Array> colors(new vsg::vec4Array(nv));
+	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
 	auto indices= vsg::ushortArray::create(6*16*16);
 	int ii= 0;
 	for (int i=0; i<=16; i++) {
@@ -186,7 +186,6 @@ vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
 //			microTexCoords->push_back(
 //			  osg::Vec2(uvmult*u,uvmult*v));
 			normals->at(vi)= getNormal(i+i0,j+j0,tile,t12,t21,t22);
-			colors->at(vi)= vsg::vec4(1,1,1,1);
 			float h00= getVertexHidden(i+i0,j+j0,tile,t12,t21,t22);
 			if (i<16 && j<16) {
 				float a11= getAltitude(i+i0+1,j+j0+1,
