@@ -168,23 +168,33 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		selectedTrain= myTrain;
 		selectedRailCar= myRailCar;
 		keyPress.handled= true;
-	} else if (keyPress.keyBase=='2' && myTrain) {
-		follow= myTrain->firstCar->model;
-		followOffset= vsg::vec3(0,0,1.6);
+	} else if (keyPress.keyBase=='2' && (myTrain || selectedTrain)) {
+		if (myTrain) {
+			follow= myTrain->firstCar->model;
+			selectedTrain= myTrain;
+			selectedRailCar= myTrain->firstCar;
+		} else {
+			follow= selectedTrain->firstCar->model;
+			selectedRailCar= selectedTrain->firstCar;
+		}
+		followOffset= vsg::dvec3(0,0,1.6);
 		setZoom(9);
 		setPitch(-15);
 		lookAt->up= vsg::dvec3(0,0,1);
-		selectedTrain= myTrain;
-		selectedRailCar= myTrain->firstCar;
 		keyPress.handled= true;
-	} else if (keyPress.keyBase=='3' && myTrain) {
-		follow= myTrain->lastCar->model;
-		followOffset= vsg::vec3(0,0,1.6);
+	} else if (keyPress.keyBase=='3' && (myTrain || selectedTrain)) {
+		if (myTrain) {
+			follow= myTrain->lastCar->model;
+			selectedTrain= myTrain;
+			selectedRailCar= myTrain->lastCar;
+		} else {
+			follow= selectedTrain->lastCar->model;
+			selectedRailCar= selectedTrain->lastCar;
+		}
+		followOffset= vsg::dvec3(0,0,1.6);
 		setZoom(9);
 		setPitch(-15);
 		lookAt->up= vsg::dvec3(0,0,1);
-		selectedTrain= myTrain;
-		selectedRailCar= myTrain->lastCar;
 		keyPress.handled= true;
 	}
 }

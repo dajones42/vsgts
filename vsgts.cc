@@ -322,13 +322,13 @@ int main(int argc, char** argv)
 	auto prevTime= std::chrono::system_clock::now();
 	while (viewer->advanceToNextFrame()) {
 		viewer->handleEvents();
+		viewer->update();
+		viewer->recordAndSubmit();
+		viewer->present();
 		auto now= std::chrono::system_clock::now();
 		double dt= std::chrono::duration<double,std::chrono::seconds::period>(now-prevTime).count();
 		prevTime= now;
 		updateSim(dt,scene,viewer);
-		viewer->update();
-		viewer->recordAndSubmit();
-		viewer->present();
 	}
 	return 0;
 }
