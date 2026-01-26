@@ -82,7 +82,7 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().alphaMask= 0;
 	matValue->value().ambient= vsg::vec4(1,1,1,1);
-	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().diffuse= vsg::vec4(1,1,1,1);
 	matValue->value().specular= vsg::vec4(0,0,0,1);
 	matValue->value().shininess= 0;
 	auto sampler= vsg::Sampler::create();

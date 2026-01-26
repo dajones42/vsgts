@@ -142,17 +142,17 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 		layout.blockWidth= 4;
 		layout.blockHeight= 4;
 		if (colors > 3)
-			layout.format= VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+			layout.format= VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
 		else
-			layout.format= VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+			layout.format= VK_FORMAT_BC1_RGB_SRGB_BLOCK;
 		return vsg::block64Array2D::create(wid/4,ht/4,
 		  reinterpret_cast<vsg::block64*>(data),layout);
 	} else if (colors > 3) {
-		layout.format= VK_FORMAT_R8G8B8A8_UNORM;
+		layout.format= VK_FORMAT_R8G8B8A8_SRGB;
 		return vsg::Array2D<vsg::ubvec4>::create(wid,ht,
 		  reinterpret_cast<vsg::ubvec4*>(data),layout);
 	} else {
-		layout.format= VK_FORMAT_R8G8B8_UNORM;
+		layout.format= VK_FORMAT_R8G8B8_SRGB;
 		return vsg::Array2D<vsg::ubvec3>::create(wid,ht,
 		  reinterpret_cast<vsg::ubvec3*>(data),layout);
 	}

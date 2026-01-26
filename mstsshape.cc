@@ -820,7 +820,7 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 //	fprintf(stderr,"lmi %d\n",vtxStates[ps->vStateIndex].lightMaterialIndex);
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().ambient= vsg::vec4(1,1,1,1);// multiplied by diffuse in shader
-	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().diffuse= vsg::vec4(1,1,1,1);
 	matValue->value().specular= vsg::vec4(0,0,0,1);
 	matValue->value().shininess= 0;
 	switch (vtxStates[ps->vStateIndex].lightMaterialIndex) {
@@ -839,10 +839,10 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 	 case -9: // cruciform
 		break;
 	 case -11: // half bright
-		matValue->value().diffuse= vsg::vec4(.375,.375,.375,1);
+		matValue->value().diffuse= vsg::vec4(.75,.75,.75,1);
 		break;
 	 case -12: // dark bright
-		matValue->value().diffuse= vsg::vec4(.25,.25,.25,1);
+		matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
 		break;
 	 case -10: // emissive
 		matValue->value().emissive= vsg::vec4(1,1,1,1);

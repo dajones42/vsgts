@@ -1452,7 +1452,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().ambient= vsg::vec4(1,1,1,1);
-	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().diffuse= vsg::vec4(1,1,1,1);
 	matValue->value().specular= vsg::vec4(0,0,0,1);
 	matValue->value().shininess= 0;
 	auto sampler= vsg::Sampler::create();
@@ -1575,7 +1575,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().ambient= vsg::vec4(1,1,1,1);
-	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().diffuse= vsg::vec4(1,1,1,1);
 	matValue->value().specular= vsg::vec4(0,0,0,1);
 	matValue->value().shininess= 0;
 	auto sampler= vsg::Sampler::create();
@@ -1682,7 +1682,7 @@ void MSTSRoute::makeWater(Tile* tile, float dl, const char* texture,
 	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().ambient= vsg::vec4(1,1,1,1);
-	matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
+	matValue->value().diffuse= vsg::vec4(1,1,1,1);
 	matValue->value().specular= vsg::vec4(0,0,0,1);
 	matValue->value().shininess= 0;
 	auto sampler= vsg::Sampler::create();
