@@ -26,6 +26,8 @@ THE SOFTWARE.
 
 #include <vsg/all.h>
 
+struct RailCarInst;
+
 class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 {
  public:
@@ -41,6 +43,7 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	vsg::ref_ptr<const vsg::MatrixTransform> follow;
 	vsg::dvec3 followOffset;
 	vsg::dquat prevRotation;
+	bool remoteEye;
 	int zoom;
 	int maxZoom;
 	double zoom1Dist;
@@ -50,6 +53,8 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	void incPitch(double degrees);
 	void setPitch(double degrees);
 	void updateListener();
+	bool followInside(RailCarInst* railCar);
+	void setFollow(vsg::MatrixTransform* model, vsg::vec3 offset, float heading, float pitch);
 };
 extern vsg::LookAt* myLookAt;
 

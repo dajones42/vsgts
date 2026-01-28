@@ -34,6 +34,7 @@ using namespace std;
 #include "mstsshape.h"
 #include "trackshape.h"
 #include "animation.h"
+#include "signal.h"
 
 extern string fixFilenameCase(string);
 
@@ -127,12 +128,12 @@ void MSTSRoute::loadModels(Tile* tile)
 			} else if (*(node->value)=="Hazard" && file!=NULL) {
 				model=
 				  loadHazardModel(file->getChild(0)->value);
-#if 0
 			} else if (*(node->value)=="Signal") {
 				MSTSSignal* signal= findSignalInfo(next);
 				model=
 				  loadStaticModel(file->getChild(0)->value,
 				  signal);
+#if 0
 				if (model && signalSwitchStands)
 				  model= attachSwitchStand(tile,model,
 				    x0+atof(pos->getChild(0)->value->c_str()),
@@ -513,11 +514,11 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadStaticModel(string* filename,
 //	fprintf(stderr,"loading static model %s\n",path.c_str());
 	MSTSShape shape;
 	shape.vsgOptions= vsgOptions;
-#if 0
 	if (signal && strncasecmp(filename->c_str(),"hsuq",4)==0)
 		shape.signalLightOffset= new vsg::dvec3(.23,-.23,-.1);
 	else if (signal)
 		shape.signalLightOffset= new vsg::dvec3(0,0,-.15);
+#if 0
 	int tid,pi,pj;
 	if (sscanf(filename->c_str(),"t-%x_%d_%d.s",&tid,&pi,&pj) == 3) {
 		string tname= filename->substr(1,9);

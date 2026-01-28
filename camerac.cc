@@ -30,6 +30,7 @@ THE SOFTWARE.
 
 #include "camerac.h"
 #include "mstsroute.h"
+#include "track.h"
 #include "train.h"
 #include "listener.h"
 
@@ -150,21 +151,7 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 			setZoom(15);
 		setPitch(-90);
 		keyPress.handled= true;
-	} else if (keyPress.keyBase=='1' && myRailCar && myRailCar->def->inside.size()>0) {
-		follow= myRailCar->model;
-		auto& inside= myRailCar->def->inside[0];
-		followOffset= inside.position;
-		vsg::dvec3 position;
-		vsg::dquat rotation;
-		vsg::dvec3 scale;
-		vsg::decompose(follow->matrix,position,rotation,scale);
-		prevRotation= rotation;
-		auto dir= rotation*vsg::dvec3(1,0,0);
-		dir= vsg::dquat(vsg::radians(inside.angle),vsg::dvec3(0,0,1))*dir;
-		setZoom(0);
-		lookAt->eye= lookAt->center - .1*dir;
-		setPitch(inside.vAngle);
-		lookAt->up= vsg::dvec3(0,0,1);
+	} else if (keyPress.keyBase=='1' && followInside(myRailCar)) {
 		selectedTrain= myTrain;
 		selectedRailCar= myRailCar;
 		keyPress.handled= true;
@@ -181,6 +168,7 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		setZoom(9);
 		setPitch(-15);
 		lookAt->up= vsg::dvec3(0,0,1);
+		remoteEye= false;
 		keyPress.handled= true;
 	} else if (keyPress.keyBase=='3' && (myTrain || selectedTrain)) {
 		if (myTrain) {
@@ -195,6 +183,61 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		setZoom(9);
 		setPitch(-15);
 		lookAt->up= vsg::dvec3(0,0,1);
+		remoteEye= false;
+		keyPress.handled= true;
+	} else if (keyPress.keyBase=='4' && (myTrain || selectedTrain)) {
+		Train* train;
+		if (selectedRailCar) {
+			follow= selectedRailCar->model;
+			train= selectedTrain;
+		} else if (myTrain) {
+			follow= myTrain->firstCar->model;
+			train= myTrain;
+		}
+		followOffset= vsg::dvec3(0,0,1.6);
+		Track::Location loc;
+		if (train->speed >= 0) {
+			loc= train->location;
+			loc.move(100,false,0);
+		} else {
+			loc= train->endLocation;
+			loc.move(-100,false,0);
+		}
+		WLocation wloc1,wloc2;
+		loc.getWLocation(&wloc1);
+		loc.move(1,false,0);
+		loc.getWLocation(&wloc2);
+		float offset= drand48()>.5 ? 5 : -5;
+		auto side= offset*vsg::cross((wloc2.coord-wloc1.coord),vsg::dvec3(0,0,1));
+		lookAt->up= vsg::dvec3(0,0,1);
+		lookAt->eye= wloc1.coord + side + vsg::dvec3(0,0,1.6);
+		remoteEye= true;
+		keyPress.handled= true;
+	} else if (keyPress.keyBase=='5' && followInside(selectedRailCar)) {
+		keyPress.handled= true;
+	} else if (keyPress.keyBase=='6' && selectedRailCar) {
+		vsg::vec3 offset {0,0,2.1};
+		float heading= 0;
+		if (myTrain && selectedRailCar==myTrain->firstCar) {
+			offset.x= .5*selectedRailCar->def->length - .7;
+			offset.y= -.5*selectedRailCar->def->width - .3;
+		} else if (myTrain && selectedRailCar==myTrain->lastCar) {
+			offset.x= -.5*selectedRailCar->def->length + .7;
+			offset.y= .5*selectedRailCar->def->width + .3;
+			heading= 180;
+		} else {
+			if (followOffset.x > 0) {
+				offset.x= .5*selectedRailCar->def->length - .7;
+			} else {
+				offset.x= -.5*selectedRailCar->def->length + .7;
+				heading= 180;
+			}
+			if (followOffset.y > 0)
+				offset.y= .5*selectedRailCar->def->width + .3;
+			else
+				offset.y= -.5*selectedRailCar->def->width - .3;
+		}
+		setFollow(selectedRailCar->model.get(),offset,heading,0);
 		keyPress.handled= true;
 	}
 }
@@ -214,6 +257,7 @@ void CameraController::apply(vsg::ButtonPressEvent& buttonPress)
 	follow= nullptr;
 	selectedTrain= nullptr;
 	selectedRailCar= nullptr;
+	remoteEye= false;
 	for (auto train: trainList) {
 		for (auto car= train->firstCar; car; car=car->next) {
 			for (auto& node: intersection->nodePath) {
@@ -260,8 +304,10 @@ void CameraController::apply(vsg::FrameEvent& frame)
 		vsg::dvec3 scale;
 		vsg::decompose(follow->matrix,position,rotation,scale);
 		lookAt->center= position + rotation*followOffset;
-		lookV= rotation*((-prevRotation)*lookV);
-		lookAt->eye= lookAt->center + lookV;
+		if (!remoteEye) {
+			lookV= rotation*((-prevRotation)*lookV);
+			lookAt->eye= lookAt->center + lookV;
+		}
 		prevRotation= rotation;
 	}
 	updateListener();
@@ -272,8 +318,41 @@ void CameraController::updateListener()
 	auto lookV= lookAt->center - lookAt->eye;
 	auto dir= vsg::vec2(lookV.x,lookV.y);
 	auto len= vsg::length(dir);
-	if (len > 0)
+	if (remoteEye) {
+		listener.update(lookAt->eye,-dir.x/len,-dir.y/len);
+	} else if (len > 0) {
 		listener.update(lookAt->center,dir.x/len,dir.y/len);
-	else
+	} else {
 		listener.update(lookAt->center,1,0);
+	}
+}
+
+bool CameraController::followInside(RailCarInst* railCar)
+{
+	if (!railCar || railCar->def->inside.size()==0)
+		return false;
+	follow= railCar->model;
+	auto& inside= railCar->def->inside[0];
+	setFollow(railCar->model.get(),inside.position,inside.angle,inside.vAngle);
+	return true;
+}
+
+void CameraController::setFollow(vsg::MatrixTransform* model, vsg::vec3 offset, float heading, float pitch)
+{
+	vsg::dvec3 doffset { offset.x,offset.y,offset.z };
+	follow= model;
+	followOffset= doffset;
+	vsg::dvec3 position;
+	vsg::dquat rotation;
+	vsg::dvec3 scale;
+	vsg::decompose(follow->matrix,position,rotation,scale);
+	prevRotation= rotation;
+	auto dir= rotation*vsg::dvec3(1,0,0);
+	dir= vsg::dquat(vsg::radians(heading),vsg::dvec3(0,0,1))*dir;
+	setZoom(0);
+	lookAt->center= position + rotation*doffset;
+	lookAt->eye= lookAt->center - .1*dir;
+	setPitch(pitch);
+	lookAt->up= vsg::dvec3(0,0,1);
+	remoteEye= false;
 }

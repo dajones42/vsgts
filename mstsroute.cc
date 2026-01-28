@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include "train.h"
 #include "timetable.h"
 #include "mstsace.h"
+#include "signal.h"
 
 using namespace std;
 
@@ -1641,7 +1642,7 @@ Track::Path* MSTSRoute::loadPath(string filename, bool align)
 
 #if 0
 void MSTSRoute::addSwitchStands(double offset, double zoffset,
-  osg::Node* model, osg::Group* rootNode, double pOffset)
+  vsg::Node* model, vsg::Group* rootNode, double pOffset)
 {
 	Track* track= trackMap[routeID];
 	for (Track::VertexList::iterator i=track->vertexList.begin();
@@ -1700,7 +1701,6 @@ osg::Node* MSTSRoute::attachSwitchStand(Tile* tile, osg::Node* model,
 }
 #endif
 
-#if 0
 MSTSSignal* MSTSRoute::findSignalInfo(MSTSFileNode* node)
 {
 	if (!createSignals)
@@ -1728,7 +1728,6 @@ MSTSSignal* MSTSRoute::findSignalInfo(MSTSFileNode* node)
 	}
 	return signal;
 }
-#endif
 
 #if 0
 osg::Geometry* MSTSRoute::loadPatchGeoFile(Patch* patch, int ti, int tj,

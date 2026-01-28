@@ -31,7 +31,6 @@ struct Track;
 struct TrackDB;
 struct MSTSFileNode;
 struct LooseConsist;
-struct MSTSSignal;
 
 #include <mutex>
 #include <set>
