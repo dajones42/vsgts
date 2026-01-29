@@ -53,31 +53,12 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 		auto img= readCacheACEFile(path.c_str());
 		textures.push_back(img);
 	}
-#if 0
-	vector<osg::Texture2D*> microTextures;
+	std::vector<vsg::ref_ptr<vsg::Data>> microTextures;
 	for (int i=0; i<tile->microTextures.size(); i++) {
-		osg::Texture2D* t= new osg::Texture2D;
-		t->ref();
-		t->setDataVariance(osg::Object::DYNAMIC);
-		microTextures.push_back(t);
 		std::string path= terrtexDir+dirSep+tile->microTextures[i];
-		osg::Image* image= readMSTSACE(path.c_str());
-		if (image != NULL)
-			t->setImage(image);
-		t->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::REPEAT);
-		t->setWrap(osg::Texture2D::WRAP_T,osg::Texture2D::REPEAT);
+		auto img= readCacheACEFile(path.c_str(),false,true,64);
+		microTextures.push_back(img);
 	}
-#endif
-#if 0
-	osg::TexEnvCombine* tec= new osg::TexEnvCombine();
-	tec->setCombine_RGB(osg::TexEnvCombine::MODULATE);
-	tec->setSource0_RGB(osg::TexEnvCombine::PREVIOUS);
-	tec->setSource1_RGB(osg::TexEnvCombine::TEXTURE1);
-	tec->setOperand0_RGB(osg::TexEnvCombine::SRC_COLOR);
-	tec->setOperand1_RGB(osg::TexEnvCombine::SRC_COLOR);
-	tec->setScale_RGB(2.);
-	tec->ref();
-#endif
 	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
 	auto matValue= vsg::PhongMaterialValue::create();
 	matValue->value().alphaMask= 0;
@@ -89,6 +70,13 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	vsgOptions->sharedObjects->share(sampler);
+	auto tciv= vsg::TexCoordIndicesValue::create();
+	tciv->value().diffuseMap= 0;
+	tciv->value().detailMap= 1;
+	auto sampler2= vsg::Sampler::create();
+	sampler2->addressModeU= VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	sampler2->addressModeV= VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	vsgOptions->sharedObjects->share(sampler2);
 	Patch* patch= tile->patches;
 	auto group= vsg::Group::create();
 	tile->terrModel= group;
@@ -105,11 +93,19 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 			gpConfig->assignTexture("diffuseMap",
 			  textures[patch->texIndex],sampler);
 			gpConfig->assignDescriptor("material",matValue);
+			if (patch->texIndex<microTextures.size() &&
+			  microTextures[patch->texIndex]) {
+				gpConfig->assignTexture("detailMap",
+				  microTextures[patch->texIndex],sampler2);
+				gpConfig->assignDescriptor("texCoordIndices",tciv);
+			}
 			gpConfig->enableArray("vsg_Vertex",
 			  VK_VERTEX_INPUT_RATE_VERTEX,12);
 			gpConfig->enableArray("vsg_Normal",
 			  VK_VERTEX_INPUT_RATE_VERTEX,12);
 			gpConfig->enableArray("vsg_TexCoord0",
+			  VK_VERTEX_INPUT_RATE_VERTEX,8);
+			gpConfig->enableArray("vsg_TexCoord1",
 			  VK_VERTEX_INPUT_RATE_VERTEX,8);
 			gpConfig->enableArray("vsg_Color",
 			  VK_VERTEX_INPUT_RATE_INSTANCE,16);
@@ -123,16 +119,6 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 			stateGroup->stateCommands.swap(commands);
 			stateGroup->prototypeArrayState=
 			   gpConfig->getSuitableArrayState();
-#if 0
-			if (patch->texIndex<microTextures.size() &&
-			  microTextures[patch->texIndex]) {
-				stateSet->setTextureAttributeAndModes(1,
-				  microTextures[patch->texIndex],
-				  osg::StateAttribute::ON);
-				stateSet->setTextureAttributeAndModes(1,tec,
-				  osg::StateAttribute::ON);
-			}
-#endif
 			group->addChild(stateGroup);
 			patch++;
 		}
@@ -169,6 +155,7 @@ vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
 	int nv= 17*17;
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
+	vsg::ref_ptr<vsg::vec2Array> mtexCoords(new vsg::vec2Array(nv));
 	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
 	auto indices= vsg::ushortArray::create(6*16*16);
@@ -183,8 +170,7 @@ vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
 			float u= patch->u0+patch->dudx*j+patch->dudz*i;
 			float v= patch->v0+patch->dvdx*j+patch->dvdz*i;
 			texCoords->at(vi)= vsg::vec2(u,v);
-//			microTexCoords->push_back(
-//			  osg::Vec2(uvmult*u,uvmult*v));
+			mtexCoords->at(vi)= vsg::vec2(u*uvmult,v*uvmult);
 			normals->at(vi)= getNormal(i+i0,j+j0,tile,t12,t21,t22);
 			float h00= getVertexHidden(i+i0,j+j0,tile,t12,t21,t22);
 			if (i<16 && j<16) {
@@ -227,7 +213,7 @@ vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
 			}
 		}
 	}
-	auto attributeArrays= vsg::DataList{verts,normals,texCoords,colors};
+	auto attributeArrays= vsg::DataList{verts,normals,texCoords,mtexCoords,colors};
 	auto vid= vsg::VertexIndexDraw::create();
 	vid->assignArrays(attributeArrays);
 	vid->assignIndices(indices);

@@ -27,7 +27,7 @@ THE SOFTWARE.
 #include "mstsbfile.h"
 #include "mstsace.h"
 
-vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
+vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path, bool expand, uint8_t alpha)
 {
 	MSTSBFile reader;
 	if (reader.open(path)) {
@@ -55,7 +55,7 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 		  path,flags,wid,ht,colors,offset);
 		return {};
 	}
-	int sz= (flags&020)!=0 ? wid*ht/2 : wid*ht*(colors==3?3:4);
+	int sz= expand ? wid*ht*4 : (flags&020)!=0 ? wid*ht/2 : wid*ht*(colors==3?3:4);
 	int size= sz;
 	if ((flags&01) != 0) {
 		int s= sz;
@@ -85,7 +85,64 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 	int h= ht;
 	int nMipmaps= 1;
 	for (;;) {
-		if ((flags&020) != 0) {
+		if ((flags&020)!=0 && expand) {
+			auto len= reader.getInt();
+			auto dp= data+offset;
+			for (int i=0; i<h; i+=4) {
+				for (int j=0; j<w; j+=4) {
+					auto c0= (uint16_t) reader.getShort();
+					auto c1= (uint16_t) reader.getShort();
+					auto bits= (uint32_t) reader.getInt();
+					auto r0= (c0>>8)&0xf8;
+					auto g0= (c0>>3)&0xfa;
+					auto b0= (c0<<3)&0xf8;
+					auto r1= (c1>>8)&0xf8;
+					auto g1= (c1>>3)&0xfa;
+					auto b1= (c1<<3)&0xf8;
+					for (int i1=0; i1<4; i1++) {
+						for (int j1=0; j1<4; j1++) {
+							int di= 4*(j+j1+w*(i+i1));
+							switch (bits&3) {
+							 case 0:
+								dp[di]= r0;
+								dp[di+1]= g0;
+								dp[di+2]= b0;
+								break;
+							 case 1:
+								dp[di]= r1;
+								dp[di+1]= g1;
+								dp[di+2]= b1;
+								break;
+							 case 2:
+								if (c0 > c1) {
+									dp[di]= (2*r0+r1)/3;
+									dp[di+1]= (2*g0+g1)/3;
+									dp[di+2]= (2*b0+b1)/3;
+								} else {
+									dp[di]= (r0+r1)/3;
+									dp[di+1]= (g0+g1)/3;
+									dp[di+2]= (b0+b1)/3;
+								}
+								break;
+							 case 3:
+								if (c0 > c1) {
+									dp[di]= (r0+2*r1)/3;
+									dp[di+1]= (g0+2*g1)/3;
+									dp[di+2]= (b0+2*b1)/3;
+								} else {
+									dp[di]= 0;
+									dp[di+1]= 0;
+									dp[di+2]= 0;
+								}
+								break;
+							}
+							dp[di+3]= alpha;
+							bits>>= 2;
+						}
+					}
+				}
+			}
+		} else if ((flags&020) != 0) {
 			int len= reader.getInt();
 //			fprintf(stderr,"len=%d %d %d %d\n",len,offset,w,h);
 			reader.getBytes(data+offset,len);
@@ -116,6 +173,8 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 							tp++;
 					} else if (colors == 5) {
 						*dp++= *ap++;
+					} else if (expand) {
+						*dp++= alpha;
 					}
 				}
 			}
@@ -138,7 +197,11 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path)
 	layout.mipLevels= nMipmaps;
 	layout.origin= vsg::TOP_LEFT;
 	layout.imageViewType= VK_IMAGE_VIEW_TYPE_2D;
-	if ((flags&020) != 0) {
+	if (expand) {
+		layout.format= VK_FORMAT_R8G8B8A8_SRGB;
+		return vsg::Array2D<vsg::ubvec4>::create(wid,ht,
+		  reinterpret_cast<vsg::ubvec4*>(data),layout);
+	} else if ((flags&020) != 0) {
 		layout.blockWidth= 4;
 		layout.blockHeight= 4;
 		if (colors > 3)
@@ -176,12 +239,12 @@ void cleanACECache()
 }
 
 //	reads an ACE file and saves image for future calls
-vsg::ref_ptr<vsg::Data> readCacheACEFile(const char* path, bool tryPNG)
+vsg::ref_ptr<vsg::Data> readCacheACEFile(const char* path, bool tryPNG, bool expand, uint8_t alpha)
 {
 	ACEMap::iterator i= aceMap.find(path);
 	if (i != aceMap.end() && i->second)
 		return vsg::ref_ptr(i->second);
-	vsg::ref_ptr<vsg::Data> image= readMSTSACE(path);
+	vsg::ref_ptr<vsg::Data> image= readMSTSACE(path,expand,alpha);
 	if (image) {
 		aceMap[path]= image.get();
 		image->ref();
