@@ -1412,6 +1412,10 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 	vsg::ref_ptr<vsg::vec3Array> normals= vsg::vec3Array::create({vsg::vec3(0,1,0)});
 	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
 	auto indices= vsg::ushortArray::create(3*numVert);
+	Track::Location loc;
+	Track* track= trackMap[routeID];
+	auto centerDist= sqrt(track->findLocation(center.x+x0,center.z+z0,&loc));
+	auto radius= sqrt(areaW*areaW+areaH*areaH)+w/2;
 	int vIndex= 0;
 	Random random;
 	int nh= (int)ceil(sqrt(pop*areaH/areaW));
@@ -1427,6 +1431,11 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 			float x= (s-.5)*(areaW>size?areaW-size:0);
 			float z= (t-.5)*(areaH>size?areaH-size:0);
 			vsg::vec3 p= rot*vsg::vec3(x,0,z) + center;
+			if (centerDist < radius) {
+				float d= track->findLocation(p.x+x0,p.z+z0,&loc);
+				if (size*w/2 > sqrt(d)-2)
+					continue;
+			}
 			float a= getAltitude(p.x,p.z,tile,t12,t21,t22);
 			vIndex= addCrossTree(vIndex,w,h,size,x,a-a0,z,
 			  verts,texCoords,indices);
