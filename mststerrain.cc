@@ -81,9 +81,14 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 		sampler2->addressModeV= VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		vsgOptions->sharedObjects->share(sampler2);
 	}
+	double x0= 2048*(tile->x-centerTX);
+	double z0= 2048*(tile->z-centerTZ);
 	Patch* patch= tile->patches;
 	auto group= vsg::Group::create();
 	tile->terrModel= group;
+	auto mt= vsg::MatrixTransform::create();
+	mt->matrix= vsg::translate(vsg::dvec3(x0,z0,0));
+	group->addChild(mt);
 	for (int i=0; i<16; i++) {
 		for (int j=0; j<16; j++) {
 			if ((patch->flags&1)!=0) {
@@ -124,7 +129,7 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 			stateGroup->stateCommands.swap(commands);
 			stateGroup->prototypeArrayState=
 			   gpConfig->getSuitableArrayState();
-			group->addChild(stateGroup);
+			mt->addChild(stateGroup);
 			patch++;
 		}
 	}
@@ -154,8 +159,6 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
   Tile* tile, Tile* t12, Tile* t21, Tile* t22)
 {
-	float x0= 2048*(tile->x-centerTX);
-	float z0= 2048*(tile->z-centerTZ);
 	float uvmult= tile->microTexUVMult;
 	int nv= 17*17;
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
@@ -171,7 +174,7 @@ vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
 			float a= getAltitude(i+i0,j+j0,tile,t12,t21,t22);
 			int vi= k+j;
 			verts->at(vi)=
-			  vsg::vec3(x0+8*(j0+j-128),z0+8*(128-i-i0),a);
+			  vsg::vec3(8*(j0+j-128),8*(128-i-i0),a);
 			float u= patch->u0+patch->dudx*j+patch->dudz*i;
 			float v= patch->v0+patch->dvdx*j+patch->dvdz*i;
 			texCoords->at(vi)= vsg::vec2(u,v);
