@@ -29,6 +29,8 @@ using namespace std;
 #include "mstsroute.h"
 #include "mstsace.h"
 
+static const bool microtex= false;
+
 //	makes 3D models for each patch in a tile
 void MSTSRoute::makeTerrainPatches(Tile* tile)
 {
@@ -54,9 +56,9 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 		textures.push_back(img);
 	}
 	std::vector<vsg::ref_ptr<vsg::Data>> microTextures;
-	for (int i=0; i<tile->microTextures.size(); i++) {
+	for (int i=0; microtex && i<tile->microTextures.size(); i++) {
 		std::string path= terrtexDir+dirSep+tile->microTextures[i];
-		auto img= readCacheACEFile(path.c_str(),false,true,64);
+		auto img= readCacheACEFile(path.c_str(),false,true,32);
 		microTextures.push_back(img);
 	}
 	auto shaderSet= vsg::createPhongShaderSet(vsgOptions);;
@@ -71,12 +73,14 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	vsgOptions->sharedObjects->share(sampler);
 	auto tciv= vsg::TexCoordIndicesValue::create();
-	tciv->value().diffuseMap= 0;
-	tciv->value().detailMap= 1;
 	auto sampler2= vsg::Sampler::create();
-	sampler2->addressModeU= VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler2->addressModeV= VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	vsgOptions->sharedObjects->share(sampler2);
+	if (microtex) {
+		tciv->value().diffuseMap= 0;
+		tciv->value().detailMap= 1;
+		sampler2->addressModeU= VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler2->addressModeV= VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		vsgOptions->sharedObjects->share(sampler2);
+	}
 	Patch* patch= tile->patches;
 	auto group= vsg::Group::create();
 	tile->terrModel= group;
@@ -93,7 +97,7 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 			gpConfig->assignTexture("diffuseMap",
 			  textures[patch->texIndex],sampler);
 			gpConfig->assignDescriptor("material",matValue);
-			if (patch->texIndex<microTextures.size() &&
+			if (microtex && patch->texIndex<microTextures.size() &&
 			  microTextures[patch->texIndex]) {
 				gpConfig->assignTexture("detailMap",
 				  microTextures[patch->texIndex],sampler2);
@@ -105,8 +109,9 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 			  VK_VERTEX_INPUT_RATE_VERTEX,12);
 			gpConfig->enableArray("vsg_TexCoord0",
 			  VK_VERTEX_INPUT_RATE_VERTEX,8);
-			gpConfig->enableArray("vsg_TexCoord1",
-			  VK_VERTEX_INPUT_RATE_VERTEX,8);
+			if (microtex)
+				gpConfig->enableArray("vsg_TexCoord1",
+				  VK_VERTEX_INPUT_RATE_VERTEX,8);
 			gpConfig->enableArray("vsg_Color",
 			  VK_VERTEX_INPUT_RATE_INSTANCE,16);
 			if (vsgOptions->sharedObjects)
@@ -213,7 +218,8 @@ vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
 			}
 		}
 	}
-	auto attributeArrays= vsg::DataList{verts,normals,texCoords,mtexCoords,colors};
+	auto attributeArrays= microtex ? vsg::DataList{verts,normals,texCoords,mtexCoords,colors} :
+	  vsg::DataList{verts,normals,texCoords,colors};
 	auto vid= vsg::VertexIndexDraw::create();
 	vid->assignArrays(attributeArrays);
 	vid->assignIndices(indices);
