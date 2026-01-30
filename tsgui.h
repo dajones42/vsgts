@@ -48,6 +48,7 @@ public:
 	std::string selected;
 	void loadRouteList();
 	void loadActivityList();
+	void loadConsistList();
 	void displayMessage(std::string message);
 	void updateFPS(double dt) {
 		fps= .9*fps + .1/dt;

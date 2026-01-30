@@ -177,6 +177,42 @@ void updateActivityEvents()
 	}
 }
 
+void startExplore()
+{
+	TrainMap::iterator i= trainMap.find("explore");
+	if (i == trainMap.end())
+		return;
+	Train* train= i->second;
+	auto ploc= myLookAt->center;
+	auto aim= myLookAt->up;
+	Track::Location tloc;
+	findTrackLocation(ploc.x,ploc.y,ploc.y,&tloc);
+	Track::Vertex* v= tloc.edge->v1;
+	Track::Edge* e= tloc.edge;
+	auto tdir= vsg::normalize(e->v2->location.coord - e->v1->location.coord);
+	float dot= vsg::dot(aim,tdir);
+	if (dot < 0)
+		tloc.rev= 1;
+	train->location= tloc;
+	float len= 0;
+	for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next)
+		len+= car->def->length;
+	train->endLocation= train->location;
+	train->endLocation.move(-len,1,0);
+	float x= 0;
+	for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next) {
+		car->setLocation(x-car->def->length/2,&train->location);
+		x-= car->def->length;
+	}
+	train->setModelsOn();
+	train->setHeadLight(false);
+	trainList.push_back(train);
+	train->setOccupied();
+	listener.addTrain(train);
+	listener.setGain(1);
+	ttoSim.init(false);
+}
+
 void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::Viewer>& viewer)
 {
 	if (trainList.size() > 0) {
@@ -194,6 +230,21 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			listener.setGain(1);
 		} else {
 			listener.setGain(0);
+		}
+	} else if (mstsRoute && mstsRoute->activityName==" Explore") {
+		if (TSGuiData::instance().selected==" Explore") {
+			TSGuiData::instance().loadConsistList();
+		} else if (mstsRoute->consistName.size()>0) {
+			auto railCars= vsg::Group::create();
+			mstsRoute->activityName.clear();
+			auto i= mstsRoute->consistName.find("|");
+			mstsRoute->consistName.erase(0,i+1);
+			mstsRoute->consistName+= ".con";
+			mstsRoute->loadActivity(railCars.get(),-1);
+			auto cr= viewer->compileManager->compile(railCars);
+			updateViewer(*viewer,cr);
+			root->addChild(railCars);
+			startExplore();
 		}
 	} else if (mstsRoute && mstsRoute->activityName.size()>0) {
 		auto railCars= vsg::Group::create();
@@ -312,12 +363,14 @@ int main(int argc, char** argv)
         renderGraph->addChild(renderImGui);
 	viewer->assignRecordAndSubmitTaskAndPresentation({commandGraph});
 	viewer->compile();
+#if 1
 	for (auto& task: viewer->recordAndSubmitTasks) {
 		if (task->databasePager) {
 			task->databasePager->
-			  targetMaxNumPagedLODWithHighResSubgraphs= 25;
+			  targetMaxNumPagedLODWithHighResSubgraphs= 50;
 		}
 	}
+#endif
 
 	auto prevTime= std::chrono::system_clock::now();
 	while (viewer->advanceToNextFrame()) {

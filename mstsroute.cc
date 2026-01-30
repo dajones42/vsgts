@@ -1202,6 +1202,8 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 {
 	if (activityName.size()==0) {
 		simTime= 12*3600;
+		if (!skyBox && createSkyBox())
+			root->addChild(skyBox);
 		loadExploreConsist(root);
 		return;
 	}
@@ -1341,8 +1343,11 @@ void MSTSRoute::loadExploreConsist(vsg::Group* root)
 			car->airBrake->setEmergResPressure(70);
 			car->airBrake->setPipePressure(initEqRes);
 		}
+		if (!myRailCar && car->engine)
+			myRailCar= car;
 	}
 	train->calcPerf();
+	myTrain= train;
 }
 
 void MSTSRoute::loadConsist(LooseConsist* consist, vsg::Group* root)

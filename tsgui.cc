@@ -46,10 +46,11 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 		int t= (int)simTime;
 		ImGui::Text("Time: %d:%2.2d:%2.2d Time Mult: %d fps %.1lf",t/3600,t/60%60,t%60,timeMult,data.fps);
 		if (myTrain) {
-			ImGui::Text("Speed: %.1f mph",myTrain->speed*2.23693);
-			ImGui::Text("Accel: %6.3f g  %6.3f%%",myTrain->accel/9.8,-100*myTrain->location.grade());
-			ImGui::Text("Reverser: %.0f%%",100*myTrain->dControl);
-			ImGui::Text("Throttle: %.0f%%",100*myTrain->tControl);
+			ImGui::Text("Speed: %.1f mph  Accel: %6.3f g",
+			  myTrain->speed*2.23693,myTrain->accel/9.8);
+			ImGui::Text("Grade: %.3f %%",-100*myTrain->location.grade());
+			ImGui::Text("Throttle: %.0f %%  Reverser: %.0f %%",
+			  100*myTrain->tControl,100*myTrain->dControl);
 			if (myTrain->engAirBrake)
 				ImGui::Text("Brakes: %s %.0f %.0f %.0f %.0f %.0f %.1f",
 				  myTrain->bControl<0?"R":myTrain->bControl>0?"S":"L",
@@ -61,9 +62,9 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 				  myTrain->engAirBrake->getAirFlowCFM());
 			else
 				ImGui::Text("Brakes: %.1f",myTrain->bControl);
-			ImGui::Text("Eng Brakes: %.0f%%",100*myTrain->engBControl);
+			ImGui::Text("Eng Brakes: %.0f %%",100*myTrain->engBControl);
 			if (selectedRailCar)
-				ImGui::Text("Hand Brake: %.0f%%",100*selectedRailCar->handBControl);
+				ImGui::Text("Hand Brake: %.0f %%",100*selectedRailCar->handBControl);
 			float bp= -1;
 			for (auto c=myTrain->firstCar; c; c=c->next) {
 				if (!c->engine)
@@ -77,6 +78,17 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 			}
 			if (bp > 0)
 				ImGui::Text("Boiler Pressure: %.0f",bp);
+			std::string slack;
+			for (auto car=myTrain->firstCar; car!=myTrain->lastCar; car=car->next) {
+				if (car->cU < 0)
+					slack+= "<";
+				else if (car->cU > 0)
+					slack+= ">";
+				else
+					slack+= "-";
+			}
+			if (slack.size() > 0)
+				ImGui::Text("Couplers: %s",slack.c_str());
 		}
 		if (timeTable) {
 			for (int i=timeTable->getNumTrains()-1; i>=0; i--) {
@@ -114,7 +126,15 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 			}
 			ImGui::EndCombo();
 		}
-		if (mstsRoute && data.selected!="Select an activity" && ImGui::Button("Load")) {
+		if (mstsRoute && mstsRoute->activityName==" Explore" && data.selected!="Select a consist") {
+			ImGui::Text("%s","Center start location the select Load.");
+			if (ImGui::Button("Load")) {
+				mstsRoute->consistName= data.selected;
+				data.showSelect= false;
+			}
+		}
+		if (mstsRoute && mstsRoute->activityName.size()==0 && data.selected!="Select an activity" &&
+		  ImGui::Button("Load")) {
 			mstsRoute->activityName= data.selected;
 			data.showSelect= false;
 		}
@@ -154,14 +174,42 @@ void TSGuiData::loadRouteList()
 void TSGuiData::loadActivityList()
 {
 	listItems.clear();
+	listItems.push_back(" Explore");
 	path p { fixFilenameCase(mstsRoute->routeDir+mstsRoute->dirSep+"ACTIVITIES") };
 	for (const directory_entry& d: directory_iterator(p)) {
 		const path& f= d;
 		if (f.extension() == ".act")
 			listItems.push_back(f.stem());
-		sort(listItems.begin(),listItems.end());
-		selected= "Select an activity";
 	}
+	sort(listItems.begin(),listItems.end());
+	selected= "Select an activity";
+	showSelect= true;
+}
+
+void TSGuiData::loadConsistList()
+{
+	listItems.clear();
+	path p { fixFilenameCase(mstsRoute->mstsDir+mstsRoute->dirSep+"TRAINS"+mstsRoute->dirSep+"CONSISTS") };
+	for (const directory_entry& d: directory_iterator(p)) {
+		const path& f= d;
+		if (f.extension() == ".con") {
+			path file= p;
+			file/= f;
+			MSTSFile conFile;
+			conFile.readFile(file.c_str());
+			MSTSFileNode* cfg= conFile.getFirstNode()->get("TrainCfg");
+			for (auto node=cfg->get(0); node; node=node->next) {
+				if (node->value && *(node->value)=="Engine") {
+					auto data= node->get("EngineData");
+					auto engFile= *(data->get(0)->value);
+					listItems.push_back(engFile+" |"+f.stem().string());
+					break;
+				}
+			}
+		}
+	}
+	sort(listItems.begin(),listItems.end());
+	selected= "Select a consist";
 	showSelect= true;
 }
 
