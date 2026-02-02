@@ -129,7 +129,7 @@ void MSTSRoute::loadModels(Tile* tile)
 				model=
 				  loadHazardModel(file->getChild(0)->value);
 			} else if (*(node->value)=="Signal") {
-				MSTSSignal* signal= findSignalInfo(next);
+				MSTSSignal* signal= findSignalInfo(next,tile);
 				model=
 				  loadStaticModel(file->getChild(0)->value,
 				  signal);
@@ -180,23 +180,22 @@ void MSTSRoute::loadModels(Tile* tile)
 	makeWater(tile,waterLevelDelta-.5,"watermid.ace",1);
 	makeWater(tile,waterLevelDelta,"watertop.ace",2);
 //	fprintf(stderr,"tile models %d\n",tile->models->getNumChildren());
-	cleanStaticModelMap();
+//	cleanStaticModelMap();
 //	fprintf(stderr,"cleanStatic\n");
-	cleanACECache();
+//	cleanACECache();
 //	fprintf(stderr,"cleanACE\n");
 }
 
 void MSTSRoute::cleanStaticModelMap()
 {
-	for (ModelMap::iterator i=staticModelMap.begin();
-	  i!=staticModelMap.end(); i++) {
-		if (i->second == NULL)
+	for (auto i=staticModelMap.begin(); i!=staticModelMap.end(); i++) {
+		if (i->second->model==NULL || i->second->animation)
 			continue;
-		if (i->second->referenceCount() <= 1) {
-			fprintf(stderr,"unused %s %d\n",
-			  i->first.c_str(),i->second->referenceCount());
-			i->second->unref();
-			i->second= NULL;
+		if (i->second->model->referenceCount() <= 1) {
+//			fprintf(stderr,"unused %s %d\n",
+//			  i->first.c_str(),i->second->referenceCount());
+			i->second->model->unref();
+			i->second->model= NULL;
 //		} else {
 //			fprintf(stderr,"ref count %s %d\n",
 //			  i->first.c_str(),i->second->referenceCount());
@@ -496,28 +495,26 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadStaticModel(string* filename,
 		filename->erase(0,idx+1);
 //		fprintf(stderr,"remove path %s\n",filename->c_str());
 	}
-	ModelMap::iterator i= staticModelMap.find(*filename);
-	if (i != staticModelMap.end() && i->second) {
-		return i->second;
-#if 0
-		vsg::Node* model= i->second;
-		if (signal) {
-			model= (vsg::Node*)
-			  model->clone(vsg::CopyOp::DEEP_COPY_NODES);
-			SetSignalVisitor visitor(signal);
-			model->accept(visitor);
-		}
-		return vsg::ref_ptr(model);
-#endif
+	if (signal && strncasecmp(filename->c_str(),"hsuq",4)==0)
+		signal->lightOffset= vsg::vec3(.23,-.23,-.08);
+	else if (signal)
+		signal->lightOffset= vsg::vec3(0,0,-.12);
+	auto i= staticModelMap.find(*filename);
+	if (i!=staticModelMap.end() && i->second->model) {
+		if (!signal)
+			return i->second->model;
+		auto animation= TwoStateAnimation::create();
+		auto clone= i->second->cloneModel(animation,signal);
+		signal->animation= animation;
+		signal->model= clone;
+		signal->createLights(vsgOptions);
+		return clone;
 	}
 	string path= rShapesDir+dirSep+*filename;
 //	fprintf(stderr,"loading static model %s\n",path.c_str());
 	MSTSShape shape;
 	shape.vsgOptions= vsgOptions;
-	if (signal && strncasecmp(filename->c_str(),"hsuq",4)==0)
-		shape.signalLightOffset= new vsg::dvec3(.23,-.23,-.1);
-	else if (signal)
-		shape.signalLightOffset= new vsg::dvec3(0,0,-.15);
+	shape.signal= signal;
 #if 0
 	int tid,pi,pj;
 	if (sscanf(filename->c_str(),"t-%x_%d_%d.s",&tid,&pi,&pj) == 3) {
@@ -559,11 +556,20 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadStaticModel(string* filename,
 			  path.c_str());
 			return {};
 		}
-//		if (signal) {
-//			SetSignalVisitor visitor(signal);
-//			model->accept(visitor);
-//		}
-		staticModelMap[*filename]= model;
+		auto animation= shape.animation;
+		auto animated= shape.getAnimatedTransforms();
+		AnimModelInfo* ami= new AnimModelInfo(model,animation,animated);
+		if (signal)
+			ami->addSignal(signal);
+		staticModelMap[*filename]= ami;
+		if (signal) {
+			animation= TwoStateAnimation::create();
+			auto clone= ami->cloneModel(animation,signal);
+			signal->animation= animation;
+			signal->model= clone;
+			signal->createLights(vsgOptions);
+			return clone;
+		}
 		return model;
 	} catch (const char* msg) {
 		fprintf(stderr,"loadStaticModel caught %s for %s\n",
@@ -597,28 +603,8 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 				swVertex->model= i->second->model;
 			return i->second->model;
 		}
-		auto duplicate= new vsg::Duplicate;
-		vsg::CopyOp copyop;
-		copyop.duplicate= duplicate;
-		for (auto mt: i->second->animatedTransforms)
-			duplicate->insert(mt);
-		auto clone= copyop(i->second->model);
 		auto animation= TwoStateAnimation::create();
-		for (auto& sampler1: i->second->animation->samplers) {
-			if (auto tsSampler= dynamic_cast<vsg::TransformSampler*>(sampler1.get())) {
-				auto sampler2= vsg::TransformSampler::create();
-				sampler2->position= tsSampler->position;
-				sampler2->rotation= tsSampler->rotation;
-				sampler2->scale= tsSampler->scale;
-				sampler2->keyframes= tsSampler->keyframes;
-				auto dup= duplicate->find(tsSampler->object);
-				if (dup!=duplicate->end() && dup->second)
-					sampler2->object= dup->second;
-				else
-					sampler2->object= tsSampler->object;
-				animation->samplers.push_back(sampler2);
-			}
-		}
+		auto clone= i->second->cloneModel(animation);
 		if (swVertex) {
 			swVertex->model= clone;
 			swVertex->animation= animation;
@@ -653,7 +639,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 			model= g;
 		}
 #endif
-		TrackModelInfo* tmi= new TrackModelInfo(model,animation,animated);
+		AnimModelInfo* tmi= new AnimModelInfo(model,animation,animated);
 		trackModelMap[*filename]= tmi;
 		if (swVertex) {
 			swVertex->model= model;
@@ -1452,7 +1438,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 	auto vid= vsg::VertexIndexDraw::create();
 	vid->assignArrays(attributeArrays);
 	vid->assignIndices(indices);
-	vid->indexCount= indices->size();
+	vid->indexCount= 3*vIndex;
 	vid->instanceCount= 1;
 	vid->firstIndex= 0;
 	vid->vertexOffset= 0;

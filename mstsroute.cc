@@ -100,7 +100,7 @@ MSTSRoute::MSTSRoute(const char* mDir, const char* rID)
 	ustDynTrack= true;
 	ignoreHiddenTerrain= false;
 	signalSwitchStands= false;
-	createSignals= false;
+	createSignals= true;
 	wireTerrain= false;
 }
 
@@ -317,7 +317,6 @@ void MSTSRoute::makeTrack()
 		if (item->type==0 || item->type==1) {
 			track->saveLocation(x,z,y,*item->name,item->type);
 		} else if (createSignals && item->type==2) {
-#if 0
 			Track::Location loc;
 			track->findLocation(x,z,y,&loc);
 			if (loc.edge == NULL)
@@ -337,7 +336,6 @@ void MSTSRoute::makeTrack()
 			char buf[10];
 			sprintf(buf,"%d",item->id);
 			signalMap[buf]= sig;
-#endif
 		}
 //		else
 //			fprintf(stderr,"%s %d %d %d %f %f %f %d %d %f\n",
@@ -744,6 +742,8 @@ void MSTSRoute::makeTileMap(vsg::Group* root)
 	vsgOptions->add(MstsWorldReader::create());
 	if (!vsgOptions->sharedObjects)
 		vsgOptions->sharedObjects= vsg::SharedObjects::create();
+	vsgOptions->findDynamicObjects= nullptr;
+	vsgOptions->propagateDynamicObjects= nullptr;
 	vsg::StateInfo stateInfo;
 	stateInfo.lighting= false;
 	auto builder= vsg::Builder::create();
@@ -1300,7 +1300,7 @@ void MSTSRoute::loadExploreConsist(vsg::Group* root)
 		dir= fixFilenameCase(dir);
 		RailCarDef* def= findRailCarDef(file,false);
 		if (def == NULL) {
-			def= readMSTSWag(dir.c_str(),file.c_str());
+			def= readMSTSWag(dir.c_str(),file.c_str(),vsgOptions);
 			if (def)
 				railCarDefMap[file]= def;
 			else
@@ -1364,7 +1364,7 @@ void MSTSRoute::loadConsist(LooseConsist* consist, vsg::Group* root)
 		string file= w->name+(w->isEngine?".eng":".wag");
 		RailCarDef* def= findRailCarDef(file,false);
 		if (def == NULL) {
-			def= readMSTSWag(dir.c_str(),file.c_str());
+			def= readMSTSWag(dir.c_str(),file.c_str(),vsgOptions);
 			if (def)
 				railCarDefMap[file]= def;
 			else
@@ -1494,7 +1494,7 @@ Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
 		dir= fixFilenameCase(dir);
 		RailCarDef* def= findRailCarDef(file,false);
 		if (def == NULL) {
-			def= readMSTSWag(dir.c_str(),file.c_str());
+			def= readMSTSWag(dir.c_str(),file.c_str(),vsgOptions);
 			if (def)
 				railCarDefMap[file]= def;
 			else
@@ -1706,7 +1706,7 @@ osg::Node* MSTSRoute::attachSwitchStand(Tile* tile, osg::Node* model,
 }
 #endif
 
-MSTSSignal* MSTSRoute::findSignalInfo(MSTSFileNode* node)
+MSTSSignal* MSTSRoute::findSignalInfo(MSTSFileNode* node, Tile* tile)
 {
 	if (!createSignals)
 		return NULL;
@@ -1717,6 +1717,8 @@ MSTSSignal* MSTSRoute::findSignalInfo(MSTSFileNode* node)
 //		  i,subobj->get(i)->c_str());
 //	}
 	MSTSSignal* signal= new MSTSSignal;
+	signal->tile= tile;
+	signal->prevState= -1;
 	for (int i=0; units->get(i); i++) {
 		MSTSFileNode* n= units->get(i)->get("TrItemId");
 		if (n == NULL)
@@ -1730,7 +1732,10 @@ MSTSSignal* MSTSRoute::findSignalInfo(MSTSFileNode* node)
 //		fprintf(stderr," id %d %s %p\n",i,id,sig);
 			signal->units.push_back(sig);
 		}
+		signal->lightColors.push_back(nullptr);
+		signal->transforms.push_back(nullptr);
 	}
+	mstsSignals.push_back(signal);
 	return signal;
 }
 

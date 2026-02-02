@@ -25,8 +25,10 @@ THE SOFTWARE.
 #include "mstsbfile.h"
 #include "mstsace.h"
 #include "mstsshape.h"
+#include "signal.h"
 
 #include <vsg/all.h>
+#include <iostream>
 
 //	reads an uncompressed shape file
 void MSTSShape::readFile(const char* filename, const char* texDir1,
@@ -1005,7 +1007,7 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 		}
 	}
 	int nSigHead= 0;
-	if (signalLightOffset) {
+	if (signal) {
 		for (int k=0; k<matrices.size(); k++) {
 			Matrix& m= matrices[k];
 			if (strncasecmp(m.name.c_str(),"head",4) == 0)
@@ -1202,39 +1204,18 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 		}
 		return {};
 	}
-#if 0
-	if (signalLightOffset) {
-		osgSim::LightPointNode* node= new osgSim::LightPointNode;
-		node->setUpdateCallback(new SignalLightUCB(NULL));
-		for (int i=0; i<nSigHead; i++) {
-			osgSim::LightPoint lp;
-			node->addLightPoint(lp);
-		}
+	if (signal) {
 		for (int k=0; k<matrices.size(); k++) {
 			Matrix& m= matrices[k];
 			if (strncasecmp(m.name.c_str(),"head",4) == 0) {
 				int unit= m.name[4]-'1';
-				int state= 1;
-				if (unit!=0 && nSigHead==3)
-					state= 0;
-				osgSim::LightPoint& lp=
-				  node->getLightPoint(unit);
-				lp._on= true;
-				osg::Vec3d trans=
-				  m.transform->getMatrix().getTrans();
-//				fprintf(stderr,"unit %d %f %f %f\n",
-//				  unit,trans[0],trans[1],trans[2]);
-				lp._position= trans+*signalLightOffset;
-				if (state)
-					lp._color= osg::Vec4d(0,1,0,1);
-				else
-					lp._color= osg::Vec4d(1,0,0,1);
-				lp._radius= fabs((*signalLightOffset)[2]);
+				if (unit < signal->transforms.size()) {
+					signal->transforms[unit]= m.transform;
+					m.hasAnimation= true;
+				}
 			}
 		}
-		top->addChild(node);
 	}
-#endif
 	if (anim && anim->samplers.size()>0) {
 #if 0
 		vsg::AnimationGroup* agroup= new vsg::AnimationGroup;
@@ -1391,33 +1372,26 @@ void MSTSShape::createRailCar(RailCarDef* car)
 	car->parts[i].model= createModel(1,11,false,true);
 	if (rodAnimation)
 		car->rodAnimation= rodAnimation;
-#if 0
 	if (car->headlights.size() > 0) {
-		osgSim::LightPointNode* node= new osgSim::LightPointNode;
+		auto mt= (vsg::MatrixTransform*)car->parts[i].model.get();
 		for (list<HeadLight>::iterator j=car->headlights.begin();
 		  j!=car->headlights.end(); j++) {
-			osgSim::LightPoint lp;
-			lp._on= false;
-			lp._position= osg::Vec3d(j->x,j->y,
-			  j->z+(j->z>0?.005:-.005));
-			lp._color= osg::Vec4d((j->color>>16)&0xff,
-			  (j->color>>8)&0xff,j->color&0xff,
-			  (j->color>>24)&0xff);
-			lp._radius= j->radius>.5?.1*j->radius:.2*j->radius;
-			if (j->unit == 2)
-				lp._radius= .15;
-			else
-				lp._radius= .06;
-			node->addLightPoint(lp);
-//			fprintf(stderr,"headlight %f %f %f %f %d %x\n",
-//			  j->x,j->y,j->z,j->radius,j->unit,j->color);
+			auto position= vsg::vec3(j->x,j->y,j->z+(j->z>0?.005:-.005));
+			auto color= vsg::vec4(((j->color>>16)&0xff)/255.,
+			  ((j->color>>8)&0xff)/255.,(j->color&0xff)/255.,
+			  ((j->color>>24)&0xff)/255.);
+			float radius= j->radius>.5?.1*j->radius:.2*j->radius;
+			if (j->unit==2 && radius>.15)
+				radius= .15;
+			else if (j->unit!=2 && radius>.06)
+				radius= .06;
+			auto light= createLightPoint(position,color,radius,vsgOptions);
+			auto sw= vsg::Switch::create();
+			sw->addChild(false,light);
+			mt->addChild(sw);
+			j->lightSwitch= sw;
 		}
-		osg::MatrixTransform* mt=
-		  (osg::MatrixTransform*)car->parts[i].model;
-		if (mt != NULL)
-			mt->addChild(node);
 	}
-#endif
 	for (int j=0; j<matrices.size(); j++) {
 		int p= matrices[j].part;
 		if (p<0 || matrices[j].hasAnimation)
@@ -1451,6 +1425,62 @@ std::set<vsg::MatrixTransform*> MSTSShape::getAnimatedTransforms()
 		}
 	}
 	return mtSet;
+}
+
+vsg::ref_ptr<vsg::Node> createLightPoint(vsg::vec3 position, vsg::vec4 inColor, float radius,
+  vsg::ref_ptr<vsg::Options> vsgOptions, int nVert, vsg::vec4Value** outColor)
+{
+	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nVert));
+	vsg::ref_ptr<vsg::vec4Value> color= vsg::vec4Value::create(inColor);
+	if (outColor) {
+		color->properties.dataVariance= vsg::DYNAMIC_DATA;
+		*outColor= color.get();
+	}
+	for (int i=0; i<nVert; i++) {
+		auto a= i*2*M_PI/nVert;
+		verts->at(i)= vsg::vec3(radius*cos(a),radius*sin(a),0)+position;
+	}
+	int j= 0;
+	auto indices= vsg::ushortArray::create(6*(nVert-2));
+	for (int i=0; i<nVert-2; i++) {
+		indices->set(j++,0);
+		indices->set(j++,i+1);
+		indices->set(j++,i+2);
+		indices->set(j++,0);
+		indices->set(j++,i+2);
+		indices->set(j++,i+1);
+	}
+	auto attributeArrays= vsg::DataList{verts,color};
+	auto vid= vsg::VertexIndexDraw::create();
+	vid->assignArrays(attributeArrays);
+	vid->assignIndices(indices);
+	vid->indexCount= indices->valueCount();
+	vid->instanceCount= 1;
+	vid->firstIndex= 0;
+	vid->vertexOffset= 0;
+	vid->firstInstance= 0;
+	auto stateGroup= vsg::StateGroup::create();
+	stateGroup->addChild(vid);
+	auto shaderSet= vsg::createFlatShadedShaderSet(vsgOptions);
+	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
+	auto matValue= vsg::PhongMaterialValue::create();
+	matValue->value().ambient= vsg::vec4(0,0,0,0);
+	matValue->value().diffuse= vsg::vec4(1,1,1,1);
+	matValue->value().specular= vsg::vec4(0,0,0,1);
+	matValue->value().shininess= 0;
+	gpConfig->assignDescriptor("material",matValue);
+	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);
+	gpConfig->enableArray("vsg_Color",VK_VERTEX_INPUT_RATE_INSTANCE,16);
+	if (vsgOptions && vsgOptions->sharedObjects)
+		vsgOptions->sharedObjects->share(gpConfig,
+		  [](auto gpc) { gpc->init(); });
+	else
+		gpConfig->init();
+	vsg::StateCommands commands;
+	gpConfig->copyTo(commands,vsgOptions?vsgOptions->sharedObjects:nullptr);
+	stateGroup->stateCommands.swap(commands);
+	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
+	return stateGroup;
 }
 
 MstsShapeReaderWriter::MstsShapeReaderWriter()

@@ -28,6 +28,7 @@ THE SOFTWARE.
 
 #include "track.h"
 #include "spline.h"
+#include "signal.h"
 
 using namespace std;
 
@@ -150,7 +151,6 @@ Track::Edge* Track::addEdge(int type, Vertex* v1, int n1, Vertex* v2, int n2)
 
 void Track::Edge::updateSignals()
 {
-#if 0
 //	fprintf(stderr,"updatesignals %p %d\n",this,occupied);
 	int flags= 0;
 	for (SignalList::iterator i=signals.begin(); i!=signals.end(); i++) {
@@ -168,7 +168,6 @@ void Track::Edge::updateSignals()
 	s= findSignal(v2,this);
 	if (s)
 		s->update();
-#endif
 }
 
 void Track::calcMinMax()

@@ -28,7 +28,54 @@ THE SOFTWARE.
 #include <list>
 #include <vsg/all.h>
 
+#include "signal.h"
 #include "animation.h"
+
+void AnimModelInfo::addSignal(MSTSSignal* signal)
+{
+	for (int i=0; i<signal->transforms.size(); i++)
+		signalTransforms.push_back(signal->transforms[i]);
+}
+
+vsg::ref_ptr<vsg::Node> AnimModelInfo::cloneModel(vsg::Animation* newAnimation, MSTSSignal* signal)
+{
+	if (!animation && !signal)
+		return model;
+	auto duplicate= new vsg::Duplicate;
+	vsg::CopyOp copyop;
+	copyop.duplicate= duplicate;
+	for (auto mt: animatedTransforms)
+		duplicate->insert(mt);
+	auto clone= copyop(model);
+	if (animation) {
+		for (auto& sampler1: animation->samplers) {
+			if (auto tsSampler= dynamic_cast<vsg::TransformSampler*>(sampler1.get())) {
+				auto sampler2= vsg::TransformSampler::create();
+				sampler2->name= sampler1->name;
+				sampler2->position= tsSampler->position;
+				sampler2->rotation= tsSampler->rotation;
+				sampler2->scale= tsSampler->scale;
+				sampler2->keyframes= tsSampler->keyframes;
+				auto dup= duplicate->find(tsSampler->object);
+				if (dup!=duplicate->end() && dup->second)
+					sampler2->object= dup->second;
+				else
+					sampler2->object= tsSampler->object;
+				newAnimation->samplers.push_back(sampler2);
+			}
+		}
+	}
+	if (signal) {
+		for (int i=0; i<signalTransforms.size(); i++) {
+			auto dup= duplicate->find(signalTransforms[i]);
+			if (dup!=duplicate->end() && dup->second)
+				signal->transforms[i]= (vsg::MatrixTransform*)dup->second.get();
+			else
+				std::cerr<<"dup t not found\n";
+		}
+	}
+	return clone;
+}
 
 TwoStateAnimation::TwoStateAnimation()
 {

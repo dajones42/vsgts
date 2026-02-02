@@ -139,5 +139,8 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 	} else if (keyPress.keyBase=='u' && myLookAt) {
 		myTrain->uncouple(myLookAt->center);
 		keyPress.handled= true;
+	} else if (keyPress.keyBase == 'h') {
+		myTrain->setHeadLight((keyPress.keyModifier&vsg::MODKEY_Shift)==0);
+		keyPress.handled= true;
 	}
 }

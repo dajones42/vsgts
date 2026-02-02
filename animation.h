@@ -24,6 +24,22 @@ THE SOFTWARE.
 #pragma once
 
 #include <vsg/all.h>
+#include "mstsroute.h"
+
+struct AnimModelInfo {
+	vsg::ref_ptr<vsg::Node> model;
+	vsg::ref_ptr<vsg::Animation> animation;
+	std::set<vsg::MatrixTransform*> animatedTransforms;
+	std::vector<vsg::MatrixTransform*> signalTransforms;
+	AnimModelInfo(vsg::ref_ptr<vsg::Node> m, vsg::ref_ptr<vsg::Animation> anim,
+	  std::set<vsg::MatrixTransform*> animated) {
+		model= m;
+		animation= anim;
+		animatedTransforms= animated;
+	}
+	vsg::ref_ptr<vsg::Node> cloneModel(vsg::Animation* animation, MSTSSignal* signal=nullptr);
+	void addSignal(MSTSSignal* signal);
+};
 
 class TwoStateAnimation : public vsg::Inherit<vsg::Animation, TwoStateAnimation>
 {

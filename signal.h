@@ -31,6 +31,7 @@ THE SOFTWARE.
 
 #include "track.h"
 #include "commandreader.h"
+#include "mstsroute.h"
 
 class Signal {
  public:
@@ -95,7 +96,16 @@ struct SignalParser: public CommandBlockHandler {
 
 struct MSTSSignal {
 	std::vector<Signal*> units;
+	vsg::ref_ptr<vsg::Node> model;
+	std::vector<vsg::MatrixTransform*> transforms;
+	std::vector<vsg::vec4Value*> lightColors;
+	vsg::vec3 lightOffset;
+	vsg::ref_ptr<vsg::Animation> animation;
+	int prevState;
+	MSTSRoute::Tile* tile;
+	void createLights(vsg::ref_ptr<vsg::Options> vsgOptions);
 };
+extern std::vector<MSTSSignal*> mstsSignals;
 
 Signal* findSignal(Track::Vertex* v, Track::Edge* e);
 

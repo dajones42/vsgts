@@ -75,7 +75,7 @@ unsigned int getHex(MSTSFileNode* node, const char* name, int child, float dflt)
 	return (unsigned int)strtoll(n->value->c_str(),NULL,16);
 }
 
-RailCarDef* readMSTSWag(const char* dir, const char* file, bool saveNames)
+RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Options> vsgOptions)
 {
 	string path= string(dir)+"/"+file;
 	typedef map<string,RailCarDef*> WagMap;
@@ -134,6 +134,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, bool saveNames)
 	}
 	path= string(dir)+"/"+wshape->getChild(0)->value->c_str();
 	MSTSShape shape;
+	shape.vsgOptions= vsgOptions;
 	shape.readFile(path.c_str());
 	shape.createRailCar(def);
 	def->mass0= def->mass1= 1e3*getFloat(wagon,"Mass",0,20);
@@ -164,7 +165,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, bool saveNames)
 		vsg::MatrixTransform* mt= (vsg::MatrixTransform*)
 		  def->parts[def->parts.size()-1].model.get();
 		if (mt)
-			mt->addChild(fashape.createModel(0,10,saveNames));
+			mt->addChild(fashape.createModel(0,10));
 		} catch (const char* msg) {
 		}
 	}

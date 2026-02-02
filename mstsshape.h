@@ -193,7 +193,7 @@ struct MSTSShape {
 	void makeLOD();
 	void printSubobjects();
 	void fixTop();
-	vsg::dvec3* signalLightOffset;
+	MSTSSignal* signal;
 	vsg::ref_ptr<vsg::StateGroup> mtStateSet;
 	float mtUVMult;
 	float patchU0;
@@ -201,15 +201,18 @@ struct MSTSShape {
 	float patchDuDx;
 	float patchDvDz;
 	MSTSShape() {
-		signalLightOffset= NULL;
 		mtStateSet= NULL;
 		mtUVMult= 0;
+		signal= nullptr;
 	}
 	vsg::ref_ptr<vsg::Options> vsgOptions;
 	vsg::ref_ptr<vsg::Animation> rodAnimation;
 	vsg::ref_ptr<vsg::Animation> animation;
 	std::set<vsg::MatrixTransform*> getAnimatedTransforms();
 };
+
+vsg::ref_ptr<vsg::Node> createLightPoint(vsg::vec3 position, vsg::vec4 inColor, float radius,
+  vsg::ref_ptr<vsg::Options> options, int nVert=8, vsg::vec4Value** outColor=nullptr);
 
 class MstsShapeReaderWriter : public vsg::Inherit<vsg::CompositeReaderWriter,
   MstsShapeReaderWriter>

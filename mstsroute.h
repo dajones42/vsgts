@@ -37,6 +37,7 @@ struct LooseConsist;
 
 #include "track.h"
 #include "ghproj.h"
+#include "animation.h"
 
 struct MSTSRoute {
 	std::string mstsDir;
@@ -121,21 +122,9 @@ struct MSTSRoute {
 	typedef std::map<std::string,Tile*> TerrainTileMap;
 	TileMap tileMap;
 	TerrainTileMap terrainTileMap;
-	typedef std::map<std::string,vsg::ref_ptr<vsg::Node>> ModelMap;
-	ModelMap staticModelMap;
-	struct TrackModelInfo {
-		vsg::ref_ptr<vsg::Node> model;
-		vsg::ref_ptr<vsg::Animation> animation;
-		std::set<vsg::MatrixTransform*> animatedTransforms;
-		TrackModelInfo(vsg::ref_ptr<vsg::Node> m, vsg::ref_ptr<vsg::Animation> anim,
-		  std::set<vsg::MatrixTransform*> animated) {
-			model= m;
-			animation= anim;
-			animatedTransforms= animated;
-		}
-	};
-	typedef std::map<std::string,TrackModelInfo*> TrackModelMap;
-	TrackModelMap trackModelMap;
+	typedef std::map<std::string,AnimModelInfo*> AnimModelMap;
+	AnimModelMap staticModelMap;
+	AnimModelMap trackModelMap;
 	TrackShape* dynTrackBase;
 	TrackShape* dynTrackRails;
 	TrackShape* dynTrackWire;
@@ -235,7 +224,7 @@ struct MSTSRoute {
 	  bool player, int id);
 	bool signalSwitchStands;
 	bool createSignals;
-	MSTSSignal* findSignalInfo(MSTSFileNode* node);
+	MSTSSignal* findSignalInfo(MSTSFileNode* node, Tile* tile);
 	float getWaterDepth(double x, double y);
 	std::vector<double> ignorePolygon;
 	std::multimap<std::string,vsg::dvec3> ignoreShapeMap;

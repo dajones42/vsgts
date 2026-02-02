@@ -42,6 +42,7 @@ THE SOFTWARE.
 #include "ttosim.h"
 #include "timetable.h"
 #include "activity.h"
+#include "signal.h"
 
 vsg::AmbientLight* ambLight;
 vsg::DirectionalLight* dirLight;
@@ -186,7 +187,7 @@ void startExplore()
 	auto ploc= myLookAt->center;
 	auto aim= myLookAt->up;
 	Track::Location tloc;
-	findTrackLocation(ploc.x,ploc.y,ploc.y,&tloc);
+	findTrackLocation(ploc.x,ploc.y,ploc.z,&tloc);
 	Track::Vertex* v= tloc.edge->v1;
 	Track::Edge* e= tloc.edge;
 	auto tdir= vsg::normalize(e->v2->location.coord - e->v1->location.coord);
@@ -213,6 +214,50 @@ void startExplore()
 	ttoSim.init(false);
 }
 
+void updateSignals()
+{
+	for (int i=0; i<mstsSignals.size(); i++) {
+		MSTSSignal* sig= mstsSignals[i];
+		if (!sig->tile || !sig->tile->models || sig->tile->models->referenceCount()<2)
+			continue;
+		if (!sig->model || sig->model->referenceCount()<2)
+			continue;
+		auto newState= sig->units[0]->getIndication();
+		if (newState == sig->prevState)
+			continue;
+		for (int j=0; j<sig->units.size(); j++) {
+			if (!sig->units[j] || !sig->lightColors[j])
+				continue;
+			auto color= sig->units[j]->getColor(j);
+			if (color == Signal::GREEN)
+				sig->lightColors[j]->set(vsg::vec4(0,1,0,1));
+			else if (color == Signal::YELLOW)
+				sig->lightColors[j]->set(vsg::vec4(1,1,0,1));
+			else
+				sig->lightColors[j]->set(vsg::vec4(1,0,0,1));
+			sig->lightColors[j]->dirty();
+		}
+		if (sig->animation) {
+			for (auto& s: sig->animation->samplers) {
+				auto ts= dynamic_cast<vsg::TransformSampler*>(s.get());
+				auto mt= dynamic_cast<vsg::MatrixTransform*>(ts->object.get());
+				for (int k=0; k<sig->units.size(); k++) {
+					if (sig->transforms[k] == mt) {
+						auto color= sig->units[k]->getColor(k);
+						if (color == Signal::GREEN)
+							s->update(1);
+						else if (color == Signal::YELLOW)
+							s->update(2);
+						else
+							s->update(0);
+					}
+				}
+			}
+		}
+		sig->prevState= newState;
+	}
+}
+
 void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::Viewer>& viewer)
 {
 	if (trainList.size() > 0) {
@@ -223,6 +268,7 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			updateTrains(dt);
 			ttoSim.processEvents(simTime);
 			startSwitchAnimation(viewer->animationManager);
+			updateSignals();
 			updateActivityEvents();
 			updateLightDirection();
 			if (mstsRoute && mstsRoute->skyBox)

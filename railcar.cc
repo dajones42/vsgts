@@ -194,10 +194,23 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 		for (auto mt: def->animatedTransforms)
 			duplicate->insert(mt);
 		duplicate->insert(topPart.model);
+		for (auto i=def->headlights.begin(); i!=def->headlights.end(); i++)
+			duplicate->insert(i->lightSwitch);
 		auto clone= copyop(topPart.model);
 		model->addChild(clone);
+		for (auto i=def->headlights.begin(); i!=def->headlights.end(); i++) {
+			auto dup= duplicate->find(i->lightSwitch);
+			if (dup == duplicate->end())
+				headlights.push_back(i->lightSwitch);
+			else if (auto sw= dynamic_cast<vsg::Switch*>(dup->second.get()); sw)
+				headlights.push_back(vsg::ref_ptr(sw));
+			else
+				headlights.push_back(i->lightSwitch);
+		}
 	} else {
 		model->addChild(topPart.model);
+		for (auto i=def->headlights.begin(); i!=def->headlights.end(); i++)
+			headlights.push_back(i->lightSwitch);
 	}
 	if (def->rodAnimation)
 		rodAnimation= def->rodAnimation;
@@ -688,10 +701,10 @@ void HeadLightVisitor::apply(osg::Node& node)
 
 void RailCarInst::setHeadLight(int unit, bool rev, bool on)
 {
-#if 0
-	if (def->headlights.size() > 0) {
-		HeadLightVisitor visitor(def,unit,rev,on);
-		model->accept(visitor);
+	auto i= def->headlights.begin();
+	for (int j=0; j<headlights.size(); j++) {
+		if (i->unit == unit)
+			headlights[j]->setAllChildren(on);
+		i++;
 	}
-#endif
 }

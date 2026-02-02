@@ -39,6 +39,7 @@ struct HeadLight {
 	float radius;
 	int unit;
 	unsigned int color;
+	vsg::ref_ptr<vsg::Switch> lightSwitch;
 	HeadLight(float x, float y, float z, float r, int u, unsigned int c) {
 		this->x= x;
 		this->y= y;
@@ -237,24 +238,8 @@ struct RailCarInst {
 		return (animState&(1<<index))!=0;
 	};
 	void setHeadLight(int unit, bool rev, bool on);
+	std::vector<vsg::ref_ptr<vsg::Switch>> headlights;
 };
-
-#if 0
-struct HeadLightVisitor : public osg::NodeVisitor {
-	RailCarDef* model;
-	int unit;
-	bool rev;
-	bool on;
-	HeadLightVisitor(RailCarDef* m, int u, bool r, bool o) :
-	  osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN) {
-		model= m;
-		unit= u;
-		rev= r;
-		on= o;
-	};
-	virtual void apply(osg::Node& node);
-};
-#endif
 
 typedef std::map<std::string,RailCarDef*> RailCarDefMap;
 extern RailCarDefMap railCarDefMap;

@@ -23,8 +23,10 @@ THE SOFTWARE.
 */
 #include "signal.h"
 #include <stdexcept>
+#include "mstsshape.h"
 
 SignalMap signalMap;
+std::vector<MSTSSignal*> mstsSignals;
 
 Signal::Signal(int s)
 {
@@ -217,3 +219,26 @@ bool SignalParser::handleCommand(CommandReader& reader)
 void SignalParser::handleEndBlock(CommandReader& reader)
 {
 };
+
+void MSTSSignal::createLights(vsg::ref_ptr<vsg::Options> vsgOptions)
+{
+	vsg::ref_ptr<vsg::Group> group= vsg::ref_ptr(dynamic_cast<vsg::Group*>(model.get()));
+	if (!group)
+		return;
+	for (int i=0; i<units.size(); i++) {
+		auto color= vsg::vec4(0,1,0,1);
+		if (i!=0 && units.size()==3)
+			color= vsg::vec4(1,0,0,1);
+		auto radius= fabs(lightOffset.z);
+		auto pos= lightOffset;
+		if (transforms[i]) {
+			vsg::dvec3 position;
+			vsg::dquat rotation;
+			vsg::dvec3 scale;
+			vsg::decompose(transforms[i]->matrix,position,rotation,scale);
+			pos+= vsg::vec3(position.x,position.y,position.z);
+		}
+		auto light= createLightPoint(pos,color,radius,vsgOptions,8,&lightColors[i]);
+		group->addChild(light);
+	}
+}

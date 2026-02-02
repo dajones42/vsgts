@@ -24,7 +24,8 @@ THE SOFTWARE.
 #ifndef MSTSWAG_H
 #define MSTSWAG_H
 
-RailCarDef* readMSTSWag(const char* dir, const char* file,
-  bool saveNames=false);
+#include <vsg/all.h>
+
+RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Options> vsgOptions);
 
 #endif

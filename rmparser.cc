@@ -203,7 +203,7 @@ void RMParser::parseFile(const char* path)
 				if (tokens.size() < 3)
 					throw "dir and file expected";
 				RailCarDef* def= readMSTSWag(
-				  tokens[1].c_str(),tokens[2].c_str(),true);
+				  tokens[1].c_str(),tokens[2].c_str(),mstsRoute->vsgOptions);
 				if (def == NULL)
 					throw "cannot find car definition";
 				railCarDefMap[tokens[2]]= def;
@@ -591,7 +591,7 @@ void RMParser::parseTrain()
 				if (tokens.size() < 3)
 					throw "dir and file expected";
 				RailCarDef* def= readMSTSWag(
-				  tokens[1].c_str(),tokens[2].c_str());
+				  tokens[1].c_str(),tokens[2].c_str(),mstsRoute->vsgOptions);
 				if (def == NULL)
 					throw "cannot find car definition";
 				RailCarInst* car=
