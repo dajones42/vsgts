@@ -31,6 +31,7 @@ THE SOFTWARE.
 
 #include "airbrake.h"
 #include "locoeng.h"
+#include "animation.h"
 
 struct HeadLight {
 	float x;
@@ -120,6 +121,7 @@ struct RailCarDef {
 	void copy(RailCarDef* other);
 	void copyWheels(RailCarDef* other);
 	vsg::ref_ptr<vsg::Animation> rodAnimation;
+	std::vector<vsg::ref_ptr<TwoStateAnimation>> panAnimations;
 	int nInst;
 	std::set<vsg::MatrixTransform*> animatedTransforms;
 };
@@ -170,6 +172,7 @@ struct RailCarInst {
 	vsg::ref_ptr<vsg::MatrixTransform> model;
 	std::vector<LinReg*> linReg;
 	vsg::ref_ptr<vsg::Animation> rodAnimation;
+	std::vector<vsg::ref_ptr<TwoStateAnimation>> panAnimations;
 	std::vector<vsg::ref_ptr<vsg::TransformSampler> > partSamplers;
 	int mainWheel;
 	float mass;

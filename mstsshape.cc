@@ -24,6 +24,7 @@ THE SOFTWARE.
 #include "mstsfile.h"
 #include "mstsbfile.h"
 #include "mstsace.h"
+#include "animation.h"
 #include "mstsshape.h"
 #include "signal.h"
 
@@ -1372,6 +1373,19 @@ void MSTSShape::createRailCar(RailCarDef* car)
 	car->parts[i].model= createModel(1,11,false,true);
 	if (rodAnimation)
 		car->rodAnimation= rodAnimation;
+	if (animation) {
+		for (auto s: animation->samplers) {
+			if (strncasecmp(s->name.c_str(),"Pantograph",10) == 0) {
+				int len= s->name.length();
+				int index= atoi(s->name.substr(len>16?16:(len>13?13:10)).c_str());
+				if (index!=1 && index!=2)
+					continue;
+				while (car->panAnimations.size() < index)
+					car->panAnimations.push_back(TwoStateAnimation::create());
+				car->panAnimations[index-1]->samplers.push_back(s);
+			}
+		}
+	}
 	if (car->headlights.size() > 0) {
 		auto mt= (vsg::MatrixTransform*)car->parts[i].model.get();
 		for (list<HeadLight>::iterator j=car->headlights.begin();

@@ -26,8 +26,8 @@ THE SOFTWARE.
 #include <vsgXchange/all.h>
 #include <iostream>
 #include "mstsace.h"
-#include "mstsshape.h"
 #include "mstsroute.h"
+#include "mstsshape.h"
 #include "camerac.h"
 
 vsg::ref_ptr<vsg::Node> createTextureQuad(vsg::ref_ptr<vsg::Data> sourceData,

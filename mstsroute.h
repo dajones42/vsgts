@@ -31,13 +31,14 @@ struct Track;
 struct TrackDB;
 struct MSTSFileNode;
 struct LooseConsist;
+struct AnimModelInfo;
 
 #include <mutex>
 #include <set>
 
+#include "animation.h"
 #include "track.h"
 #include "ghproj.h"
-#include "animation.h"
 
 struct MSTSRoute {
 	std::string mstsDir;

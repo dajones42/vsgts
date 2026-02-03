@@ -31,6 +31,7 @@ using namespace std;
 
 #include "track.h"
 #include "train.h"
+#include "animation.h"
 #include "railcar.h"
 
 RailCarDefMap railCarDefMap;
@@ -207,10 +208,36 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 			else
 				headlights.push_back(i->lightSwitch);
 		}
+		for (int i=0; i<def->panAnimations.size(); i++) {
+			auto anim= TwoStateAnimation::create();
+			for (auto sampler1:def->panAnimations[i]->samplers) {
+				if (auto tsSampler= dynamic_cast<vsg::TransformSampler*>(sampler1.get())) {
+					auto sampler2= vsg::TransformSampler::create();
+					sampler2->position= tsSampler->position;
+					sampler2->rotation= tsSampler->rotation;
+					sampler2->scale= tsSampler->scale;
+					sampler2->keyframes= tsSampler->keyframes;
+					auto dup= duplicate->find(tsSampler->object);
+					if (dup == duplicate->end())
+						sampler2->object= tsSampler->object;
+					else
+						sampler2->object= dup->second;
+					anim->samplers.push_back(sampler2);
+				}
+			}
+			panAnimations.push_back(anim);
+		}
 	} else {
 		model->addChild(topPart.model);
 		for (auto i=def->headlights.begin(); i!=def->headlights.end(); i++)
 			headlights.push_back(i->lightSwitch);
+		for (int i=0; i<def->panAnimations.size(); i++)
+			panAnimations.push_back(def->panAnimations[i]);
+	}
+	for (int i=0; i<panAnimations.size(); i++) {
+		for (auto s:panAnimations[i]->samplers) {
+			s->update(0);
+		}
 	}
 	if (def->rodAnimation)
 		rodAnimation= def->rodAnimation;

@@ -116,6 +116,8 @@ float ElectricEngine::getForce(float tControl, float dControl,
 		car->animState= 0;
 		return 0;
 	}
+	if (car->panAnimations.size()>1 && fwdPantograph==revPantograph)
+		fwdPantograph++;
 	if (dControl > 0)
 		car->animState= 1<<fwdPantograph;
 	else if (dControl < 0)

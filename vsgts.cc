@@ -146,6 +146,28 @@ void startSwitchAnimation(vsg::ref_ptr<vsg::AnimationManager> manager)
 	}
 }
 
+void startPanAnimation(vsg::ref_ptr<vsg::AnimationManager> manager)
+{
+	for (auto t: trainList) {
+		for (auto car=t->firstCar; car; car=car->next) {
+			for (int i=0; i<car->panAnimations.size(); i++) {
+				auto anim= car->panAnimations[i];
+				if (anim->active())
+					continue;
+				auto state= car->getAnimState(i+1);
+				if (state==0 && anim->time>.5) {
+					anim->speed= -.1;
+					manager->play(anim,anim->time);
+				}
+				if (state==1 && anim->time<.5) {
+					anim->speed= .1;
+					manager->play(anim,anim->time);
+				}
+			}
+		}
+	}
+}
+
 void updateActivityEvents()
 {
 	if (!mstsRoute)
@@ -268,6 +290,7 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			updateTrains(dt);
 			ttoSim.processEvents(simTime);
 			startSwitchAnimation(viewer->animationManager);
+			startPanAnimation(viewer->animationManager);
 			updateSignals();
 			updateActivityEvents();
 			updateLightDirection();

@@ -24,6 +24,8 @@ THE SOFTWARE.
 #pragma once
 
 #include <vsg/all.h>
+#include <map>
+#include <string>
 #include "mstsroute.h"
 
 struct AnimModelInfo {
@@ -40,6 +42,7 @@ struct AnimModelInfo {
 	vsg::ref_ptr<vsg::Node> cloneModel(vsg::Animation* animation, MSTSSignal* signal=nullptr);
 	void addSignal(MSTSSignal* signal);
 };
+typedef std::map<std::string,AnimModelInfo*> AnimModelMap;
 
 class TwoStateAnimation : public vsg::Inherit<vsg::Animation, TwoStateAnimation>
 {
