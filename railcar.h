@@ -95,6 +95,7 @@ struct RailCarDef {
 	std::string name;
 	std::string soundFile;
 	std::string brakeValve;
+	float maxEqRes;
 	int axles;
 	float mass0;		// empty static mass
 	float mass1;		// loaded static mass

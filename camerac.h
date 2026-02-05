@@ -47,6 +47,7 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	int zoom;
 	int maxZoom;
 	double zoom1Dist;
+	int insideIndex;
 	void setZoom(int z);
 	void incZoom(int dz) { setZoom(zoom+dz); }
 	void incHeading(double degrees);

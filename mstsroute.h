@@ -225,6 +225,7 @@ struct MSTSRoute {
 	  bool player, int id);
 	bool signalSwitchStands;
 	bool createSignals;
+	void initSignals();
 	MSTSSignal* findSignalInfo(MSTSFileNode* node, Tile* tile);
 	float getWaterDepth(double x, double y);
 	std::vector<double> ignorePolygon;

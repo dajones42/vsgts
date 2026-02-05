@@ -73,6 +73,7 @@ RailCarDef::RailCarDef()
 	maxSlack= .1;
 	couplerGap= .02;
 	brakeValve= "K";
+	maxEqRes= 70;
 	nInst= 0;
 };
 
@@ -269,6 +270,8 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 	prev= NULL;
 	rev= 0;
 	handBControl= 0;
+	if (maxEqRes == 0)
+		maxEqRes= def->maxEqRes;
 	airBrake= AirBrake::create(def->engine,maxEqRes,
 	  def->brakeValve!=""?def->brakeValve:brakeValve);
 	distance= 0;

@@ -183,6 +183,10 @@ void TSGuiData::loadActivityList()
 	}
 	sort(listItems.begin(),listItems.end());
 	selected= "Select an activity";
+	if (listItems.size() == 1) {
+		mstsRoute->activityName= " Explore";
+		loadConsistList();
+	}
 	showSelect= true;
 }
 

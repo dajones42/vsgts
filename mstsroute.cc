@@ -1313,7 +1313,7 @@ void MSTSRoute::loadExploreConsist(vsg::Group* root)
 			  dir.c_str(),file.c_str());
 			continue;
 		}
-		RailCarInst* car= new RailCarInst(def,root,70,"K");
+		RailCarInst* car= new RailCarInst(def,root,0,def->brakeValve);
 		car->setLoad(0);
 		car->prev= train->lastCar;
 		car->rev= rev;
@@ -1375,7 +1375,7 @@ void MSTSRoute::loadConsist(LooseConsist* consist, vsg::Group* root)
 			  dir.c_str(),file.c_str());
 			continue;
 		}
-		RailCarInst* car= new RailCarInst(def,root,70);
+		RailCarInst* car= new RailCarInst(def,root,0,def->brakeValve);
 		car->setLoad(0);
 		car->prev= train->lastCar;
 		if (train->lastCar == NULL)
@@ -1507,7 +1507,7 @@ Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
 			  dir.c_str(),file.c_str());
 			continue;
 		}
-		RailCarInst* car= new RailCarInst(def,root,70);
+		RailCarInst* car= new RailCarInst(def,root,0,def->brakeValve);
 		car->setLoad(0);
 		car->prev= train->lastCar;
 		car->rev= rev;
@@ -1867,6 +1867,14 @@ bool MSTSRoute::ignoreShape(string* filename, double x, double y, double z)
 	return false;
 }
 #endif
+
+void MSTSRoute::initSignals()
+{
+	for (int i=0; i<2; i++) {
+		for (auto j=signalMap.begin(); j!=signalMap.end(); j++)
+			j->second->update();
+	}
+}
 
 vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 {

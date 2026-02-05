@@ -48,6 +48,7 @@ CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<v
 	maxZoom= zoom= (int)z;
 	if (!myLookAt)
 		myLookAt= lookAt.get();
+	insideIndex= -1;
 }
 
 void CameraController::incHeading(double degrees)
@@ -169,6 +170,7 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		setPitch(-15);
 		lookAt->up= vsg::dvec3(0,0,1);
 		remoteEye= false;
+		insideIndex= -1;
 		keyPress.handled= true;
 	} else if (keyPress.keyBase=='3' && (myTrain || selectedTrain)) {
 		if (myTrain) {
@@ -184,6 +186,7 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		setPitch(-15);
 		lookAt->up= vsg::dvec3(0,0,1);
 		remoteEye= false;
+		insideIndex= -1;
 		keyPress.handled= true;
 	} else if (keyPress.keyBase=='4' && (myTrain || selectedTrain)) {
 		Train* train;
@@ -212,6 +215,7 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		lookAt->up= vsg::dvec3(0,0,1);
 		lookAt->eye= wloc1.coord + side + vsg::dvec3(0,0,1.6);
 		remoteEye= true;
+		insideIndex= -1;
 		keyPress.handled= true;
 	} else if (keyPress.keyBase=='5' && followInside(selectedRailCar)) {
 		keyPress.handled= true;
@@ -238,6 +242,7 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 				offset.y= -.5*selectedRailCar->def->width - .3;
 		}
 		setFollow(selectedRailCar->model.get(),offset,heading,0);
+		insideIndex= -1;
 		keyPress.handled= true;
 	}
 }
@@ -282,6 +287,7 @@ void CameraController::apply(vsg::ButtonPressEvent& buttonPress)
 	}
 	lookAt->eye= lookAt->center + lookV;
 	updateListener();
+	insideIndex= -1;
 }
 
 void CameraController::apply(vsg::ScrollWheelEvent& scroll)
@@ -331,8 +337,12 @@ bool CameraController::followInside(RailCarInst* railCar)
 {
 	if (!railCar || railCar->def->inside.size()==0)
 		return false;
+	if (insideIndex < 0)
+		insideIndex= 0;
+	else
+		insideIndex= (insideIndex+1)%railCar->def->inside.size();
 	follow= railCar->model;
-	auto& inside= railCar->def->inside[0];
+	auto& inside= railCar->def->inside[insideIndex];
 	setFollow(railCar->model.get(),inside.position,inside.angle,inside.vAngle);
 	return true;
 }

@@ -231,6 +231,7 @@ void startExplore()
 	train->setHeadLight(false);
 	trainList.push_back(train);
 	train->setOccupied();
+	mstsRoute->initSignals();
 	listener.addTrain(train);
 	listener.setGain(1);
 	ttoSim.init(false);
@@ -323,6 +324,7 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 		auto cr= viewer->compileManager->compile(railCars);
 		updateViewer(*viewer,cr);
 		root->addChild(railCars);
+		mstsRoute->initSignals();
 		ttoSim.init(false);
 		for (auto t: trainList)
 			listener.addTrain(t);

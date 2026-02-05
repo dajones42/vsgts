@@ -49,6 +49,8 @@ float getFloat(MSTSFileNode* node, const char* name, int child, float dflt)
 //	ignores any unit suffix at the moment
 int getInt(MSTSFileNode* node, const char* name, int child, float dflt)
 {
+	if (!node)
+		return dflt;
 	MSTSFileNode* n= node->children->find(name);
 	if (n == NULL) {
 		//fprintf(stderr,"cannot find %s\n",name);
@@ -154,6 +156,9 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		def->maxBForce= 2*def->mass0;
 //	fprintf(stderr,"maxbforce %s %f %f %f\n",file,
 //	  def->mass0,def->length,def->maxBForce);
+	MSTSFileNode* braketype= wagon->children->find("BrakeSystemType");
+	if (braketype && braketype->value && strcasecmp(braketype->value->c_str(),"air_single_pipe")==0)
+		def->brakeValve= "AMM";
 	MSTSFileNode* fanim= wagon->children->find("FreightAnim");
 	if (fanim!=NULL && fanim->getChild(0)!=NULL &&
 	  fanim->getChild(0)->value!=NULL) {
@@ -377,6 +382,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 //		fprintf(stderr,"headout %f %f %f\n",def->insideCoord[0],
 //		 def->insideCoord[1],def->insideCoord[2]);
 	}
+	def->maxEqRes= getFloat(engine,"TrainBrakesControllerMaxSystemPressure",0,70);
 //	fprintf(stderr,"got engine\n");
 	MSTSFileNode* tp= engine->children->find("Type");
 	if (tp == NULL)
@@ -384,12 +390,14 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 	tp= tp->getChild(0);
 	if (tp==NULL || tp->value==NULL)
 		return def;
+	MSTSFileNode* throttle= engine->get("EngineControllers")->get("Throttle");
 //	fprintf(stderr,"engine type %s\n",tp->value->c_str());
 	if (*tp->value == "Diesel") {
 		DieselEngine* e= new DieselEngine;
 		def->engine= e;
 		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0));
 		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0));
+		e->setNNotches(getInt(throttle,"NumNotches",0,9)-1);
 		fprintf(stderr,"maxforce %f\n",e->getMaxForce());
 	}
 	if (*tp->value == "Electric") {
@@ -397,6 +405,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		def->engine= e;
 		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0));
 		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0));
+		e->setNNotches(getInt(throttle,"NumNotches",0,9)-1);
 		fprintf(stderr,"maxforce %f\n",e->getMaxForce());
 	}
 	if (*tp->value == "Steam") {

@@ -630,7 +630,6 @@ void Track::SwVertex::throwSwitch(Track::Edge* edge, bool force)
 //	fprintf(stderr,"throw0 %p %p %p %p %f %f %f\n",
 //	  this,edge2,swEdges[0],swEdges[1],
 //	  location.coord[0],location.coord[1],location.coord[2]);
-#if 0
 	if (edge1->track->updateSignals) {
 		Signal* s= findSignal(edge1->otherV(this),edge1);
 //		fprintf(stderr,"swe0 %p %d\n",s,mainEdge);
@@ -643,7 +642,6 @@ void Track::SwVertex::throwSwitch(Track::Edge* edge, bool force)
 				s->update();
 		}
 	}
-#endif
 }
 
 void Track::translate(double dx, double dy, double dz)

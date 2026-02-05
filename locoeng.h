@@ -66,6 +66,7 @@ class DieselEngine : public LocoEngine, public CommandBlockHandler {
 	void setMaxPower(float p) { maxPower= p; }
 	void setMaxForce(float p) { maxForce= p; }
 	void setMaxCForce(float p) { maxCForce= p; }
+	void setNNotches(int n) { nNotches= n; }
 	virtual float getThrottleInc();
 	virtual float getReverserInc();
 	virtual float getForce(float tControl, float dControl,
@@ -121,6 +122,7 @@ class ElectricEngine : public LocoEngine, public CommandBlockHandler {
 	void setMaxPower(float p) { maxPower= p; }
 	void setMaxForce(float p) { maxForce= p; }
 	void setMaxCForce(float p) { maxCForce= p; }
+	void setNNotches(int n) { nNotches= n; }
 	virtual float getThrottleInc();
 	virtual float getReverserInc();
 	virtual float getForce(float tControl, float dControl,
