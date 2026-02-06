@@ -37,118 +37,166 @@ using namespace filesystem;
 #include "train.h"
 #include "ttosim.h"
 #include "camerac.h"
+#include "interlocking.h"
 
 void TSGui::record(vsg::CommandBuffer& cb) const
 {
 	TSGuiData& data= TSGuiData::instance();
-	if (data.showStatus) {
-		ImGui::Begin("Train Status",&data.showStatus);
-		int t= (int)simTime;
-		ImGui::Text("Time: %d:%2.2d:%2.2d Time Mult: %d fps %.1lf",t/3600,t/60%60,t%60,timeMult,data.fps);
-		if (myTrain) {
-			ImGui::Text("Speed: %.1f mph  Accel: %6.3f g",
-			  myTrain->speed*2.23693,myTrain->accel/9.8);
-			ImGui::Text("Grade: %.3f %%",-100*myTrain->location.grade());
-			ImGui::Text("Throttle: %.0f %%  Reverser: %.0f %%",
-			  100*myTrain->tControl,100*myTrain->dControl);
-			if (myTrain->engAirBrake)
-				ImGui::Text("Brakes: %s %.0f %.0f %.0f %.0f %.0f %.1f",
-				  myTrain->bControl<0?"R":myTrain->bControl>0?"S":"L",
-				  myTrain->engAirBrake->getEqResPressure(),
-				  myTrain->engAirBrake->getPipePressure(),
-				  myTrain->engAirBrake->getAuxResPressure(),
-				  myTrain->engAirBrake->getCylPressure(),
-				  myTrain->engAirBrake->getMainResPressure(),
-				  myTrain->engAirBrake->getAirFlowCFM());
+	if (data.showStatus)
+		showStatusWindow();
+	if (data.showSelect)
+		showSelectWindow();
+	if (data.showMessage)
+		showMessageWindow();
+	if (interlocking)
+		showLeversWindow();
+}
+
+void TSGui::showStatusWindow()
+{
+	TSGuiData& data= TSGuiData::instance();
+	ImGui::Begin("Train Status",&data.showStatus);
+	int t= (int)simTime;
+	ImGui::Text("Time: %d:%2.2d:%2.2d Time Mult: %d fps %.1lf",t/3600,t/60%60,t%60,timeMult,data.fps);
+	if (myTrain) {
+		ImGui::Text("Speed: %.1f mph  Accel: %6.3f g",
+		  myTrain->speed*2.23693,myTrain->accel/9.8);
+		ImGui::Text("Grade: %.3f %%",-100*myTrain->location.grade());
+		ImGui::Text("Throttle: %.0f %%  Reverser: %.0f %%",
+		  100*myTrain->tControl,100*myTrain->dControl);
+		if (myTrain->engAirBrake)
+			ImGui::Text("Brakes: %s %.0f %.0f %.0f %.0f %.0f %.1f",
+			  myTrain->bControl<0?"R":myTrain->bControl>0?"S":"L",
+			  myTrain->engAirBrake->getEqResPressure(),
+			  myTrain->engAirBrake->getPipePressure(),
+			  myTrain->engAirBrake->getAuxResPressure(),
+			  myTrain->engAirBrake->getCylPressure(),
+			  myTrain->engAirBrake->getMainResPressure(),
+			  myTrain->engAirBrake->getAirFlowCFM());
+		else
+			ImGui::Text("Brakes: %.1f",myTrain->bControl);
+		ImGui::Text("Eng Brakes: %.0f %%",100*myTrain->engBControl);
+		if (selectedRailCar)
+			ImGui::Text("Hand Brake: %.0f %%",100*selectedRailCar->handBControl);
+		float bp= -1;
+		for (auto c=myTrain->firstCar; c; c=c->next) {
+			if (!c->engine)
+				continue;
+			auto e= dynamic_cast<SteamEngine*>(c->engine);
+			if (e) {
+				auto x= e->getBoilerPressure();
+				if (bp < x)
+					bp= x;
+			}
+		}
+		if (bp > 0)
+			ImGui::Text("Boiler Pressure: %.0f",bp);
+		std::string slack;
+		for (auto car=myTrain->firstCar; car!=myTrain->lastCar; car=car->next) {
+			if (car->cU < 0)
+				slack+= "<";
+			else if (car->cU > 0)
+				slack+= ">";
 			else
-				ImGui::Text("Brakes: %.1f",myTrain->bControl);
-			ImGui::Text("Eng Brakes: %.0f %%",100*myTrain->engBControl);
-			if (selectedRailCar)
-				ImGui::Text("Hand Brake: %.0f %%",100*selectedRailCar->handBControl);
-			float bp= -1;
-			for (auto c=myTrain->firstCar; c; c=c->next) {
-				if (!c->engine)
-					continue;
-				auto e= dynamic_cast<SteamEngine*>(c->engine);
-				if (e) {
-					auto x= e->getBoilerPressure();
-					if (bp < x)
-						bp= x;
-				}
-			}
-			if (bp > 0)
-				ImGui::Text("Boiler Pressure: %.0f",bp);
-			std::string slack;
-			for (auto car=myTrain->firstCar; car!=myTrain->lastCar; car=car->next) {
-				if (car->cU < 0)
-					slack+= "<";
-				else if (car->cU > 0)
-					slack+= ">";
-				else
-					slack+= "-";
-			}
-			if (slack.size() > 0)
-				ImGui::Text("Couplers: %s",slack.c_str());
+				slack+= "-";
 		}
-		if (timeTable) {
-			for (int i=timeTable->getNumTrains()-1; i>=0; i--) {
-				AITrain* train= (AITrain*) timeTable->getTrain(i);
-				int r= train->getRow();
-				int a= train->getActualAr(r);
-				int d= train->getActualLv(r);
-				if (!train->consist || r<0 || a<0)
-					continue;
-				if (d < 0)
-					d= a;
-				d/= 60;
-				WLocation wl;
-				train->consist->location.getWLocation(&wl);
-				ImGui::Text("train %-5.5s %s %2d:%2.2d %s %4.1f m %2.0f mph %2.0f %3.0f",
-				  train->getName().c_str(),
-				  timeTable->getRow(r)->getCallSign().c_str(),
-				  d/60,d%60,train->route.c_str(),
-				  vsg::length(myLookAt->center-wl.coord)*3.281/5280,
-				  train->consist->speed*2.24,
-				  8*train->consist->tControl,100*train->consist->bControl);
-				if (train->message.size() > 0)
-					ImGui::Text(" %s",train->message.c_str());
-			}
-		}
-		ImGui::End();
+		if (slack.size() > 0)
+			ImGui::Text("Couplers: %s",slack.c_str());
 	}
-	if (data.showSelect) {
-		ImGui::Begin("Select",&data.showSelect);
-		if (ImGui::BeginCombo("",data.selected.c_str())) {
-			for (auto s: data.listItems) {
-				if (ImGui::Selectable(s.c_str())) {
-					data.selected= s;
-				}
-			}
-			ImGui::EndCombo();
+	if (timeTable) {
+		for (int i=timeTable->getNumTrains()-1; i>=0; i--) {
+			AITrain* train= (AITrain*) timeTable->getTrain(i);
+			int r= train->getRow();
+			int a= train->getActualAr(r);
+			int d= train->getActualLv(r);
+			if (!train->consist || r<0 || a<0)
+				continue;
+			if (d < 0)
+				d= a;
+			d/= 60;
+			WLocation wl;
+			train->consist->location.getWLocation(&wl);
+			ImGui::Text("train %-5.5s %s %2d:%2.2d %s %4.1f m %2.0f mph %2.0f %3.0f",
+			  train->getName().c_str(),
+			  timeTable->getRow(r)->getCallSign().c_str(),
+			  d/60,d%60,train->route.c_str(),
+			  vsg::length(myLookAt->center-wl.coord)*3.281/5280,
+			  train->consist->speed*2.24,
+			  8*train->consist->tControl,100*train->consist->bControl);
+			if (train->message.size() > 0)
+				ImGui::Text(" %s",train->message.c_str());
 		}
-		if (mstsRoute && mstsRoute->activityName==" Explore" && data.selected!="Select a consist") {
-			ImGui::Text("%s","Center start location the select Load.");
-			if (ImGui::Button("Load")) {
-				mstsRoute->consistName= data.selected;
-				data.showSelect= false;
+	}
+	ImGui::End();
+}
+
+void TSGui::showSelectWindow()
+{
+	TSGuiData& data= TSGuiData::instance();
+	ImGui::Begin("Select",&data.showSelect);
+	if (ImGui::BeginCombo("",data.selected.c_str())) {
+		for (auto s: data.listItems) {
+			if (ImGui::Selectable(s.c_str())) {
+				data.selected= s;
 			}
 		}
-		if (mstsRoute && mstsRoute->activityName.size()==0 && data.selected!="Select an activity" &&
-		  ImGui::Button("Load")) {
-			mstsRoute->activityName= data.selected;
+		ImGui::EndCombo();
+	}
+	if (mstsRoute && mstsRoute->activityName==" Explore" && data.selected!="Select a consist") {
+		ImGui::Text("%s","Center start location the select Load.");
+		if (ImGui::Button("Load")) {
+			mstsRoute->consistName= data.selected;
 			data.showSelect= false;
 		}
-		if (!mstsRoute && data.selected!="Select a route" && ImGui::Button("Load")) {
-			data.showSelect= false;
-		}
-		ImGui::End();
-        }
-	if (data.showMessage) {
-		ImGui::Begin("Message",&data.showMessage);
-		for (auto s: data.listItems)
-			ImGui::TextWrapped("%s",s.c_str());
-		ImGui::End();
 	}
+	if (mstsRoute && mstsRoute->activityName.size()==0 && data.selected!="Select an activity" &&
+	  ImGui::Button("Load")) {
+		mstsRoute->activityName= data.selected;
+		data.showSelect= false;
+	}
+	if (!mstsRoute && data.selected!="Select a route" && ImGui::Button("Load")) {
+		data.showSelect= false;
+	}
+	ImGui::End();
+}
+
+void TSGui::showMessageWindow()
+{
+	TSGuiData& data= TSGuiData::instance();
+	ImGui::Begin("Message",&data.showMessage);
+	for (auto s: data.listItems)
+		ImGui::TextWrapped("%s",s.c_str());
+	ImGui::End();
+}
+
+void TSGui::showLeversWindow()
+{
+	TSGuiData& data= TSGuiData::instance();
+	ImGui::SetNextWindowContentSize(ImVec2(26*interlocking->getNumLevers(),50));
+	ImGui::Begin("Levers",nullptr,ImGuiWindowFlags_HorizontalScrollbar);
+	char buf[20];
+	for (int i=0; i<interlocking->getNumLevers(); i++) {
+		sprintf(buf,"%d",i+1);
+		if (i > 0)
+			ImGui::SameLine();
+		auto state= interlocking->getState(i);
+		auto color= interlocking->getColor(i);
+		auto c1= .8*color + vsg::vec3(.1,.1,.1);
+		auto c2= .9*color + vsg::vec3(.2,.2,.2);
+		float y= state==Interlocking::NORMAL ? .25 : state==Interlocking::REVERSE ? .75 : .5;
+		ImGui::PushID(i);
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(color.r,color.g,color.b,1));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(c1.r,c1.g,c1.b,1));
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(c2.r,c2.g,c2.b,1));
+		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(.5,y));
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0,0));
+		if (ImGui::Button(buf,ImVec2(18,50)))
+			interlocking->toggleState(i,simTime);
+		ImGui::PopStyleColor(3);
+		ImGui::PopStyleVar(2);
+		ImGui::PopID();
+	}
+	ImGui::End();
 }
 
 void TSGuiData::loadRouteList()

@@ -178,6 +178,7 @@ struct Train {
 	float coupleDistance(bool behind);
 	void stopAtSwitch(Track::SwVertex* sw);
 	void throwSwitch(bool behind);
+	double distance(vsg::dvec3 from);
 };
 
 typedef std::map<std::string,Train*> TrainMap;

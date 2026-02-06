@@ -1718,3 +1718,13 @@ void Train::throwSwitch(bool behind)
 	if (sw && !sw->occupied)
 		sw->throwSwitch(nullptr,false);
 }
+
+double Train::distance(vsg::dvec3 from)
+{
+	WLocation loc;
+	location.getWLocation(&loc);
+	auto d1= vsg::length(loc.coord-from);
+	endLocation.getWLocation(&loc);
+	auto d2= vsg::length(loc.coord-from);
+	return d1<d2 ? d1 : d2;
+}

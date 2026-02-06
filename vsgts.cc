@@ -43,6 +43,7 @@ THE SOFTWARE.
 #include "timetable.h"
 #include "activity.h"
 #include "signal.h"
+#include "interlocking.h"
 
 vsg::AmbientLight* ambLight;
 vsg::DirectionalLight* dirLight;
@@ -71,7 +72,8 @@ void initSim(vsg::ref_ptr<vsg::Group>& root)
 	for (auto t: trainList)
 		listener.addTrain(t);
 	listener.setGain(1);
-	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()==0)
+	if (trainList.size()==0 && mstsRoute && mstsRoute->activityName.size()==0 &&
+	  (!timeTable && timeTable->getNumTrains()))
 		TSGuiData::instance().loadActivityList();
 }
 
@@ -283,10 +285,28 @@ void updateSignals()
 
 void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::Viewer>& viewer)
 {
-	if (trainList.size() > 0) {
+	if (trainList.size()>0 || (timeTable && timeTable->getNumTrains()>0)) {
 		TSGuiData::instance().updateFPS(dt);
 		if (timeMult > 0) {
-			dt*= timeMult;
+			if (myTrain || !interlocking) {
+				dt*= timeMult;
+			} else {
+				int nNear= 0;
+				int nMoving= 0;
+				for (auto train: trainList) {
+					if (train->distance(myLookAt->eye) < 500) {
+						nNear++;
+						if (train->speed)
+							nMoving++;
+					}
+				}
+				if (nMoving > 0)
+					dt*= timeMult;
+				else if (nNear > 0)
+					dt*= 8;
+				else
+					dt*=32;
+			}
 			simTime+= dt;
 			updateTrains(dt);
 			ttoSim.processEvents(simTime);

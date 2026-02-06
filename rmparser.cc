@@ -42,6 +42,7 @@ using namespace std;
 #include "ttosim.h"
 #include "signal.h"
 #include "listener.h"
+#include "interlocking.h"
 
 struct RMParser : public Parser {
 	void parseRailCarDef(RailCarDef* def);
@@ -183,14 +184,12 @@ void RMParser::parseFile(const char* path)
 			} else if (strcasecmp(cmd,"signal") == 0) {
 				SignalParser sparser;
 				parseBlock((CommandBlockHandler*)&sparser);
-#if 0
 			} else if (strcasecmp(cmd,"interlocking") == 0) {
 				InterlockingParser iparser;
 				parseBlock((CommandBlockHandler*)&iparser);
 				interlocking= iparser.interlocking;
-			} else if (strcasecmp(cmd,"useroscallsign") == 0) {
-				userOSCallSign= tokens[1];
-#endif
+//			} else if (strcasecmp(cmd,"useroscallsign") == 0) {
+//				userOSCallSign= tokens[1];
 			} else if (strcasecmp(cmd,"railcar") == 0) {
 				if (tokens.size() < 2)
 					throw std::invalid_argument(

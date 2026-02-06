@@ -228,20 +228,38 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 			}
 			panAnimations.push_back(anim);
 		}
+		if (def->rodAnimation) {
+			rodAnimation= vsg::Animation::create();
+			for (auto sampler1: def->rodAnimation->samplers) {
+				if (auto tsSampler= dynamic_cast<vsg::TransformSampler*>(sampler1.get())) {
+					auto sampler2= vsg::TransformSampler::create();
+					sampler2->position= tsSampler->position;
+					sampler2->rotation= tsSampler->rotation;
+					sampler2->scale= tsSampler->scale;
+					sampler2->keyframes= tsSampler->keyframes;
+					auto dup= duplicate->find(tsSampler->object);
+					if (dup == duplicate->end())
+						sampler2->object= tsSampler->object;
+					else
+						sampler2->object= dup->second;
+					rodAnimation->samplers.push_back(sampler2);
+				}
+			}
+		}
 	} else {
 		model->addChild(topPart.model);
 		for (auto i=def->headlights.begin(); i!=def->headlights.end(); i++)
 			headlights.push_back(i->lightSwitch);
 		for (int i=0; i<def->panAnimations.size(); i++)
 			panAnimations.push_back(def->panAnimations[i]);
+		if (def->rodAnimation)
+			rodAnimation= def->rodAnimation;
 	}
 	for (int i=0; i<panAnimations.size(); i++) {
 		for (auto s:panAnimations[i]->samplers) {
 			s->update(0);
 		}
 	}
-	if (def->rodAnimation)
-		rodAnimation= def->rodAnimation;
 	for (int i=0; i<def->parts.size()-1; i++) {
 		if (auto mt= dynamic_cast<vsg::MatrixTransform*>(def->parts[i].model.get())) {
 			auto sampler= vsg::TransformSampler::create();

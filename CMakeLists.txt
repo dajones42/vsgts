@@ -62,6 +62,7 @@ set(SOURCES
 	ghproj.cc
 	parser.cc
 	rmparser.cc
+	interlocking.cc
 )
 
 add_executable(tsviewer tsviewer.cc ${SOURCES})

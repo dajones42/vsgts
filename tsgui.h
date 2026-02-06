@@ -32,6 +32,10 @@ public:
 	TSGui() {
 	}
 	void record(vsg::CommandBuffer& cb) const override;
+	static void showStatusWindow();
+	static void showSelectWindow();
+	static void showMessageWindow();
+	static void showLeversWindow();
 };
 
 class TSGuiData {
