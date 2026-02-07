@@ -736,14 +736,21 @@ MSTSRoute::Tile* MSTSRoute::findTile(int tx, int tz)
 //	the model is a green and white checker board with one square per tile
 void MSTSRoute::makeTileMap(vsg::Group* root)
 {
+	vsgOptions->paths= vsg::getEnvPaths("VSG_FILE_PATH");
 	vsgOptions->shaderSets["phong"]= vsg::createPhongShaderSet();
 	vsgOptions->shaderSets["flat"]= vsg::createFlatShadedShaderSet();
+	vsgOptions->shaderSets["text"]= vsg::createTextShaderSet(vsgOptions);
 	vsgOptions->add(MstsTerrainReader::create());
 	vsgOptions->add(MstsWorldReader::create());
 	if (!vsgOptions->sharedObjects)
 		vsgOptions->sharedObjects= vsg::SharedObjects::create();
 	vsgOptions->findDynamicObjects= nullptr;
 	vsgOptions->propagateDynamicObjects= nullptr;
+	auto options= vsg::Options::create();
+	options->paths= vsg::getEnvPaths("VSG_FILE_PATH");
+	font= vsg::read_cast<vsg::Font>("fonts/times.vsgb",options);
+	if (!font)
+		fprintf(stderr,"failed to load font\n");
 	vsg::StateInfo stateInfo;
 	stateInfo.lighting= false;
 	auto builder= vsg::Builder::create();
@@ -2069,5 +2076,7 @@ vsg::ref_ptr<vsg::Object> MstsRouteReader::read(
 	auto group= vsg::Group::create();
 	route->makeTileMap(group);
 	group->addChild(route->createTrackLines());
+	route->trackLabels= vsg::ref_ptr(addTrackLabels());
+	group->addChild(route->trackLabels);
 	return group;
 }

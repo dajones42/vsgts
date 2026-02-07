@@ -68,7 +68,6 @@ void initSim(vsg::ref_ptr<vsg::Group>& root)
 		timeTable->addRow(timeTable->addStation("start"));
 		timeTable->setIgnoreOther(true);
 	}
-	listener.init();
 	for (auto t: trainList)
 		listener.addTrain(t);
 	listener.setGain(1);
@@ -391,6 +390,7 @@ int main(int argc, char** argv)
 //	vsg::Logger::instance()->level= vsg::Logger::LOGGER_DEBUG;;
 
 	auto scene= vsg::Group::create();
+	listener.init();
 	vsg::dvec3 startLocation;
 	if (argc>1) {
 		const char* fname= argv[1];

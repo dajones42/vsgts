@@ -184,13 +184,20 @@ void TSGui::showLeversWindow()
 		auto c1= .8*color + vsg::vec3(.1,.1,.1);
 		auto c2= .9*color + vsg::vec3(.2,.2,.2);
 		float y= state==Interlocking::NORMAL ? .25 : state==Interlocking::REVERSE ? .75 : .5;
+		int ht= 50;
+		auto occ= interlocking->getSwitchOccupied(i);
+		if (occ==Interlocking::OCCUPIED || occ==Interlocking::ROUTELOCK)
+			ht= 55;
+		auto sig= interlocking->getSignal(i);
+		if (sig && sig->trainDistance>0)
+			ht= 55;
 		ImGui::PushID(i);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(color.r,color.g,color.b,1));
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(c1.r,c1.g,c1.b,1));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(c2.r,c2.g,c2.b,1));
 		ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(.5,y));
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0,0));
-		if (ImGui::Button(buf,ImVec2(18,50)))
+		if (ImGui::Button(buf,ImVec2(18,ht)))
 			interlocking->toggleState(i,simTime);
 		ImGui::PopStyleColor(3);
 		ImGui::PopStyleVar(2);

@@ -627,23 +627,21 @@ void RailCarInst::addWaybill(string& dest, float r, float g, float b, int p)
 	waybill->color= vsg::vec3(r,g,b);
 	waybill->label= new vsg::Switch();
 	waybill->priority= p;
-#if 0
-	vsg::Billboard* bb= new osg::Billboard();
-	bb->setMode(osg::Billboard::POINT_ROT_EYE);
-	bb->setNormal(osg::vec3(0,0,1));
-	osgText::Text* text= new osgText::Text;
-	bb->addDrawable(text,osg::vec3(0,0,5));
-	text->setFont("fonts/arial.ttf");
-	text->setCharacterSize(25);
-	text->setPosition(osg::Vec3(0,0,0));
-	text->setColor(osg::Vec4(r,g,b,1));
-	text->setText(dest);
-	text->setAlignment(osgText::Text::CENTER_BOTTOM);
-	text->setCharacterSizeMode(osgText::Text::SCREEN_COORDS);
-	waybill->label->addChild(bb);
-	waybill->label->setAllChildrenOff();
+	auto layout= vsg::StandardLayout::create();
+	layout->horizontalAlignment= vsg::StandardLayout::CENTER_ALIGNMENT;
+	layout->glyphLayout= vsg::StandardLayout::LEFT_TO_RIGHT_LAYOUT;
+	layout->position= vsg::vec3(0,0,4.5);
+	layout->horizontal= vsg::vec3(.6,0,0);
+	layout->vertical= vsg::vec3(0,.6,0);
+	layout->color= vsg::vec4(r,g,b,1);
+	layout->billboard= true;
+	auto text= vsg::Text::create();
+	text->font= mstsRoute->font;
+	text->text= vsg::stringValue::create(dest);
+	text->layout= layout;
+	text->setup(0,mstsRoute->vsgOptions);
+	waybill->label->addChild(false,text);
 	model->addChild(waybill->label);
-#endif
 }
 
 #if 0

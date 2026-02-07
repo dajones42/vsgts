@@ -27,7 +27,9 @@ THE SOFTWARE.
 #include <string>
 #include <vector>
 #include <set>
+#include <map>
 using namespace std;
+#include <iostream>
 
 #include <vsg/all.h>
 
@@ -49,9 +51,13 @@ struct RMParser : public Parser {
 	void parseTrain();
 	void parseMSTSRoute(string& dir, string& route);
 	void parseFile(const char* path);
+	void parseModel3D();
 	Track* findTrack(string& s);
 	vsg::Group* rootNode;
 	vsg::dvec3 startLocation;
+	typedef std::map<std::string,vsg::ref_ptr<vsg::Node>> ModelMap;
+	ModelMap modelMap;
+	vsg::ref_ptr<vsg::Node> find3DModel(string& s);
 };
 
 void RMParser::parseMSTSRoute(string& dir, string& route)
@@ -210,26 +216,16 @@ void RMParser::parseFile(const char* path)
 			} else if (strcasecmp(cmd,"train") == 0) {
 				parseTrain();
 			} else if (strcasecmp(cmd,"model3d") == 0) {
-				//parseModel3D();
-				while (getCommand()) {
-					if (tokens[0] == "end")
-						break;
-				}
-#if 0
+				parseModel3D();
 			} else if (strcasecmp(cmd,"scenery") == 0) {
-				osg::Node* model= find3DModel(tokens[1]);
-				osg::PositionAttitudeTransform* pat=
-				  new osg::PositionAttitudeTransform;
-				pat->setPosition(
-				  osg::Vec3(getDouble(2,-1e10,1e10),
-				    getDouble(3,-1e10,1e10),
-				    getDouble(4,-1e10,1e10)));
-				pat->setAttitude(
-				  osg::Quat(getDouble(5,0,360,0)*M_PI/180,
-				  osg::Vec3(0,0,1)));
-				pat->addChild(model);
-				rootNode->addChild(pat);
-				model->setNodeMask(0x3);
+				auto model= find3DModel(tokens[1]);
+				auto mt= vsg::MatrixTransform::create();
+				mt->matrix= vsg::translate(vsg::dvec3(getDouble(2,-1e10,1e10),
+				  getDouble(3,-1e10,1e10),getDouble(4,-1e10,1e10))) *
+				  vsg::rotate(vsg::radians(getDouble(5,0,360,0)),vsg::dvec3(0,0,1));
+				mt->addChild(model);
+				rootNode->addChild(mt);
+#if 0
 			} else if (strcasecmp(cmd,"interlockingmodel") == 0) {
 				interlockingModel= find3DModel(tokens[1]);
 			} else if (strcasecmp(cmd,"switchstand") == 0) {
@@ -279,6 +275,7 @@ void RMParser::parseFile(const char* path)
 				  getDouble(1,-1e10,1e10),
 				  getDouble(2,-1e10,1e10),
 				  getDouble(3,-1e10,1e10));
+				std::cerr<<"start location "<<startLocation<<"\n";
 #if 0
 				currentPerson.setLocation(currentPerson.location);
 				currentPerson.setAngle(getDouble(4,0,360,0));
@@ -534,15 +531,15 @@ void RMParser::parsePersonPath()
 		currentPerson.setAngle(atan2(dir[1],dir[0])*180/3.14159);
 	}
 }
+#endif
 
-osg::Node* RMParser::find3DModel(string& s)
+vsg::ref_ptr<vsg::Node> RMParser::find3DModel(string& s)
 {
 	ModelMap::iterator i= modelMap.find(s);
 	if (i == modelMap.end())
 		throw "cannot find model";
 	return i->second;
 }
-#endif
 
 Track* RMParser::findTrack(string& s)
 {
@@ -712,4 +709,37 @@ void RMParser::parseTrain()
 	train->location.getWLocation(&loc);
 	fprintf(stderr,"train %s at %lf %lf %f\n",
 	  train->name.c_str(),loc.coord[0],loc.coord[1],loc.coord[2]);
+}
+
+void RMParser::parseModel3D()
+{
+	if (tokens.size() < 2)
+		throw std::invalid_argument("name missing");
+	string name= tokens[1];
+	vsg::ref_ptr<vsg::Node> model= NULL;
+	while (getCommand()) {
+		try {
+			const char* cmd= tokens[0].c_str();
+			if (strcasecmp(cmd,"end") == 0)
+				break;
+			if (strcasecmp(cmd,"file") == 0) {
+				//model= osgDB::readNodeFile(makePath());
+				//fprintf(stderr,"model=%s %p\n",
+				//  tokens[1].c_str(),model);
+				//printTree(model,5);
+			} else if (strcasecmp(cmd,"mstsshape") == 0) {
+				MSTSShape shape;
+				shape.readFile(makePath().c_str());
+				model= shape.createModel(1,20);
+			} else {
+				throw std::invalid_argument("unknown command");
+			}
+		} catch (const char* message) {
+			printError(message);
+		} catch (const std::exception& error) {
+			printError(error.what());
+		}
+	}
+	if (model)
+		modelMap[name]= model;
 }

@@ -30,4 +30,8 @@ class TrainController : public vsg::Inherit<vsg::Visitor, TrainController>
  public:
 	TrainController();
 	void apply(vsg::KeyPressEvent& keyPress) override;
+	bool waybillsOn;
+	bool trackLabelsOn;
+	void toggleWaybills();
+	void toggleTrackLabels();
 };

@@ -141,6 +141,7 @@ struct MSTSRoute {
 	std::string wireModelsDir;
 	bool ignoreHiddenTerrain;
 	vsg::ref_ptr<vsg::Switch> trackLines;
+	vsg::ref_ptr<vsg::Switch> trackLabels;
 	vsg::ref_ptr<vsg::MatrixTransform> skyBox;
 	typedef std::map<int,Event*> EventMap;
 	EventMap eventMap;
@@ -234,6 +235,7 @@ struct MSTSRoute {
 	vsg::ref_ptr<vsg::Switch> createTrackLines();
 	vsg::ref_ptr<vsg::MatrixTransform> createSkyBox();
 	vsg::ref_ptr<vsg::Options> vsgOptions;
+	vsg::ref_ptr<vsg::Font> font;
 };
 extern MSTSRoute* mstsRoute;
 

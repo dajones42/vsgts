@@ -37,6 +37,8 @@ THE SOFTWARE.
 
 TrainController::TrainController()
 {
+	waybillsOn= false;
+	trackLabelsOn= false;
 }
 
 void TrainController::apply(vsg::KeyPressEvent& keyPress)
@@ -49,6 +51,12 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == vsg::KEY_F5) {
 		TSGuiData::instance().showStatus= !TSGuiData::instance().showStatus;
+		keyPress.handled= true;
+	} else if (keyPress.keyBase == vsg::KEY_F6) {
+		toggleTrackLabels();
+		keyPress.handled= true;
+	} else if (keyPress.keyBase == vsg::KEY_F7) {
+		toggleWaybills();
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == 'z') {
 		timeMult/= 2;
@@ -143,4 +151,26 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 		myTrain->setHeadLight((keyPress.keyModifier&vsg::MODKEY_Shift)==0);
 		keyPress.handled= true;
 	}
+}
+
+void TrainController::toggleWaybills()
+{
+	waybillsOn= !waybillsOn;
+	int n= 0;
+	for (auto t: trainList) {
+		for (auto car=t->firstCar; car; car=car->next) {
+			if (car->waybill && car->waybill->label) {
+				car->waybill->label->setAllChildren(waybillsOn);
+				n++;
+			}
+		}
+	}
+	std::cerr<<"waybillsOn "<<waybillsOn<<" "<<n<<"\n";
+}
+
+void TrainController::toggleTrackLabels()
+{
+	trackLabelsOn= !trackLabelsOn;
+	if (mstsRoute->trackLabels)
+		mstsRoute->trackLabels->setAllChildren(trackLabelsOn);
 }

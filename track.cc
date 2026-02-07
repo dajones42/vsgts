@@ -1659,31 +1659,28 @@ void printTrackLocations()
 vsg::Switch* addTrackLabels()
 {
 	vsg::Switch* labels= new vsg::Switch();
-#if 0
-	vsg::Billboard* bb= new vsg::Billboard();
-	bb->setMode(vsg::Billboard::POINT_ROT_EYE);
-	bb->setNormal(vsg::vec3(0,0,1));
 	for (TrackMap::iterator i=trackMap.begin(); i!=trackMap.end(); ++i) {
 		Track* t= i->second;
 		for (Track::LocationMap::iterator j=t->locations.begin();
 		  j!=t->locations.end(); j++) {
 			WLocation wl;
 			j->second.getWLocation(&wl,1);
-			vsgText::Text* text= new vsgText::Text;
-			bb->addDrawable(text,wl.coord+vsg::vec3(0,0,5));
-			text->setFont("fonts/arial.ttf");
-			text->setCharacterSize(25);
-			text->setPosition(vsg::vec3(0,0,0));
-			text->setColor(vsg::vec4(1,0,0,1));
-			text->setText(j->first);
-			text->setAlignment(vsgText::Text::CENTER_BOTTOM);
-			text->setCharacterSizeMode(
-			  vsgText::Text::SCREEN_COORDS);
+			auto layout= vsg::StandardLayout::create();
+			layout->horizontalAlignment= vsg::StandardLayout::CENTER_ALIGNMENT;
+			layout->glyphLayout= vsg::StandardLayout::LEFT_TO_RIGHT_LAYOUT;
+			layout->position= wl.coord+vsg::dvec3(0,0,5);
+			layout->horizontal= vsg::vec3(.6,0,0);
+			layout->vertical= vsg::vec3(0,.6,0);
+			layout->color= vsg::vec4(1,1,0,1);
+			layout->billboard= true;
+			auto text= vsg::Text::create();
+			text->font= mstsRoute->font;
+			text->text= vsg::stringValue::create(j->first);
+			text->layout= layout;
+			text->setup(0,mstsRoute->vsgOptions);
+			labels->addChild(false,text);
 		}
 	}
-	labels->addChild(bb);
-	labels->setAllChildrenOff();
-#endif
 	return labels;
 }
 

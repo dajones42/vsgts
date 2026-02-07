@@ -130,7 +130,7 @@ struct RailCarDef {
 struct Waybill {
 	std::string destination;
 	vsg::vec3 color;
-	vsg::Switch* label;
+	vsg::ref_ptr<vsg::Switch> label;
 	int priority;
 	Waybill() { label= NULL; priority= 100; };
 };
