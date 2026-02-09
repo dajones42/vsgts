@@ -78,19 +78,11 @@ void TSGui::showStatusWindow()
 		ImGui::Text("Eng Brakes: %.0f %%",100*myTrain->engBControl);
 		if (selectedRailCar)
 			ImGui::Text("Hand Brake: %.0f %%",100*selectedRailCar->handBControl);
-		float bp= -1;
-		for (auto c=myTrain->firstCar; c; c=c->next) {
-			if (!c->engine)
-				continue;
-			auto e= dynamic_cast<SteamEngine*>(c->engine);
-			if (e) {
-				auto x= e->getBoilerPressure();
-				if (bp < x)
-					bp= x;
-			}
+		if (myRailCar && myRailCar->engine) {
+			auto e= dynamic_cast<SteamEngine*>(myRailCar->engine);
+			if (e)
+				ImGui::Text("Boiler Pressure: %.0f",e->getBoilerPressure());
 		}
-		if (bp > 0)
-			ImGui::Text("Boiler Pressure: %.0f",bp);
 		std::string slack;
 		for (auto car=myTrain->firstCar; car!=myTrain->lastCar; car=car->next) {
 			if (car->cU < 0)

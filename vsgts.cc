@@ -59,14 +59,14 @@ void initSim(vsg::ref_ptr<vsg::Group>& root)
 	dLight->color.set(1,1,1);
 	dLight->intensity= .6;
 	dLight->direction.set(0,.6,-.8);
-//	dLight->angleSubtended= .009;
+	dLight->angleSubtended= .009;
 //	dLight->shadowSettings= vsg::HardShadows::create(1);
 	root->addChild(dLight);
 	dirLight= dLight.get();
 	if (!timeTable) {
 		timeTable= new TimeTable();
 		timeTable->addRow(timeTable->addStation("start"));
-		timeTable->setIgnoreOther(true);
+//		timeTable->setIgnoreOther(true);
 	}
 	for (auto t: trainList)
 		listener.addTrain(t);
@@ -444,7 +444,7 @@ int main(int argc, char** argv)
         auto renderGraph= vsg::RenderGraph::create(window);
         commandGraph->addChild(renderGraph);
         auto view= vsg::View::create(camera);
-	view->viewDependentState->maxShadowDistance= 1e8;
+	view->viewDependentState->maxShadowDistance= 1e4;
 	view->viewDependentState->shadowMapBias= .005;
 	view->viewDependentState->lambda= .5;
         view->addChild(scene);

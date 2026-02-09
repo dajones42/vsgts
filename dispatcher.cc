@@ -575,9 +575,13 @@ bool Dispatcher::canReserve(int id, BlockList* bl, bool checkOtherTrains)
 		TrainInfoMap::iterator j= trainInfoMap.find(t);
 		if (j != trainInfoMap.end())
 			continue;
+		if (t->name.size() == 0)
+			continue;
 		if (bl->contains(t->location.edge->ssEdge->block) ||
-		  bl->contains(t->endLocation.edge->ssEdge->block))
+		  bl->contains(t->endLocation.edge->ssEdge->block)) {
+			fprintf(stderr,"blocks occupied by train %s\n",t->name.c_str());
 			return false;
+		}
 	}
 	return true;
 }

@@ -158,6 +158,7 @@ class SteamEngine : public LocoEngine, public CommandBlockHandler {
 	float maxHeat;
 	float satSteamHeatMaxBP;
 	float usageMult;
+	float aiMaxUsage;
 	float usage;
 	float evap;
 	float firingRate;

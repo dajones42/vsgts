@@ -345,6 +345,10 @@ float SteamEngine::getForce(float throttle, float reverser,
 {
 	if (heat2psig.size() == 0)
 		init();
+	SteamTable st;
+	getSteamTable(st,boilerPressure);
+	float cylPressure= throttle*boilerPressure - cylPressureDrop(usage);
+	float backPres= backPressure(usage);
 	float cutoff= reverser<0 ? -reverser : reverser;
 	if (cutoff > release.getMaxX())
 		cutoff= release.getMaxX();
@@ -353,24 +357,20 @@ float SteamEngine::getForce(float throttle, float reverser,
 	float s= car->speed;
 	if (s < 0)
 		s= -s;
-	if (s>(.5/.25) && (reverser==1. || reverser==-1.)) {
+	float maxUsage= usageMult*s*cylSteamDensity(cylPressure);
+	if (maxUsage>aiMaxUsage && (reverser>.99 || reverser<-.99)) {
 		// AI cutoff adjustment logic
-		// TODO: replace .5/.25 with something else
-		float max= (.5/.25)/s;
-		cutoff= throttle*max;
+		float maxCutoff= aiMaxUsage/maxUsage;
+		if (cutoff > maxCutoff)
+			cutoff= maxCutoff;
 		if (cutoff < release.getMinX()) {
 			throttle= cutoff/release.getMinX();
 			cutoff= release.getMinX();
-		} else {
-			throttle= 1;
 		}
-//		fprintf(stderr,"ai %f %f %f %f\n",
-//		  cutoff,throttle,max,boilerPressure);
+		if (boilerPressure < .99*maxBoilerPressure)
+			fprintf(stderr,"aicutoff %f %f %f %f %f %f\n",
+			  cutoff,throttle,maxCutoff,boilerPressure,usage,maxUsage);
 	}
-	SteamTable st;
-	getSteamTable(st,boilerPressure);
-	float cylPressure= throttle*boilerPressure - cylPressureDrop(usage);
-	float backPres= backPressure(usage);
 	usage*= .6; // usage is moving average
 	if (cylPressure < backPres)
 		cylPressure= backPres;
@@ -776,6 +776,7 @@ void SteamEngine::init()
 		float maxBOut= 775*grateArea;
 		float maxSpeed= 2.23693*maxBOut/
 		  (3600*usageMult*cylSteamDensity(maxBoilerPressure));
+		aiMaxUsage= .9*(maxBOut-auxSteamUsage)/3600;
 		fprintf(stderr,"maxSpeed %f %f\n",maxSpeed,maxBOut);
 		if (burnRate.size() == 0) {
 			for (int i=0; i<evapRate.size()-2; i++)

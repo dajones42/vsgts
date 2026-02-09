@@ -94,6 +94,14 @@ class PathStart : public AIEvent {
 	void handleAI(tt::EventSim<double>* sim);
 };
 
+class PathRelease : public AIEvent {
+ public:
+	PathRelease(double time, AITrain* train) :
+	  AIEvent(time,train) {
+	};
+	void handleAI(tt::EventSim<double>* sim);
+};
+
 class Departure : public AIEvent {
 	int row;
  public:
@@ -344,7 +352,15 @@ void PathStart::handleAI(tt::EventSim<double>* sim)
 		if (row >= 0)
 			train->recordOnSheet(row,time,true);
 		checkNextStop(train,nextRow);
+		if (timeTable->getNumRows() == 1)
+			sim->schedule(new PathRelease(time+60,train));
+
 	}
+}
+
+void PathRelease::handleAI(tt::EventSim<double>* sim)
+{
+	((TTOSim*)sim)->dispatcher.release(train->consist);
 }
 
 //	handles departure of a train from a station
@@ -776,6 +792,8 @@ bool TTOSim::takeControlOfAI(Consist* consist)
 		t->consist= NULL;
 		consist->nextStopDist= 0;
 		movingTrains.erase(t);
+		if (t->path)
+			dispatcher.release(t->consist);
 		return true;
 	}
 	return false;
@@ -790,10 +808,15 @@ bool TTOSim::convertToAI(Consist* consist)
 			continue;
 		if (t->path != NULL) {
 			t->consist= consist;
+			dispatcher.registerPath(t->consist,t->path);
+			t->moveAuth= dispatcher.requestAuth(t->consist);
 			consist->targetSpeed= t->targetSpeed;
 			t->osDist= 0;
 			consist->convertFromAirBrakes();
-			t->moveAuth= dispatcher.requestAuth(consist);
+			consist->nextStopDist= t->moveAuth.distance;
+			if (consist->nextStopDist == 0)
+				consist->nextStopDist= 1000;
+			movingTrains.insert(t);
 			return true;
 		}
 		int r= t->getCurrentRow();
