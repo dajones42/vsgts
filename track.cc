@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include "track.h"
 #include "spline.h"
 #include "signal.h"
+#include "camerac.h"
 
 using namespace std;
 
@@ -1630,16 +1631,15 @@ void Track::addSwitchStand(int swid, double offset, double zoffset,
 #endif
 }
 
-#if 0
 void printTrackLocations()
 {
 	typedef multimap<float,Track::LocationMap::iterator> SortMap;
 	SortMap sortMap;
+	auto center= myLookAt->center;
 	for (TrackMap::iterator i=trackMap.begin(); i!=trackMap.end(); ++i) {
 		Track* t= i->second;
 		Track::Location loc;
-		float d= t->findLocation(currentPerson.location[0],
-		  currentPerson.location[1],currentPerson.location[2],&loc);
+		float d= t->findLocation(center.x,center.y,center.z,&loc);
 		t->findSPT(loc,0.,0.);
 		for (Track::LocationMap::iterator j=t->locations.begin();
 		  j!=t->locations.end(); j++) {
@@ -1654,7 +1654,6 @@ void printTrackLocations()
 		  i->first*3.281/5280,i->second->second.rev);
 	}
 }
-#endif
 
 vsg::Switch* addTrackLabels()
 {

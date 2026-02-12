@@ -38,10 +38,13 @@ using namespace filesystem;
 #include "ttosim.h"
 #include "camerac.h"
 #include "interlocking.h"
+#include "track.h"
 
 void TSGui::record(vsg::CommandBuffer& cb) const
 {
 	TSGuiData& data= TSGuiData::instance();
+	if (data.showMenu)
+		showMainMenu();
 	if (data.showStatus)
 		showStatusWindow();
 	if (data.showSelect)
@@ -50,6 +53,41 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 		showMessageWindow();
 	if (interlocking)
 		showLeversWindow();
+}
+
+void TSGui::showMainMenu()
+{
+	TSGuiData& data= TSGuiData::instance();
+	if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("Print")) {
+			if (timeTable && ImGui::MenuItem("Time Sheet",""))
+				timeTable->printTimeSheet2(stderr);
+			if (timeTable && ImGui::MenuItem("Horizontal Time Sheet",""))
+				timeTable->printTimeSheetHorz2(stderr);
+			if (timeTable && ImGui::MenuItem("TimeTable",""))
+				timeTable->print(stderr);
+			if (timeTable && ImGui::MenuItem("Horizontal TimeTable",""))
+				timeTable->printHorz(stderr);
+			if (myTrain && ImGui::MenuItem("Train Forces","")) {
+				fprintf(stderr,"name speed force drag coupler mass\n");
+				for (auto car=myTrain->firstCar; car; car=car->next)
+					fprintf(stderr,"%s %f %f %f %f %f\n",
+					  car->def->name.c_str(),car->speed,
+					  car->force,car->drag,car->cU,car->mass);
+			}
+			if (ImGui::MenuItem("Track Locations",""))
+				printTrackLocations();
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("Dispatcher")) {
+			if (ttoSim.dispatcher.ignoreOtherTrains && ImGui::MenuItem("Check Other Trains",""))
+				ttoSim.dispatcher.ignoreOtherTrains= false;
+			if (!ttoSim.dispatcher.ignoreOtherTrains && ImGui::MenuItem("Ignore Other Trains",""))
+				ttoSim.dispatcher.ignoreOtherTrains= true;
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
 }
 
 void TSGui::showStatusWindow()

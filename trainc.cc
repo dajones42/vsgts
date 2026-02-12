@@ -49,6 +49,9 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 		myTrain= selectedTrain;
 		myRailCar= selectedRailCar;
 		keyPress.handled= true;
+	} else if (keyPress.keyBase == vsg::KEY_F1) {
+		TSGuiData::instance().showMenu= !TSGuiData::instance().showMenu;
+		keyPress.handled= true;
 	} else if (keyPress.keyBase == vsg::KEY_F5) {
 		TSGuiData::instance().showStatus= !TSGuiData::instance().showStatus;
 		keyPress.handled= true;

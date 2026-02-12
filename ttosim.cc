@@ -817,6 +817,7 @@ bool TTOSim::convertToAI(Consist* consist)
 			if (consist->nextStopDist == 0)
 				consist->nextStopDist= 1000;
 			movingTrains.insert(t);
+			dispatcher.release(t->consist);
 			return true;
 		}
 		int r= t->getCurrentRow();

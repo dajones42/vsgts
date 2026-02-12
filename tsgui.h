@@ -36,6 +36,7 @@ public:
 	static void showSelectWindow();
 	static void showMessageWindow();
 	static void showLeversWindow();
+	static void showMainMenu();
 };
 
 class TSGuiData {
@@ -47,6 +48,7 @@ public:
 	bool showMessage;
 	bool showStatus;
 	bool showSelect;
+	bool showMenu;
 	double fps;
 	std::vector<std::string> listItems;
 	std::string selected;
