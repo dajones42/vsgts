@@ -156,6 +156,13 @@ void TSGui::showStatusWindow()
 			if (train->message.size() > 0)
 				ImGui::Text(" %s",train->message.c_str());
 		}
+		for (auto i=ttoSim.needsBlock.begin(); i!=ttoSim.needsBlock.end(); i++) {
+			if (ImGui::Button(i->second.c_str()) &&
+			  timeTable->getBlockFor(i->first,simTime)) {
+				ttoSim.needsBlock.erase(i);
+				break;
+			}
+		}
 	}
 	ImGui::End();
 }

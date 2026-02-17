@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "morse.h"
 
 struct SoundControl;
+struct RailCarInst;
 
 struct Listener {
 	struct RailCarSound {
@@ -52,6 +53,8 @@ struct Listener {
 	std::multimap<Train*,RailCarSound> railcars;
 	std::map<std::string,ALuint> bufferMap;
 	ALuint morseSource;
+	ALuint bellSource;
+	ALuint pauseBuffer;
 	MorseConverter* morseConverter;
 	std::string morseMessage;
 	Listener() {
@@ -59,14 +62,16 @@ struct Listener {
 		context= NULL;
 		morseSource= 0;
 		morseConverter= NULL;
+		bellSource= 0;
+		pauseBuffer= 0;
 	};
 	~Listener();
 	void init();
 	void update(vsg::dvec3 position, float cosa, float sina);
 	void addTrain(Train* train);
 	void removeTrain(Train* train);
-	ALuint findBuffer(std::string& file);
-	ALuint makeBuffer(slSample* sample);
+	ALuint findBuffer(std::string& file, float maxDuration=0);
+	ALuint makeBuffer(slSample* sample, float maxDuration=0);
 	MorseConverter* getMorseConverter();
 	void playMorse(const char* s);
 	void cleanupMorse();
@@ -75,6 +80,8 @@ struct Listener {
 	void readSMS(Train* train, RailCarInst* car, std::string& file);
 	void setGain(float g);
 	void loadWav(const char* filename, slSample* sample);
+	void playBlockBell(std::string& file, int code, float volume);
+	void cleanupBells();
 };
 extern Listener listener;
 

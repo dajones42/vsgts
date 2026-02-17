@@ -194,8 +194,8 @@ void RMParser::parseFile(const char* path)
 				InterlockingParser iparser;
 				parseBlock((CommandBlockHandler*)&iparser);
 				interlocking= iparser.interlocking;
-//			} else if (strcasecmp(cmd,"useroscallsign") == 0) {
-//				userOSCallSign= tokens[1];
+			} else if (strcasecmp(cmd,"useroscallsign") == 0) {
+				userOSCallSign= tokens[1];
 			} else if (strcasecmp(cmd,"railcar") == 0) {
 				if (tokens.size() < 2)
 					throw std::invalid_argument(

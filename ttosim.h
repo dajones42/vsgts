@@ -90,9 +90,11 @@ struct TTOSim : public tt::EventSim<double> {
 	bool takeControlOfAI(Consist* train);
 	bool convertToAI(Consist* train);
 	bool osUserTrain(Consist* train, double time);
+	std::map<AITrain*,std::string> needsBlock;
 };
 extern TTOSim ttoSim;
 extern double simTime;
 extern int timeMult;
+extern std::string userOSCallSign;
 
 #endif

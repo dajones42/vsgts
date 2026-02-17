@@ -101,6 +101,10 @@ Listener::~Listener()
 		cleanupMorse();
 		alDeleteSources(1,&morseSource);
 	}
+	if (bellSource) {
+		alSourceStop(bellSource);
+		alDeleteSources(1,&bellSource);
+	}
 	alcMakeContextCurrent(NULL);
 	if (context)
 		alcDestroyContext(context);
@@ -120,7 +124,7 @@ void Listener::init()
 	alListenerf(AL_GAIN,1);
 }
 
-ALuint Listener::findBuffer(string& file)
+ALuint Listener::findBuffer(string& file, float maxDuration)
 {
 	map<string,ALuint>::iterator i=bufferMap.find(file);
 	if (i != bufferMap.end())
@@ -129,7 +133,7 @@ ALuint Listener::findBuffer(string& file)
 	loadWav(file.c_str(),&sample);
 	if (sample.getLength() == 0)
 		return 0;
-	ALuint buf= makeBuffer(&sample);
+	ALuint buf= makeBuffer(&sample,maxDuration);
 	bufferMap[file]= buf;
 	return buf;
 }
@@ -186,7 +190,7 @@ void Listener::loadWav(const char* filename, slSample* sample)
 	fclose(in);
 }
 	
-ALuint Listener::makeBuffer(slSample* sample)
+ALuint Listener::makeBuffer(slSample* sample, float maxDuration)
 {
 	if (sample->getBps() == 16) {
 		int n= sample->getLength()/2;
@@ -208,11 +212,13 @@ ALuint Listener::makeBuffer(slSample* sample)
 		else
 			format= AL_FORMAT_MONO16;
 	}
-	alBufferData(buf,format,sample->getBuffer(),sample->getLength(),
-	  sample->getRate());
-//	fprintf(stderr,"alBufferData(%d,%d,%p,%d,%d) %d %d\n",
+	ALuint len= sample->getLength();
+	if (maxDuration>0 && maxDuration<sample->getDuration())
+		len= (int)(maxDuration*(sample->getStereo()?2:1)*sample->getBps()/8*sample->getRate());
+	alBufferData(buf,format,sample->getBuffer(),len,sample->getRate());
+//	fprintf(stderr,"alBufferData(%d,%d,%p,%d,%d) %d %d %d %f\n",
 //	  buf,format,sample->getBuffer(),sample->getLength(),
-//	  sample->getRate(),sample->getStereo(),sample->getBps());
+//	  sample->getRate(),len,sample->getStereo(),sample->getBps(),sample->getDuration());
 	return buf;
 }
 
@@ -606,4 +612,49 @@ void Listener::readSMS(Train* train, RailCarInst* car, string& file)
 void Listener::setGain(float g)
 {
 	alListenerf(AL_GAIN,g);
+}
+
+void Listener::playBlockBell(std::string& file, int code, float volume)
+{
+//	fprintf(stderr,"playblockbell %s %d\n",file.c_str(),code);
+	cleanupBells();
+	if (!bellSource)
+		alGenSources(1,&bellSource);
+	if (code>9 && !pauseBuffer) {
+		// need to convert format for this to work
+		MorseConverter converter;
+		slSample* sample= converter.makeSound("     ");
+		if (sample)
+			pauseBuffer= makeBuffer(sample);
+	}
+	alSourcei(bellSource,AL_SOURCE_RELATIVE,AL_TRUE);
+	alSource3f(bellSource,AL_POSITION,1,0,0);
+	alSourcef(bellSource,AL_REFERENCE_DISTANCE,10);
+	alSourcef(bellSource,AL_GAIN,volume);
+	ALuint buf= findBuffer(file,.25);
+	for (int i=code; i>0; i/=10) {
+		int n= i%10;
+		for (int j=0; j<n; j++)
+			alSourceQueueBuffers(bellSource,1,&buf);
+		if (i!=n && pauseBuffer)
+			alSourceQueueBuffers(bellSource,1,&pauseBuffer);
+	}
+	alSourcePlay(bellSource);
+}
+
+void Listener::cleanupBells()
+{
+	if (bellSource == 0)
+		return;
+	ALint state;
+	alGetSourcei(bellSource,AL_SOURCE_STATE,&state);
+	if (state != AL_STOPPED)
+		return;
+	ALint n;
+	alGetSourcei(bellSource,AL_BUFFERS_QUEUED,&n);
+	if (n == 0)
+		return;
+	ALuint* buffers= (ALuint*) malloc(n*sizeof(ALuint));
+	alSourceUnqueueBuffers(bellSource,n,buffers);
+	free(buffers);
 }

@@ -49,6 +49,7 @@ THE SOFTWARE.
 double simTime;
 int timeMult= 1;
 TTOSim ttoSim;
+std::string userOSCallSign;
 
 using namespace std;
 
@@ -166,16 +167,15 @@ double calcETA(double time, AITrain* train, int row, int nextRow)
 	return eta;
 }
 
-void promptForBlock(AITrain* train)
+void promptForBlock(AITrain* train, bool grant)
 {
-#if 0
-	extern bool commandMode;
-	extern std::string command;
-	if (!commandMode) {
-		command= string("block for|")+train->getName();
-		commandMode= true;
-	}
-#endif
+	string label= grant ? "Grant" : "Request";
+	label+= " block ";
+	if (auto b=train->nextBlock)
+		label+= b->station1->getCallSign()+"-"+b->station2->getCallSign()+" ";
+	label+= "for ";
+	label+= train->getName();
+	ttoSim.needsBlock[train]= label;
 }
 
 //	creates a new train at the start of its run
@@ -215,8 +215,11 @@ void CreateTrain::handleAI(tt::EventSim<double>* sim)
 	train->consist->stop();
 	train->setArrival(row,time);
 	train->takeSiding= 0;
-	if (train->getRow(row)->getPromptForBlock())
-		promptForBlock(train);
+	if (train->getRow(row)->getPromptForBlock()) {
+		train->nextBlock= nullptr;
+		promptForBlock(train,true);
+		timeTable->playBlockBell(row,tt::RequestBlock);
+	}
 	if (train->path != NULL)
 		sim->schedule(new PathStart(t,train,row,false));
 	else
@@ -411,7 +414,7 @@ void Departure::handleAI(tt::EventSim<double>* sim)
 		return;
 	}
 	if (!train->hasBlock(train->getRow(),nextRow)) {
-		promptForBlock(train);
+		promptForBlock(train,true);
 		train->message= "waiting for block";
 		fprintf(stderr,"waiting for block\n");
 		sim->schedule(new Departure(time+60,train,row));
@@ -1350,6 +1353,18 @@ void AITrain::recordOnSheet(int row, int time, bool autoOS)
 		return;
 #endif
 	setDeparture(row,time);
+	int row1= getNextRow(0);
+	int row2= getNextRow(0,row1);
+	nextBlock= timeTable->findBlock(row1,row2);
+	if (nextBlock) {
+		if (timeTable->getRow(row1)->getBlockBell().size()>0 &&
+		  timeTable->getRow(row)->getCallSign()!=userOSCallSign) {
+			promptForBlock(this,true);
+			timeTable->playBlockBell(row1,tt::RequestBlock);
+		} else {
+			promptForBlock(this,false);
+		}
+	}
 	string msg= string("OS OS ")+getName();
 	int a= getActualAr(row)/60;
 	int d= time/60;

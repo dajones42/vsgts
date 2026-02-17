@@ -35,6 +35,8 @@ extern MSTSRoute* mstsRoute;
 using namespace std;
 using namespace tt;
 
+#include "listener.h"
+
 TimeTable* timeTable= NULL;
 
 TimeTable::~TimeTable()
@@ -199,6 +201,7 @@ void Train::setArrival(int row, int time)
 				b->trainTimes[j].timeCleared= time;
 				fprintf(stderr,"block %d cleared %d %d\n",
 				  i,j,time);
+				timeTable->playBlockBell(row,ClearedBlock);
 				return;
 			}
 		}
@@ -221,6 +224,7 @@ void Train::setDeparture(int row, int time)
 				b->trainTimes[j].timeEntered= time;
 				fprintf(stderr,"block %d entered %d %d\n",
 				  i,j,time);
+				timeTable->playBlockBell(row,EnteredBlock);
 				return;
 			}
 		}
@@ -833,6 +837,8 @@ void Station::parse(CommandReader& reader)
 				addSiding(reader.getDouble(1,0,1e10));
 			} else if (reader.getString(0) == "promptforblock") {
 				promptForBlock= true;
+			} else if (reader.getString(0) == "blockbell") {
+				blockBell= reader.getString(1);
 			} else {
 				reader.printError("unknown command");
 			}
@@ -1004,10 +1010,8 @@ Block* TimeTable::findBlock(int row1, int row2)
 {
 	for (int i=0; i<blocks.size(); i++) {
 		Block* b= blocks[i];
-		if ((row2>row1 && b->station1==rows[row1] &&
-		  b->station2==rows[row2]) ||
-		  (row2<row1 && b->station1==rows[row2] &&
-		  b->station2==rows[row1]))
+		if ((b->station1==rows[row1] && b->station2==rows[row2]) ||
+		  (b->station1==rows[row2] && b->station2==rows[row1]))
 			return b;
 	}
 	return NULL;
@@ -1015,14 +1019,12 @@ Block* TimeTable::findBlock(int row1, int row2)
 
 Block* TimeTable::getBlockFor(Train* train, int time)
 {
-	int row1= train->getCurrentRow();
-	int row2= train->getNextRow(0);
-	if (row2 < 0)
-		return NULL;
-	Block* b= findBlock(row1,row2);
-	for (int i=0; b==NULL && i<5; i++) {
-		row1= row2;
-		row2= train->getNextRow(0,row1);
+	Block* b= train->nextBlock;
+	if (!b) {
+		int row1= train->getCurrentRow();
+		int row2= train->getNextRow(0);
+		if (row2 < 0)
+			return NULL;
 		b= findBlock(row1,row2);
 	}
 	if (b == NULL)
@@ -1036,16 +1038,24 @@ Block* TimeTable::getBlockFor(Train* train, int time)
 	}
 	if (n < b->nTracks) {
 		b->trainTimes.push_back(BlockTimes(train,time));
+		train->nextBlock= nullptr;
 		return b;
 	}
 	return NULL;
+}
+
+void TimeTable::playBlockBell(int row, BellCode code)
+{
+	auto bell= getRow(row)->getBlockBell();
+	if (bell.size() > 0)
+		listener.playBlockBell(bell,bellCodes[code],.7);
 }
 
 void TimeTable::printBlocks(FILE* out)
 {
 	for (int i=0; i<blocks.size(); i++) {
 		Block* b= blocks[i];
-		fprintf(out,"Block %s %s\n",b->station1->name.c_str(),
+		fprintf(out,"Block %d %s %s\n",i,b->station1->name.c_str(),
 		  b->station2->name.c_str());
 		for (int j=0; j<b->trainTimes.size(); j++) {
 			fprintf(out,"%s %2.2d:%2.2d",

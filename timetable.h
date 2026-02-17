@@ -41,12 +41,16 @@ namespace tt {
 
 class TimeTable;
 class Train;
+class Block;
+
+enum BellCode { RequestBlock, EnteredBlock, ClearedBlock };
 
 class Station {
 	friend class TimeTable;
 	friend class Train;
 	std::string name;
 	std::string callSign;
+	std::string blockBell;
 	std::vector<std::string> altNames;
 	std::vector<float> sidings;
 	int nTracks;
@@ -63,6 +67,7 @@ class Station {
 	void setNumTracks(int n) { nTracks= n; };
 	int getNumTracks() { return nTracks; }
 	bool getPromptForBlock() { return promptForBlock; }
+	std::string& getBlockBell() { return blockBell; }
 	void parse(CommandReader& reader);
 	std::string& getName() { return name; };
 	int getNumAltNames() { return altNames.size(); };
@@ -114,6 +119,7 @@ class Train {
 	bool startVisible;
 	bool endVisible;
 	std::string route;
+	Block* nextBlock;
 	Train(std::string s) {
 		name= s;
 		prevTrain= nextTrain= NULL;
@@ -123,6 +129,7 @@ class Train {
 		active= false;
 		startVisible= false;
 		endVisible= false;
+		nextBlock= nullptr;
 	};
 	MeetMap meets;
 	void setSchedTime(Station* s, int ar, int lv, int wait);
@@ -193,6 +200,7 @@ class TimeTable {
 	bool ignoreOtherTrains;
 	int rule91Delay;
 	std::vector<Block*> blocks;
+	int bellCodes[3] { 3, 4, 2 };
  public:
 	TimeTable() {
 		downSuperior= true;
@@ -235,6 +243,7 @@ class TimeTable {
 	bool addMeet(Train* t1, Train* t2, Station* s);
 	Block* getBlockFor(Train* train, int time);
 	Block* findBlock(int row1, int row2);
+	void playBlockBell(int row, BellCode code);
 };
 
 }
