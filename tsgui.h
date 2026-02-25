@@ -36,6 +36,7 @@ public:
 	static void showSelectWindow();
 	static void showMessageWindow();
 	static void showLeversWindow();
+	static void showBlockSheet();
 	static void showMainMenu();
 };
 
@@ -48,6 +49,7 @@ public:
 	bool showMessage;
 	bool showStatus;
 	bool showSelect;
+	bool showBlocks;
 	bool showMenu;
 	double fps;
 	std::vector<std::string> listItems;
@@ -64,6 +66,7 @@ private:
 		showMessage= false;
 		showStatus= false;
 		showSelect= false;
+		showBlocks= false;
 		fps= 0;
 	}
 };

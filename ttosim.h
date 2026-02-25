@@ -65,6 +65,7 @@ struct AITrain : public tt::Train {
 	void findSignals(Track::Vertex* v);
 	bool testArrival(int row);
 	void recordOnSheet(int row, int time, bool autoOS);
+	void addToBlockMenu(int row);
 };
 
 struct Station : public tt::Station {
@@ -90,7 +91,9 @@ struct TTOSim : public tt::EventSim<double> {
 	bool takeControlOfAI(Consist* train);
 	bool convertToAI(Consist* train);
 	bool osUserTrain(Consist* train, double time);
-	std::map<AITrain*,std::string> needsBlock;
+	std::vector<std::pair<std::string,AITrain*>> blockMenu;
+	void addToBlockMenu(std::string label, AITrain* train);
+	double waitTime= 0;
 };
 extern TTOSim ttoSim;
 extern double simTime;

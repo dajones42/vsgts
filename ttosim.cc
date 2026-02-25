@@ -175,7 +175,9 @@ void promptForBlock(AITrain* train, bool grant)
 		label+= b->station1->getCallSign()+"-"+b->station2->getCallSign()+" ";
 	label+= "for ";
 	label+= train->getName();
-	ttoSim.needsBlock[train]= label;
+	ttoSim.addToBlockMenu(label,train);
+	if (grant)
+		train->message= "block requested";
 }
 
 //	creates a new train at the start of its run
@@ -219,6 +221,7 @@ void CreateTrain::handleAI(tt::EventSim<double>* sim)
 		train->nextBlock= nullptr;
 		promptForBlock(train,true);
 		timeTable->playBlockBell(row,tt::RequestBlock);
+		ttoSim.waitTime= simTime+10;
 	}
 	if (train->path != NULL)
 		sim->schedule(new PathStart(t,train,row,false));
@@ -418,6 +421,7 @@ void Departure::handleAI(tt::EventSim<double>* sim)
 		train->message= "waiting for block";
 		fprintf(stderr,"waiting for block\n");
 		sim->schedule(new Departure(time+60,train,row));
+		ttoSim.waitTime= time+61;
 		return;
 	}
 	float d= train->findNextStop(nextRow,1);
@@ -434,10 +438,14 @@ void Departure::handleAI(tt::EventSim<double>* sim)
 		return;
 	}
 	fprintf(stderr,"nextstopdist %f\n",train->consist->nextStopDist);
+	if (timeTable->getRow(row)->getCallSign() == userOSCallSign)
+		train->addToBlockMenu(row);
 	train->recordOnSheet(row,time,true);
 	train->consist->nextStopTime= train->getSchedAr(nextRow)-time;
 	if (train->getWait(nextRow) == 0)
 		train->approachTest= 1;
+	else if (timeTable->getRow(nextRow)->getCallSign() == userOSCallSign)
+		train->addToBlockMenu(nextRow);
 	if (train->consist->nextStopDist != 0) {
 		((TTOSim*)sim)->movingTrains.insert(train);
 		train->consist->moving= 5;
@@ -913,8 +921,8 @@ void TTOSim::processEvents(double time)
 //			  userOSCallSign) {
 				t->setArrival(row,time);
 				t->recordOnSheet(row,time,true);
-				fprintf(stderr,"os %s at %f\n",
-				  t->getName().c_str(),time);
+				fprintf(stderr,"os %s at %d %f\n",
+				  t->getName().c_str(),row,time);
 //			}
 		}
 	}
@@ -1242,6 +1250,35 @@ void AITrain::findSignals(Track::Vertex* farv)
 	}
 }
 
+void TTOSim::addToBlockMenu(std::string label, AITrain* train)
+{
+	for (int i=0; i<blockMenu.size(); i++)
+		if (blockMenu[i].first == label)
+			return;
+	blockMenu.push_back(make_pair(label,train));
+}
+
+void AITrain::addToBlockMenu(int row)
+{
+	auto blocks= timeTable->getActiveBlocks(this);
+	for (int i=0; i<blocks.size(); i++) {
+		auto b= blocks[i];
+		auto j= b->trainTimes.size()-1;
+		if (j < 0)
+			continue;
+		string label= "Record time ";
+		label+= getName();
+		if (b->trainTimes[j].timeEntered==-1)
+			label+= " entered block ";
+		else if (b->trainTimes[j].timeCleared==-1)
+			label+= " cleared block ";
+		else
+			continue;
+		label+= b->station1->getCallSign()+"-"+b->station2->getCallSign();
+		ttoSim.addToBlockMenu(label,this);
+	}
+}
+
 //	test performed when a train approaches a station to see if
 //	train needs to stop or if it can continue
 void AITrain::approach(double time)
@@ -1257,6 +1294,8 @@ void AITrain::approach(double time)
 	approachTest= 0;
 	int row1= getNextRow(0);
 	int row2= getNextRow(1,row1);
+	if (timeTable->getRow(row1)->getCallSign() == userOSCallSign)
+		addToBlockMenu(row1);
 	if (time < getSchedLv(row1))
 		time= getSchedLv(row1);
 	float etaRow1= 1000/consist->targetSpeed;
@@ -1324,7 +1363,7 @@ void AITrain::approach(double time)
 		osDist= 0;
 		int n= 0;
 		for (int i=0; i<s->locations.size(); i++) {
-			fprintf(stderr," %d %f\n",i,s->locations[i].getDist());
+//			fprintf(stderr," %d %f\n",i,s->locations[i].getDist());
 			float d= s->locations[i].getDist();
 			if (d < 0)
 				d= -d;

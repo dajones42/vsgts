@@ -186,21 +186,29 @@ void Train::init(int startTime)
 
 void Train::setArrival(int row, int time)
 {
+	setBlockCleared(row,time,this->row);
 	this->row= row;
 	times[row].actualAr= time;
 	active= true;
+}
+
+void Train::setBlockCleared(int row, int time, int prevRow)
+{
 	for (int i=0; i<timeTable->blocks.size(); i++) {
 		Block* b= timeTable->blocks[i];
 		if (timeTable->rows[row]!=b->station1 &&
 		   timeTable->rows[row]!=b->station2)
+			continue;
+		if (prevRow>=0 && timeTable->rows[prevRow]!=b->station1 &&
+		   timeTable->rows[prevRow]!=b->station2)
 			continue;
 		for (int j=0; j<b->trainTimes.size(); j++) {
 			if (b->trainTimes[j].train==this &&
 			  b->trainTimes[j].timeEntered>=0 &&
 			  b->trainTimes[j].timeCleared<0) {
 				b->trainTimes[j].timeCleared= time;
-				fprintf(stderr,"block %d cleared %d %d\n",
-				  i,j,time);
+//				fprintf(stderr,"block %d cleared %d %d\n",
+//				  i,j,time);
 				timeTable->playBlockBell(row,ClearedBlock);
 				return;
 			}
@@ -212,6 +220,11 @@ void Train::setDeparture(int row, int time)
 {
 	this->row= row;
 	times[row].actualLv= time;
+	setBlockEntered(row,time);
+}
+
+void Train::setBlockEntered(int row, int time)
+{
 	for (int i=0; i<timeTable->blocks.size(); i++) {
 		Block* b= timeTable->blocks[i];
 		if (timeTable->rows[row]!=b->station1 &&
@@ -222,8 +235,8 @@ void Train::setDeparture(int row, int time)
 			  b->trainTimes[j].timeEntered<0 &&
 			  b->trainTimes[j].timeCleared<0) {
 				b->trainTimes[j].timeEntered= time;
-				fprintf(stderr,"block %d entered %d %d\n",
-				  i,j,time);
+//				fprintf(stderr,"block %d entered %d %d\n",
+//				  i,j,time);
 				timeTable->playBlockBell(row,EnteredBlock);
 				return;
 			}
@@ -1042,6 +1055,19 @@ Block* TimeTable::getBlockFor(Train* train, int time)
 		return b;
 	}
 	return NULL;
+}
+
+std::vector<Block*> TimeTable::getActiveBlocks(Train* train)
+{
+	std::vector<Block*> result;
+	for (int i=0; i<blocks.size(); i++) {
+		Block* b= blocks[i];
+		int j= b->trainTimes.size()-1;
+		if (j>=0 && b->trainTimes[j].train==train &&
+		  b->trainTimes[j].timeCleared==-1)
+			result.push_back(b);
+	}
+	return result;
 }
 
 void TimeTable::playBlockBell(int row, BellCode code)

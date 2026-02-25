@@ -137,6 +137,8 @@ class Train {
 	void init(int startTime);
 	void setArrival(int row, int time);
 	void setDeparture(int row, int time);
+	void setBlockCleared(int row, int time, int prevRow=-1);
+	void setBlockEntered(int row, int time);
 	void parse(CommandReader& reader);
 	void addWait(int row, int w) { times[row].wait+= w; };
 	int getSchedAr(int row) { return times[row].schedAr; };
@@ -244,6 +246,9 @@ class TimeTable {
 	Block* getBlockFor(Train* train, int time);
 	Block* findBlock(int row1, int row2);
 	void playBlockBell(int row, BellCode code);
+	std::vector<Block*> getActiveBlocks(Train* train);
+	int getNumBlocks() { return blocks.size(); }
+	Block* getBlock(int idx) { return blocks[idx]; }
 };
 
 }

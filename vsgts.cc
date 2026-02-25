@@ -299,7 +299,7 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 							nMoving++;
 					}
 				}
-				if (nMoving > 0)
+				if (nMoving>0 || simTime<ttoSim.waitTime)
 					dt*= timeMult;
 				else if (nNear > 0)
 					dt*= 8;

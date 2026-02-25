@@ -53,12 +53,21 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 		showMessageWindow();
 	if (interlocking)
 		showLeversWindow();
+	if (data.showBlocks)
+		showBlockSheet();
 }
 
 void TSGui::showMainMenu()
 {
 	TSGuiData& data= TSGuiData::instance();
 	if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("Display")) {
+			if (timeTable && ImGui::MenuItem("Train Status",""))
+				data.showStatus= true;
+			if (timeTable && ImGui::MenuItem("Block Sheet",""))
+				data.showBlocks= true;
+			ImGui::EndMenu();
+		}
 		if (ImGui::BeginMenu("Print")) {
 			if (timeTable && ImGui::MenuItem("Time Sheet",""))
 				timeTable->printTimeSheet2(stderr);
@@ -84,6 +93,30 @@ void TSGui::showMainMenu()
 				ttoSim.dispatcher.ignoreOtherTrains= false;
 			if (!ttoSim.dispatcher.ignoreOtherTrains && ImGui::MenuItem("Ignore Other Trains",""))
 				ttoSim.dispatcher.ignoreOtherTrains= true;
+			ImGui::EndMenu();
+		}
+		if (timeTable && ImGui::BeginMenu("Block")) {
+			for (auto i=ttoSim.blockMenu.begin(); i!=ttoSim.blockMenu.end(); i++) {
+				if (ImGui::MenuItem(i->first.c_str(),"")) {
+					if (i->first.find("cleared") != std::string::npos) {
+						auto r= i->second->getNextRow(0);
+						if (timeTable->getRow(r)->getCallSign() == userOSCallSign)
+							i->second->setBlockCleared(r,simTime);
+						ttoSim.blockMenu.erase(i);
+					} else if (i->first.find("entered") != std::string::npos) {
+						auto r= i->second->getNextRow(0);
+						if (timeTable->getRow(r)->getCallSign() != userOSCallSign)
+							r= i->second->getRow();
+						if (timeTable->getRow(r)->getCallSign() == userOSCallSign)
+							i->second->setBlockEntered(r,simTime);
+						ttoSim.blockMenu.erase(i);
+					} else if (timeTable->getBlockFor(i->second,simTime)) {
+						i->second->message= "";
+						ttoSim.blockMenu.erase(i);
+					}
+					break;
+				}
+			}
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -156,6 +189,7 @@ void TSGui::showStatusWindow()
 			if (train->message.size() > 0)
 				ImGui::Text(" %s",train->message.c_str());
 		}
+#if 0
 		for (auto i=ttoSim.needsBlock.begin(); i!=ttoSim.needsBlock.end(); i++) {
 			if (ImGui::Button(i->second.c_str()) &&
 			  timeTable->getBlockFor(i->first,simTime)) {
@@ -163,6 +197,7 @@ void TSGui::showStatusWindow()
 				break;
 			}
 		}
+#endif
 	}
 	ImGui::End();
 }
@@ -315,4 +350,39 @@ void TSGuiData::displayMessage(std::string message)
 		listItems.clear();
 	listItems.push_back(message);
 	showMessage= true;
+}
+
+void TSGui::showBlockSheet()
+{
+	TSGuiData& data= TSGuiData::instance();
+	ImGui::Begin("Block Sheet",&data.showBlocks);
+	int t= (int)simTime;
+	ImGui::Text("Time: %d:%2.2d:%2.2d",t/3600,t/60%60,t%60);
+	for (int i=0; i<timeTable->getNumBlocks(); i++) {
+		tt::Block* b= timeTable->getBlock(i);
+		ImGui::Text("%s-%s",b->station1->getCallSign().c_str(),
+		  b->station2->getCallSign().c_str());
+		int j= b->trainTimes.size()-1;
+		if (j >= 0) {
+			auto tt= &b->trainTimes[j];
+			ImGui::SameLine();
+			ImGui::Text("%s %2.2d:%2.2d",
+			  b->trainTimes[j].train->getName().c_str(),
+			  b->trainTimes[j].timeGiven/3600,
+			  b->trainTimes[j].timeGiven/60%60);
+			if (b->trainTimes[j].timeEntered >= 0) {
+				ImGui::SameLine();
+				ImGui::Text("%2.2d:%2.2d",
+				  b->trainTimes[j].timeEntered/3600,
+				  b->trainTimes[j].timeEntered/60%60);
+			}
+			if (b->trainTimes[j].timeCleared >= 0) {
+				ImGui::SameLine();
+				ImGui::Text("%2.2d:%2.2d",
+				  b->trainTimes[j].timeCleared/3600,
+				  b->trainTimes[j].timeCleared/60%60);
+			}
+		}
+	}
+	ImGui::End();
 }
