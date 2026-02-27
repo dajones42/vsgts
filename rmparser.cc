@@ -460,6 +460,8 @@ void RMParser::parseRailCarDef(RailCarDef* def)
 				def->copy(i->second);
 			} else if (strcasecmp(cmd,"mstsshape") == 0) {
 				MSTSShape shape;
+				if (mstsRoute)
+					shape.vsgOptions= mstsRoute->vsgOptions;
 				shape.readFile(makePath().c_str());
 				if (tokens.size() > 2)
 					shape.printSubobjects();
@@ -729,6 +731,8 @@ void RMParser::parseModel3D()
 				//printTree(model,5);
 			} else if (strcasecmp(cmd,"mstsshape") == 0) {
 				MSTSShape shape;
+				if (mstsRoute)
+					shape.vsgOptions= mstsRoute->vsgOptions;
 				shape.readFile(makePath().c_str());
 				model= shape.createModel(1,20);
 			} else {

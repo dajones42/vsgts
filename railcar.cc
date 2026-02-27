@@ -481,7 +481,7 @@ void RailCarInst::move(float distance)
 			s->update(state);
 		}
 	}
-	for (int i=0; i<wheels.size()-1; i++) {
+	for (int i=0; i<wheels.size(); i++) {
 		if (partSamplers[i])
 			partSamplers[i]->update(1-std::fmod(wheels[i].state,1));
 	}
