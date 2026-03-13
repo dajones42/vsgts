@@ -1386,7 +1386,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 //	  treeTexture->getChild(0)->value->c_str(),
 //	  scale,range,areaW,areaH,w,h,pop);
 	string path= rTexturesDir+dirSep+treeTexture->getChild(0)->value->c_str();
-	vsg::ref_ptr<vsg::Data> image= readMSTSACE(path.c_str());
+	vsg::ref_ptr<vsg::Data> image= readCacheACEFile(path.c_str());
 	if (!image)
 		{};
 	if (pop > 65536/8)

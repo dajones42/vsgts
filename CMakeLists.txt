@@ -63,6 +63,7 @@ set(SOURCES
 	parser.cc
 	rmparser.cc
 	interlocking.cc
+	smoke.cc
 )
 
 add_executable(tsviewer tsviewer.cc ${SOURCES})

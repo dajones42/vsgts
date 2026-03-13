@@ -32,6 +32,7 @@ THE SOFTWARE.
 #include "airbrake.h"
 #include "locoeng.h"
 #include "animation.h"
+#include "smoke.h"
 
 struct HeadLight {
 	float x;
@@ -236,6 +237,8 @@ struct RailCarInst {
 		return couplerState[front?0:1];
 	};
 	void addSmoke();
+	std::vector<vsg::ref_ptr<SmokeModel>> smoke;
+	void updateSmoke(float dt);
 	int getAnimState(int index) {
 		if (index<0)
 			return 1;

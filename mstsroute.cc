@@ -23,6 +23,7 @@ THE SOFTWARE.
 */
 #include <plib/ul.h>
 #include <vsg/all.h>
+#include <vsgXchange/all.h>
 
 #include "mstsroute.h"
 #include "mstsfile.h"
@@ -2071,6 +2072,7 @@ vsg::ref_ptr<vsg::Object> MstsRouteReader::read(
 	if (!route)
 		return {};
 	route->vsgOptions= vsg::Options::create();
+	route->vsgOptions->add(vsgXchange::all::create());
 	route->readTiles();
 	route->makeTrack();
 	auto group= vsg::Group::create();

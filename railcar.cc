@@ -33,6 +33,9 @@ using namespace std;
 #include "train.h"
 #include "animation.h"
 #include "railcar.h"
+#include "mstsroute.h"
+#include "mstsace.h"
+#include "smoke.h"
 
 RailCarDefMap railCarDefMap;
 
@@ -294,7 +297,7 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 	  def->brakeValve!=""?def->brakeValve:brakeValve);
 	distance= 0;
 	waybill= NULL;
-//	addSmoke();
+	addSmoke();
 }
 
 RailCarInst::~RailCarInst()
@@ -644,78 +647,31 @@ void RailCarInst::addWaybill(string& dest, float r, float g, float b, int p)
 	model->addChild(waybill->label);
 }
 
-#if 0
+vsg::ref_ptr<vsg::ShaderSet> smokeShaderSet(vsg::ref_ptr<vsg::Options> options);
+
 void RailCarInst::addSmoke()
 {
-	for (vector<RailCarSmoke>::iterator i=def->smoke.begin();
-	  i!=def->smoke.end(); ++i) {
+	if (!mstsRoute)
+		return;
+	for (vector<RailCarSmoke>::iterator i=def->smoke.begin(); i!=def->smoke.end(); ++i) {
 		fprintf(stderr,"addSmoke %f %f %f\n",
 		  i->position[0],i->position[1],i->position[2]);
-		osgParticle::Particle pt;
-		pt.setShape(osgParticle::Particle::QUAD);
-		pt.setLifeTime(3);
-		pt.setSizeRange(osgParticle::rangef(i->size,2*i->size));
-		pt.setAlphaRange(osgParticle::rangef(.8,0));
-		pt.setColorRange(osgParticle::rangev4(
-		  osg::Vec4(.5,.5,.5,1),osg::Vec4(.4,.4,.4,.2)));
-		pt.setRadius(.05);
-		pt.setMass(.05);
-		osgParticle::ParticleSystem* ps=
-		  new osgParticle::ParticleSystem;
-//		ps->setDefaultAttributes("",false,false);
-		ps->setDefaultAttributes("Images/smoke.rgb",false,false);
-		ps->setDefaultParticleTemplate(pt);
-		osgParticle::ModularEmitter* emitter=
-		  new osgParticle::ModularEmitter;
-		emitter->setParticleSystem(ps);
-		osgParticle::RandomRateCounter* counter=
-		  new osgParticle::RandomRateCounter;
-		counter->setRateRange(20,30);
-		emitter->setCounter(counter);
-		i->counter= counter;
-//		osgParticle::SectorPlacer* placer=
-//		  new osgParticle::SectorPlacer;
-//		placer->setCenter(i->position[0],i->position[1],i->position[2]);
-//		placer->setRadiusRange(.5,1);
-//		placer->setPhiRange(0,2*osg::PI);
-//		emitter->setPlacer(placer);
-		osgParticle::RadialShooter* shooter=
-		  new osgParticle::RadialShooter;
-		shooter->setInitialSpeedRange(1,2);
-		shooter->setThetaRange(-osg::PI/8,osg::PI/8);
-		shooter->setPhiRange(0,2*osg::PI);
-		emitter->setShooter(shooter);
-		i->shooter= shooter;
-#if 0
-		osgParticle::ModularProgram* program=
-		 new osgParticle::ModularProgram;
-		program->setParticleSystem(ps);
-		osgParticle::AccelOperator* op1=
-		 new osgParticle::AccelOperator;
-		op1->setToGravity();
-		program->addOperator(op1);
-		osgParticle::FluidFrictionOperator* op2=
-		 new osgParticle::FluidFrictionOperator;
-		op2->setFluidToAir();
-		program->addOperator(op2);
-		model->addChild(program);
-#endif
-		osg::MatrixTransform* mt= new osg::MatrixTransform;
-		mt->setMatrix(osg::Matrix::translate(
-		  i->position[0],-i->position[1],i->position[2]));
-		mt->addChild(emitter);
+		auto smokeModel= SmokeModel::create(50,i->size);
+		auto mt= vsg::MatrixTransform::create();
+		mt->matrix= vsg::translate(i->position);
+		mt->addChild(smokeModel);
 		model->addChild(mt);
-		osg::Geode* g= new osg::Geode;
-		g->addDrawable(ps);
-//		model->addChild(g);
-		modelSw->addChild(g);
-		osgParticle::ParticleSystemUpdater* updater=
-		 new osgParticle::ParticleSystemUpdater;
-		updater->addParticleSystem(ps);
-		model->addChild(updater);
+		smoke.push_back(smokeModel);
 	}
 }
-#endif
+
+void RailCarInst::updateSmoke(float dt)
+{
+	if (!engine || dt==0)
+		return;
+	for (int i=0; i<smoke.size(); i++)
+		smoke[i]->update(dt,dt*speed,0,engine->getSmokeSpeed());
+}
 
 #if 0
 void HeadLightVisitor::apply(osg::Node& node)

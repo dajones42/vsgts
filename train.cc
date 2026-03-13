@@ -510,6 +510,8 @@ void Train::move(float dt)
 	}
 	for (RailCarInst* car=firstCar; car!=NULL; car=car->next)
 		car->move(dt*car->speed+err);
+	for (RailCarInst* car=firstCar; car!=NULL; car=car->next)
+		car->updateSmoke(dt);
 	if (nextStopDist != 0) {
 		if (speed==0 && accel==0 &&
 		  -.5<nextStopDist && nextStopDist<.5) {
