@@ -29,11 +29,13 @@ THE SOFTWARE.
 class SmokeModel : public vsg::Inherit<vsg::DepthSorted, SmokeModel>
 {
  public:
-	SmokeModel(int nParticles, float size);
+	SmokeModel(int nParticles, float size, float exDist);
 	vsg::ref_ptr<vsg::vec4Array> positions;
 	vsg::ref_ptr<vsg::vec4Array> speeds;
 	float particleSize;
 	float avgSmokeSpeed= 0;
+	float exhaustDistance= 0;
+	float distance= 0;
 	void update(float dt, float dx, float dy, float smokeSpeed);
 };
 

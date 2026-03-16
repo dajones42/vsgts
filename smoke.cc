@@ -69,13 +69,14 @@ void main()
 {
 	vec4 vertex= vec4(vsg_Vertex, 1.0);
 	vec4 normal= vec4(vsg_Normal, 0.0);
-	float scale= 1 + vsg_Translation_scaleDistance.z;
+	float alpha= vsg_Translation_scaleDistance.w;
+	float scale= 1 + vsg_Translation_scaleDistance.z + 4*(1-alpha);
 	mat4 mv= computeBillboadMatrix(pc.modelView * vec4(vsg_Translation_scaleDistance.xyz, 1.0), scale);
 	gl_Position= (pc.projection * mv) * vertex;
 	eyePos= (mv * vertex).xyz;
-	viewDir= - (mv * vertex).xyz;
+	viewDir= -(mv * vertex).xyz;
 	normalDir= (mv * normal).xyz;
-	vertexColor= vec4(vsg_Color.rgb, 1-.8*vsg_Translation_scaleDistance.w);
+	vertexColor= vec4(vsg_Color.rgb, alpha*alpha);
 	texCoord[0]= vsg_TexCoord0;
 }
 )";
@@ -193,9 +194,10 @@ vsg::ref_ptr<vsg::ShaderSet> smokeShaderSet(vsg::ref_ptr<vsg::Options> options)
 	return shaderSet;
 }
 
-SmokeModel::SmokeModel(int nParticles, float size)
+SmokeModel::SmokeModel(int nParticles, float size, float exDist)
 {
 	particleSize= size;
+	exhaustDistance= exDist;
 	std::string path= mstsRoute->gTexturesDir+mstsRoute->dirSep+"smoke.ace";
 	auto img= readCacheACEFile(path.c_str());
 	auto shaderSet= smokeShaderSet(mstsRoute->vsgOptions);;
@@ -224,14 +226,13 @@ SmokeModel::SmokeModel(int nParticles, float size)
 	for (int i=0; i<4; i++) {
 		normals->at(i)= vsg::vec3(0,1,0);
 		colors->at(i)= vsg::vec4(1,1,1,1);
+//		colors->at(i)= vsg::vec4(0,0,0,1);
 	}
 	positions= new vsg::vec4Array(nParticles);
 	speeds= new vsg::vec4Array(nParticles);
 	for (int i=0; i<nParticles; i++) {
-		float x= i/(float)nParticles;
-		int j= nParticles-1-i;
-		positions->at(j)= vsg::vec4(0,0,0,x);
-		speeds->at(j)= vsg::vec4(0,0,1,.33);
+		positions->at(i)= vsg::vec4(0,0,-1,0);
+		speeds->at(i)= vsg::vec4(0,0,1,.33);
 	}
 	auto attributeArrays= vsg::DataList{verts,normals,texCoords,colors,positions};
 	auto vid= vsg::VertexIndexDraw::create();
@@ -266,6 +267,8 @@ SmokeModel::SmokeModel(int nParticles, float size)
 //		a.dstColorBlendFactor= VK_BLEND_FACTOR_ONE;
 //		a.colorBlendOp= VK_BLEND_OP_MAX;
 //		a.alphaBlendOp= VK_BLEND_OP_MAX;
+//		a.colorBlendOp= VK_BLEND_OP_MIN;
+//		a.alphaBlendOp= VK_BLEND_OP_MIN;
 //	}
 	gpConfig->pipelineStates.push_back(colorBlendState);
 	if (mstsRoute->vsgOptions->sharedObjects)
@@ -291,45 +294,43 @@ void SmokeModel::update(float dt, float dx, float dy, float smokeSpeed)
 		return;
 	if (dx) {
 		for (int i=0; i<positions->size(); i++)
-			positions->at(i).x-= dx;
+			if (positions->at(i).w > 0)
+				positions->at(i).x-= dx;
+	}
+	float dw= dt/3;
+	auto sz= .1*particleSize;
+	for (int i=0; i<positions->size(); i++) {
+		float x= positions->at(i).w;
+		float dz= dt*x*x*x*speeds->at(i).w;
+		positions->at(i).z+= dz;
+		positions->at(i).w-= dw;
+		positions->at(i).x+= dt*speeds->at(i).x;
+		positions->at(i).y+= dt*speeds->at(i).y;
+		if (positions->at(i).w < 0) {
+			positions->at(i)= vsg::vec4(0,0,-1,0);
+		}
 	}
 	if (smokeSpeed > avgSmokeSpeed)
 		avgSmokeSpeed= smokeSpeed;
 	else
 		avgSmokeSpeed= (1-dt)*avgSmokeSpeed + dt*smokeSpeed;
-	float ss= 1 + 4*avgSmokeSpeed;
-	float dw= dt/3;
-	auto sz= .1*particleSize;
-	int shift= 0;
-	for (int i=0; i<positions->size(); i++) {
-		float x= 1 - positions->at(i).w;
-		float dz= dt*x*x*x*speeds->at(i).w;
-		positions->at(i).z+= dz;
-		positions->at(i).w+= dw;
-		positions->at(i).x+= dt*speeds->at(i).x;
-		positions->at(i).y+= dt*speeds->at(i).y;
-		if (positions->at(i).w >= 1) {
-			auto dw1= positions->at(i).w-1;
-			positions->at(i).w-= 1;
-			positions->at(i).x= 0;//sz*(.5-drand48());
-			positions->at(i).y= 0;//sz*(.5-drand48());
-			positions->at(i).z= 3*dw1+sz*drand48();
-			speeds->at(i).x= .2*(.5-drand48());
-			speeds->at(i).y= .2*(.5-drand48());
-			speeds->at(i).w= ss;
-			shift++;
-		}
-	}
-	for (; shift>0; shift--) {
+	if (smokeSpeed < .5)
+		distance= -1;
+	else if (distance < 0)
+		distance= exhaustDistance;
+	else
+		distance+= fabs(dx);
+	if (exhaustDistance && distance>=exhaustDistance) {
+		distance= 0;
 		auto n= positions->size();
-		auto p= positions->at(0);
-		auto s= speeds->at(0);
 		for (int i=0; i<n-1; i++) {
 			positions->at(i)= positions->at(i+1);
 			speeds->at(i)= speeds->at(i+1);
 		}
-		positions->at(n-1)= p;
-		speeds->at(n-1)= s;
+		positions->at(n-1)= vsg::vec4(0,0,0,1);
+		speeds->at(n-1).x= .2*(.5-drand48());
+		speeds->at(n-1).y= .2*(.5-drand48());
+		speeds->at(n-1).w= 1+8*avgSmokeSpeed;
 	}
 	positions->dirty();
 }

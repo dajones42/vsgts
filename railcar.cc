@@ -656,7 +656,7 @@ void RailCarInst::addSmoke()
 	for (vector<RailCarSmoke>::iterator i=def->smoke.begin(); i!=def->smoke.end(); ++i) {
 		fprintf(stderr,"addSmoke %f %f %f\n",
 		  i->position[0],i->position[1],i->position[2]);
-		auto smokeModel= SmokeModel::create(50,i->size);
+		auto smokeModel= SmokeModel::create(50,i->size,getMainWheelRadius()*M_PI/2);
 		auto mt= vsg::MatrixTransform::create();
 		mt->matrix= vsg::translate(i->position);
 		mt->addChild(smokeModel);
