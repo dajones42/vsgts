@@ -847,8 +847,8 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 	 case -12: // dark bright
 		matValue->value().diffuse= vsg::vec4(.5,.5,.5,1);
 		break;
-	 case -10: // emissive
-		matValue->value().emissive= vsg::vec4(1,1,1,1);
+	 case -10: // emissive, but OR displays this the same as -9
+//		matValue->value().emissive= vsg::vec4(1,1,1,1);
 		break;
 	 default:
 //		fprintf(stderr,"unknown lmi %d %s\n",
@@ -1268,12 +1268,12 @@ void MSTSShape::fixTop()
 {
 	if (matrices.size() == 1) {
 		vsg::dmat4& m= matrices[0].matrix;
-		if (m[0][3]!=0 || m[1][3]!=0 || m[2][3]!=0) {
+		if (m[3][0]!=0 || m[3][1]!=0 || m[3][2]!=0) {
 //			fprintf(stderr,"nonzero top %f %f %f\n",
-//			  m[0][3],m[1][3],m[2][3]);
-			m[0][3]= 0;
-			m[1][3]= 0;
-			m[2][3]= 0;
+//			  m[3][0],m[3][1],m[3][2]);
+			m[3][0]= 0;
+			m[3][1]= 0;
+			m[3][2]= 0;
 		}
 	}
 }

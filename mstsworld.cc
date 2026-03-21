@@ -163,8 +163,7 @@ void MSTSRoute::loadModels(Tile* tile)
 			double x= x0+atof(pos->getChild(0)->value->c_str());
 			double y= z0+atof(pos->getChild(2)->value->c_str());
 			double z= atof(pos->getChild(1)->value->c_str());
-			vsg::ref_ptr<vsg::MatrixTransform> mt=
-			  vsg::MatrixTransform::create();
+			auto mt= vsg::MatrixTransform::create();
 			mt->matrix= vsg::dmat4(1,0,0,0, 0,0,1,0, 0,1,0,0, x,y,z,1) * vsg::rotate(q);
 			mt->addChild(model);
 			tile->models->addChild(mt);

@@ -200,6 +200,12 @@ SmokeModel::SmokeModel(int nParticles, float size, float exDist)
 	exhaustDistance= exDist;
 	std::string path= mstsRoute->gTexturesDir+mstsRoute->dirSep+"smoke.ace";
 	auto img= readCacheACEFile(path.c_str());
+	float maxuv= 1;
+	if (!img) {
+		path= mstsRoute->gTexturesDir+mstsRoute->dirSep+"smokemain.ace";
+		img= readCacheACEFile(path.c_str());
+		maxuv= .25;
+	}
 	auto shaderSet= smokeShaderSet(mstsRoute->vsgOptions);;
 	if (!shaderSet)
 		shaderSet= vsg::createPhongShaderSet(mstsRoute->vsgOptions);
@@ -219,9 +225,9 @@ SmokeModel::SmokeModel(int nParticles, float size, float exDist)
 	verts->at(1)= vsg::vec3(sz,-sz,0);
 	verts->at(2)= vsg::vec3(sz,sz,0);
 	verts->at(3)= vsg::vec3(-sz,sz,0);
-	texCoords->at(0)= vsg::vec2(0,1);
-	texCoords->at(1)= vsg::vec2(1,1);
-	texCoords->at(2)= vsg::vec2(1,0);
+	texCoords->at(0)= vsg::vec2(0,maxuv);
+	texCoords->at(1)= vsg::vec2(maxuv,maxuv);
+	texCoords->at(2)= vsg::vec2(maxuv,0);
 	texCoords->at(3)= vsg::vec2(0,0);
 	for (int i=0; i<4; i++) {
 		normals->at(i)= vsg::vec3(0,1,0);
@@ -330,7 +336,7 @@ void SmokeModel::update(float dt, float dx, float dy, float smokeSpeed)
 		positions->at(n-1)= vsg::vec4(0,0,0,1);
 		speeds->at(n-1).x= .2*(.5-drand48());
 		speeds->at(n-1).y= .2*(.5-drand48());
-		speeds->at(n-1).w= 1+8*avgSmokeSpeed;
+		speeds->at(n-1).w= 1+8*smokeSpeed;
 	}
 	positions->dirty();
 }
