@@ -111,6 +111,12 @@ void CameraController::setZoom(int z)
 		else
 			mstsRoute->trackLines->setAllChildren(false);
 	}
+	if (mstsRoute && mstsRoute->skyBoxSwitch) {
+		if (zoom > 20)
+			mstsRoute->skyBoxSwitch->setAllChildren(false);
+		else
+			mstsRoute->skyBoxSwitch->setAllChildren(true);
+	}
 }
 
 void CameraController::apply(vsg::KeyPressEvent& keyPress)

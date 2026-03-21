@@ -143,6 +143,7 @@ struct MSTSRoute {
 	vsg::ref_ptr<vsg::Switch> trackLines;
 	vsg::ref_ptr<vsg::Switch> trackLabels;
 	vsg::ref_ptr<vsg::MatrixTransform> skyBox;
+	vsg::ref_ptr<vsg::Switch> skyBoxSwitch;
 	typedef std::map<int,Event*> EventMap;
 	EventMap eventMap;
 	MSTSRoute(const char* mstsDir, const char* routeID);

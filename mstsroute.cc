@@ -752,6 +752,8 @@ void MSTSRoute::makeTileMap(vsg::Group* root)
 	font= vsg::read_cast<vsg::Font>("fonts/times.vsgb",options);
 	if (!font)
 		fprintf(stderr,"failed to load font\n");
+	if (createSkyBox())
+		root->addChild(skyBoxSwitch);
 	vsg::StateInfo stateInfo;
 	stateInfo.lighting= false;
 	auto builder= vsg::Builder::create();
@@ -1210,8 +1212,6 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 {
 	if (activityName.size()==0) {
 		simTime= 12*3600;
-		if (!skyBox && createSkyBox())
-			root->addChild(skyBox);
 		loadExploreConsist(root);
 		return;
 	}
@@ -1220,8 +1220,6 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	activity.readFile(path.c_str());
 	simTime= activity.startTime;
-	if (!skyBox && createSkyBox())
-		root->addChild(skyBox);
 	if (timeTable) {
 		tt::Station* start= timeTable->findStation("start");
 		if (start == NULL)
@@ -2045,6 +2043,8 @@ vsg::ref_ptr<vsg::MatrixTransform> MSTSRoute::createSkyBox()
 	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
 	skyBox= vsg::MatrixTransform::create();
 	skyBox->addChild(stateGroup);
+	skyBoxSwitch= vsg::Switch::create();
+	skyBoxSwitch->addChild(false,skyBox);
 	return skyBox;
 }
 

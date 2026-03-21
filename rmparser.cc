@@ -164,8 +164,6 @@ void RMParser::parseMSTSRoute(string& dir, string& route)
 	mstsRoute->vsgOptions= vsg::Options::create();
 	mstsRoute->makeTileMap(rootNode);
 	rootNode->addChild(mstsRoute->createTrackLines());
-	if (mstsRoute->createSkyBox())
-		rootNode->addChild(mstsRoute->skyBox);
 }
 
 void RMParser::parseFile(const char* path)
