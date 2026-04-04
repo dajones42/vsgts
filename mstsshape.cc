@@ -1178,17 +1178,21 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 			else
 				matrices[parent].transform->addChild(
 				  vsg::ref_ptr(mt));
-#if 0
-			osg::Vec3d trans=
-			  matrices[j].transform->getMatrix().getTrans();
-			fprintf(stderr,"h %d %s %d %lf %lf %lf %d %p\n",
-			  j,matrices[j].name.c_str(),dl.hierarchy[j],
-			  trans[0],trans[1],trans[2],
-			  matrices[j].part,
-			  mt->getUpdateCallback());
-#endif
 		}
 	}
+#if 0
+	for (int i=0; i<distLevels.size(); i++) {
+		DistLevel& dl= distLevels[i];
+		fprintf(stderr,"dl %d %lf\n",i,dl.dist);
+		for (int j=0; j<dl.hierarchy.size(); j++) {
+			vsg::dmat4 m= matrices[j].transform->matrix;
+			fprintf(stderr,"h %d %s %d %lf %lf %lf %d\n",
+			  j,matrices[j].name.c_str(),dl.hierarchy[j],
+			  m[3][0],m[3][1],m[3][2],
+			  matrices[j].part);
+		}
+	}
+#endif
 	if (top == nullptr) {
 		fprintf(stderr,"no top for model %ld %ld\n",matrices.size(),
 		  distLevels.size());
@@ -1266,10 +1270,10 @@ void MSTSShape::printSubobjects()
 
 void MSTSShape::fixTop()
 {
-	if (matrices.size() == 1) {
+	if (matrices.size() >= 1) {
 		vsg::dmat4& m= matrices[0].matrix;
 		if (m[3][0]!=0 || m[3][1]!=0 || m[3][2]!=0) {
-//			fprintf(stderr,"nonzero top %f %f %f\n",
+//			fprintf(stderr,"nonzero top %lf %lf %lf\n",
 //			  m[3][0],m[3][1],m[3][2]);
 			m[3][0]= 0;
 			m[3][1]= 0;

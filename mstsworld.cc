@@ -622,12 +622,6 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 		auto model= shape.createModel(0,10,false,true);
 		auto animation= shape.animation;
 		auto animated= shape.getAnimatedTransforms();
-		if (animation) {
-			auto tsAnimation= TwoStateAnimation::create();
-			for (auto& sampler: animation->samplers)
-				tsAnimation->samplers.push_back(sampler);
-			animation= tsAnimation;
-		}
 #if 0
 		if (wireHeight > 0) {
 			string path= wireModelsDir+dirSep+*filename+".osg";
@@ -638,11 +632,14 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 			model= g;
 		}
 #endif
-		AnimModelInfo* tmi= new AnimModelInfo(model,animation,animated);
-		trackModelMap[*filename]= tmi;
+		AnimModelInfo* ami= new AnimModelInfo(model,animation,animated);
+		trackModelMap[*filename]= ami;
 		if (swVertex) {
-			swVertex->model= model;
+			animation= TwoStateAnimation::create();
+			auto clone= ami->cloneModel(animation);
+			swVertex->model= clone;
 			swVertex->animation= animation;
+			return clone;
 		}
 		return model;
 	} catch (const char* msg) {

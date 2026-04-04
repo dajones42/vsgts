@@ -232,7 +232,7 @@ void MSTSRoute::makeTrack()
 			if (tile != NULL)
 				tile->swVertexMap[node->id]=
 				  (Track::SwVertex*)v;
-			//fprintf(stderr,"swid %p %d %p\n",tile,node->id,
+			//fprintf(stderr,"tdbswid %p %d %p\n",tile,node->id,
 			//  (Track::SwVertex*)v);
 		}
 		vMap[i]= v;
