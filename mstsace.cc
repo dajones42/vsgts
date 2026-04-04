@@ -50,7 +50,7 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path, bool expand, uint8_t alpha
 			if (wid == (1<<i))
 				break;
 //	}
-	if (wid<4|| wid>4096 || ht<4 || ht>4096 || wid!=ht || i>=12) {
+	if (wid<4 || wid>4096 || ht<4 || ht>4096 || i>=12) {
 		fprintf(stderr,"bad ace %s %d %d %d %d %d\n",
 		  path,flags,wid,ht,colors,offset);
 		return {};
