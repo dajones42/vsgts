@@ -336,18 +336,23 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			startExplore();
 		}
 	} else if (mstsRoute && mstsRoute->activityName.size()>0) {
-		auto railCars= vsg::Group::create();
-		mstsRoute->activityName+= ".act";
-		mstsRoute->loadActivity(railCars.get(),-1);
-		mstsRoute->activityName.clear();
-		auto cr= viewer->compileManager->compile(railCars);
-		updateViewer(*viewer,cr);
-		root->addChild(railCars);
-		mstsRoute->initSignals();
-		ttoSim.init(false);
-		for (auto t: trainList)
-			listener.addTrain(t);
-		listener.setGain(1);
+		static bool waitOneFrame= true;
+		if (waitOneFrame) {
+			waitOneFrame= false;
+		} else {
+			auto railCars= vsg::Group::create();
+			mstsRoute->activityName+= ".act";
+			mstsRoute->loadActivity(railCars.get(),-1);
+			mstsRoute->activityName.clear();
+			auto cr= viewer->compileManager->compile(railCars);
+			updateViewer(*viewer,cr);
+			root->addChild(railCars);
+			mstsRoute->initSignals();
+			ttoSim.init(false);
+			for (auto t: trainList)
+				listener.addTrain(t);
+			listener.setGain(1);
+		}
 	} else if (!mstsRoute && !TSGuiData::instance().showSelect && TSGuiData::instance().selected.find(".tdb")) {
 		auto options= vsg::Options::create();
 		options->add(MstsRouteReader::create());
