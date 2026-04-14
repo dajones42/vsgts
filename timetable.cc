@@ -1192,3 +1192,169 @@ void TimeTable::printTimeSheetHtml(string& s)
 	}
 	s+= "</table>\n";
 }
+
+void TimeTable::save(std::ofstream& ofs)
+{
+	ofs<<" \"timetable\": {\n";
+	ofs<<"  \"name\": \""<<timeTable->name<<"\",\n";
+	ofs<<"  \"downSuperior\": "<<(timeTable->downSuperior?"true":"false")<<",\n";
+	ofs<<"  \"rows\": [\n";
+	for (int i=0; i<timeTable->rows.size(); i++) {
+		auto& s= timeTable->rows[i];
+		if (i > 0)
+			ofs<<",\n";
+		ofs<<"   {\n";
+		ofs<<"    \"name\": \""<<s->name<<"\",\n";
+		ofs<<"    \"distance\": "<<s->distance<<",\n";
+		ofs<<"    \"ntracks\": "<<s->nTracks<<",\n";
+		if (s->callSign.size() > 0)
+			ofs<<"    \"call\": \""<<s->callSign<<"\",\n";
+		if (s->blockBell.size() > 0)
+			ofs<<"    \"blockbell\": \""<<s->blockBell<<"\",\n";
+		ofs<<"    \"prompt\": "<<(s->promptForBlock?"true":"false")<<",\n";
+		ofs<<"    \"altnames\": [";
+		for (int j=0; j<s->altNames.size(); j++) {
+			if (j > 0)
+				ofs<<",";
+			ofs<<" \""<<s->altNames[j]<<"\"";
+		}
+		ofs<<" ],\n";
+		ofs<<"    \"sidings\": [";
+		for (int j=0; j<s->sidings.size(); j++) {
+			if (j > 0)
+				ofs<<",";
+			ofs<<" "<<s->sidings[j];
+		}
+		ofs<<" ]\n";
+		ofs<<"   }";
+	}
+	ofs<<"\n  ],\n";
+	ofs<<"  \"trains\": [\n";
+	for (int i=0; i<timeTable->trains.size(); i++) {
+		auto& t= timeTable->trains[i];
+		if (i > 0)
+			ofs<<",\n";
+		ofs<<"   {\n";
+		ofs<<"    \"name\": \""<<t->name<<"\",\n";
+		ofs<<"    \"readdown\": "<<(t->readDown?"true":"false")<<",\n";
+		ofs<<"    \"active\": "<<(t->active?"true":"false")<<",\n";
+		ofs<<"    \"row\": "<<t->row<<",\n";
+		ofs<<"    \"class\": "<<t->clas<<",\n";
+		if (t->prevTrain)
+			ofs<<"    \"prevtrain\": \""<<t->prevTrain->name<<"\",\n";
+		if (t->nextTrain)
+			ofs<<"    \"nexttrain\": \""<<t->nextTrain->name<<"\",\n";
+		ofs<<"    \"times\": [\n";
+		for (int j=0; j<t->times.size(); j++) {
+			auto& tt= t->times[j];
+			if (j > 0)
+				ofs<<",\n";
+			ofs<<"     { \"schedar\": "<<tt.schedAr<<", \"schedlv\": "<<tt.schedLv<<
+			  ", \"wait\": "<<tt.wait<<", \"actualar\": "<<tt.actualAr<<
+			  ", \"actuallv\": "<<tt.actualLv<<" }";
+		}
+		ofs<<"\n    ]\n";
+		ofs<<"   }\n";
+	}
+	ofs<<"  ],\n";
+	ofs<<"  \"blocks\": [\n";
+	for (int i=0; i<timeTable->blocks.size(); i++) {
+		auto& b= timeTable->blocks[i];
+		if (i > 0)
+			ofs<<",\n";
+		ofs<<"   {\n";
+		ofs<<"    \"station1\": \""<<b->station1->name<<"\",\n";
+		ofs<<"    \"station2\": \""<<b->station2->name<<"\",\n";
+		ofs<<"    \"ntracks\": "<<b->nTracks<<",\n";
+		ofs<<"    \"times\": [\n";
+		for (int j=0; j<b->trainTimes.size(); j++) {
+			auto& tt= b->trainTimes[j];
+			if (j > 0)
+				ofs<<",\n";
+			ofs<<"     { \"train\": \""<<tt.train->name<<"\", "<<" \"given\": "<<tt.timeGiven<<", "<<
+			  " \"entered\": "<<tt.timeEntered<<", "<<" \"cleared\": "<<tt.timeCleared<<", "<<" }";
+		}
+		ofs<<"\n    ]\n";
+		ofs<<"   }";
+	}
+	ofs<<"\n  ],\n";
+	ofs<<" },\n";
+}
+
+void TimeTable::loadSave(vsg::Object* obj)
+{
+	name= vsg::value<string>("","name",obj);
+	downSuperior= vsg::value<bool>(true,"downsuperior",obj);
+	rows.clear();
+	if (auto robjs= dynamic_cast<vsg::Objects*>(obj->getObject("rows"))) {
+		for (auto& r: robjs->children) {
+			auto sname= vsg::value<string>("","name",r);
+			Station* s= findStation(sname);
+			if (s) {
+				addRow(s);
+			} else {
+				s= addStation(sname);
+				addRow(s);
+				s->callSign= vsg::value<string>("","callsign",r);
+				s->blockBell= vsg::value<string>("","blockbell",r);
+				s->distance= vsg::value<double>(0,"distance",r);
+				s->nTracks= (int)vsg::value<double>(1,"ntracks",r);
+				s->promptForBlock= vsg::value<bool>(false,"prompt",r);
+				if (auto objs= dynamic_cast<vsg::Objects*>(r->getObject("altnames"))) {
+					for (auto& c: objs->children) {
+						auto alt= (static_cast<const vsg::stringValue*>(c.get())->value());
+						s->altNames.push_back(alt);
+					}
+				}
+				if (auto objs= dynamic_cast<vsg::Objects*>(r->getObject("sidings"))) {
+					for (auto& c: objs->children) {
+						auto len= (static_cast<const vsg::doubleValue*>(c.get())->value());
+						s->sidings.push_back(len);
+					}
+				}
+			}
+		}
+	}
+	if (auto tobjs= dynamic_cast<vsg::Objects*>(obj->getObject("trains"))) {
+		for (auto& t: tobjs->children) {
+			Train* train= addTrain(vsg::value<string>("","name",t));
+			train->readDown= vsg::value<bool>(true,"readdown",t);
+			train->active= vsg::value<bool>(true,"active",t);
+			train->row= (int)vsg::value<double>(true,"row",t);
+			train->clas= (int)vsg::value<double>(true,"class",t);
+			train->prevTrain= findTrain(vsg::value<string>("","prevtrain",t));
+			train->nextTrain= findTrain(vsg::value<string>("","nexttrain",t));
+			if (auto objs= dynamic_cast<vsg::Objects*>(t->getObject("times"))) {
+				for (int i=0; i<objs->children.size(); i++) {
+					auto& c= objs->children[i];
+					train->times[i].schedAr= vsg::value<double>(-1,"schedar",c);
+					train->times[i].schedLv= vsg::value<double>(-1,"schedlv",c);
+					train->times[i].wait= vsg::value<double>(0,"wait",c);
+					train->times[i].actualAr= vsg::value<double>(-1,"actualar",c);
+					train->times[i].actualLv= vsg::value<double>(-1,"actuallv",c);
+				}
+			}
+		}
+	}
+	if (auto bobjs= dynamic_cast<vsg::Objects*>(obj->getObject("blocks"))) {
+		for (auto& b: bobjs->children) {
+			Station* s1= findStation(vsg::value<string>("","station1",b));
+			Station* s2= findStation(vsg::value<string>("","station2",b));
+			if (!s1 || !s2)
+				continue;
+			auto nt= (int)vsg::value<double>(1,"ntracks",b);
+			auto block= new Block(s1,s2,nt);
+			blocks.push_back(block);
+			if (auto objs= dynamic_cast<vsg::Objects*>(b->getObject("times"))) {
+				for (auto& times: objs->children) {
+					auto train= findTrain(vsg::value<string>("","train",times));
+					auto timeGiven= vsg::value<double>(0,"given",times);
+					BlockTimes bt(train,timeGiven);
+					bt.timeEntered= vsg::value<double>(-1,"entered",times);
+					bt.timeCleared= vsg::value<double>(-1,"cleaared",times);
+					block->trainTimes.push_back(bt);
+				}
+			}
+		}
+	}
+}

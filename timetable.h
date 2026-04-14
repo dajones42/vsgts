@@ -30,6 +30,9 @@ THE SOFTWARE.
 #include <vector>
 #include <list>
 #include <queue>
+#include <iostream>
+#include <fstream>
+#include <vsg/all.h>
 
 #include "mstsroute.h"
 #include "commandreader.h"
@@ -249,6 +252,8 @@ class TimeTable {
 	std::vector<Block*> getActiveBlocks(Train* train);
 	int getNumBlocks() { return blocks.size(); }
 	Block* getBlock(int idx) { return blocks[idx]; }
+	void save(std::ofstream& ofs);
+	void loadSave(vsg::Object*);
 };
 
 }

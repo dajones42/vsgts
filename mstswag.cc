@@ -105,6 +105,11 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 	RailCarDef* def= new RailCarDef;
 	wagMap[path]= def;
 	def->name= file;
+	char* p= strrchr((char*)dir,'/');
+	if (p)
+		def->dir= p+1;
+	else
+		def->dir= dir;
 	MSTSFileNode* lights= wagon->children->find("Lights");
 	for (int i=0; lights!=NULL && lights->getChild(i)!=NULL; i++) {
 		MSTSFileNode* light= lights->getChild(i);

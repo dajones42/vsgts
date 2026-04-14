@@ -341,7 +341,6 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			waitOneFrame= false;
 		} else {
 			auto railCars= vsg::Group::create();
-			mstsRoute->activityName+= ".act";
 			mstsRoute->loadActivity(railCars.get(),-1);
 			mstsRoute->activityName.clear();
 			auto cr= viewer->compileManager->compile(railCars);

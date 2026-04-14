@@ -32,6 +32,7 @@ struct TrackDB;
 struct MSTSFileNode;
 struct LooseConsist;
 struct AnimModelInfo;
+struct RailCarDef;
 
 #include <mutex>
 #include <set>
@@ -222,6 +223,7 @@ struct MSTSRoute {
 	void loadActivity(vsg::Group* root, int activityFlags);
 	void loadConsist(LooseConsist* consist, vsg::Group* root);
 	void loadExploreConsist(vsg::Group* root);
+	void loadSave(vsg::Group* root);
 	Track::Path* loadPath(std::string filename, bool align);
 	Track::Path* loadService(std::string filename, vsg::Group* root,
 	  bool player, int id);
@@ -237,6 +239,8 @@ struct MSTSRoute {
 	vsg::ref_ptr<vsg::MatrixTransform> createSkyBox();
 	vsg::ref_ptr<vsg::Options> vsgOptions;
 	vsg::ref_ptr<vsg::Font> font;
+	void saveState(std::string filename);
+	RailCarDef* loadRailCarDef(std::string& dir, std::string& file);
 };
 extern MSTSRoute* mstsRoute;
 

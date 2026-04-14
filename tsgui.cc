@@ -55,12 +55,19 @@ void TSGui::record(vsg::CommandBuffer& cb) const
 		showLeversWindow();
 	if (data.showBlocks)
 		showBlockSheet();
+	if (data.showSave)
+		showSaveWindow();
 }
 
 void TSGui::showMainMenu()
 {
 	TSGuiData& data= TSGuiData::instance();
 	if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("File")) {
+			if (mstsRoute && ImGui::MenuItem("Save",""))
+				data.showSave= true;
+			ImGui::EndMenu();
+		}
 		if (ImGui::BeginMenu("Display")) {
 			if (timeTable && ImGui::MenuItem("Train Status",""))
 				data.showStatus= true;
@@ -241,6 +248,19 @@ void TSGui::showMessageWindow()
 	ImGui::End();
 }
 
+void TSGui::showSaveWindow()
+{
+	TSGuiData& data= TSGuiData::instance();
+	ImGui::Begin("Save",&data.showSave);
+	static char saveFilename[128]= "savefile";
+	ImGui::InputText("",saveFilename,IM_ARRAYSIZE(saveFilename));
+	if (ImGui::Button("Save")) {
+		mstsRoute->saveState(saveFilename);
+		data.showSave= false;
+	}
+	ImGui::End();
+}
+
 void TSGui::showLeversWindow()
 {
 	TSGuiData& data= TSGuiData::instance();
@@ -305,8 +325,8 @@ void TSGuiData::loadActivityList()
 	path p { fixFilenameCase(mstsRoute->routeDir+mstsRoute->dirSep+"ACTIVITIES") };
 	for (const directory_entry& d: directory_iterator(p)) {
 		const path& f= d;
-		if (f.extension() == ".act")
-			listItems.push_back(f.stem());
+		if (f.extension()==".act" || f.extension()==".json")
+			listItems.push_back(f.filename());
 	}
 	sort(listItems.begin(),listItems.end());
 	selected= "Select an activity";

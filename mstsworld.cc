@@ -607,6 +607,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 		if (swVertex) {
 			swVertex->model= clone;
 			swVertex->animation= animation;
+			animation->time= swVertex->isReversed() ? 0 : 1;
 		}
 		return clone;
 	}
@@ -639,6 +640,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 			auto clone= ami->cloneModel(animation);
 			swVertex->model= clone;
 			swVertex->animation= animation;
+			animation->time= swVertex->isReversed() ? 0 : 1;
 			return clone;
 		}
 		return model;

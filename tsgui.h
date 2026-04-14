@@ -38,6 +38,7 @@ public:
 	static void showLeversWindow();
 	static void showBlockSheet();
 	static void showMainMenu();
+	static void showSaveWindow();
 };
 
 class TSGuiData {
@@ -51,6 +52,7 @@ public:
 	bool showSelect;
 	bool showBlocks;
 	bool showMenu;
+	bool showSave;
 	double fps;
 	std::vector<std::string> listItems;
 	std::string selected;
@@ -67,6 +69,7 @@ private:
 		showStatus= false;
 		showSelect= false;
 		showBlocks= false;
+		showSave= false;
 		fps= 0;
 	}
 };

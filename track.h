@@ -119,6 +119,9 @@ struct Track {
 					return ssEdges[i];
 			return NULL;
 		}
+		bool isReversed() {
+			return edge2!=swEdges[mainEdge];
+		}
 	};
 	struct Location { // movable track location
 		Edge* edge;

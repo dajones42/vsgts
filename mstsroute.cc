@@ -24,6 +24,8 @@ THE SOFTWARE.
 #include <plib/ul.h>
 #include <vsg/all.h>
 #include <vsgXchange/all.h>
+#include <iostream>
+#include <fstream>
 
 #include "mstsroute.h"
 #include "mstsfile.h"
@@ -1215,6 +1217,10 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 		loadExploreConsist(root);
 		return;
 	}
+	if (activityName.find(".json") != string::npos) {
+		loadSave(root);
+		return;
+	}
 	Activity activity;
 	string path= routeDir+dirSep+"ACTIVITIES"+dirSep+activityName;
 //	fprintf(stderr,"path=%s\n",path.c_str());
@@ -1874,6 +1880,215 @@ bool MSTSRoute::ignoreShape(string* filename, double x, double y, double z)
 }
 #endif
 
+RailCarDef* MSTSRoute::loadRailCarDef(string& dir, string& file)
+{
+	RailCarDef* def= findRailCarDef(file,false);
+	if (!def) {
+		dir= fixFilenameCase(dir);
+		def= readMSTSWag(dir.c_str(),file.c_str(),vsgOptions);
+		if (def)
+			railCarDefMap[file]= def;
+		else
+			def= findRailCarDef(file,true);
+		cerr<<"loaded "<<dir<<" "<<file<<"\n";
+	}
+	if (!def)
+		cerr<<"cannot load "<<dir<<" "<<file<<"\n";
+	return def;
+}
+
+void MSTSRoute::loadSave(vsg::Group* root)
+{
+	string path= routeDir+dirSep+"ACTIVITIES"+dirSep+activityName;
+	auto top= vsg::read_cast<vsg::Object>(path,vsgOptions);
+	if (!top) {
+		cerr<<"cannot read "<<path<<"\n";
+		return;
+	}
+	simTime= vsg::value<double>(0,"time",top);
+	Track* track= trackMap[routeID];
+	if (auto switches= dynamic_cast<vsg::Objects*>(top->getObject("switches"))) {
+		for (auto& c: switches->children) {
+			auto id= (int)(static_cast<const vsg::doubleValue*>(c.get())->value());
+			auto i= track->switchMap.find(id);
+			if (i!=track->switchMap.end() && !i->second->isReversed())
+				i->second->throwSwitch(nullptr,false);
+		}
+	}
+	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
+	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
+	if (auto trains= dynamic_cast<vsg::Objects*>(top->getObject("trains"))) {
+		for (auto& t: trains->children) {
+			if (auto cars= dynamic_cast<vsg::Objects*>(t->getObject("cars"))) {
+				Train* train= new Train;
+				double x= vsg::value<double>(0,"locx",t);
+				double y= vsg::value<double>(0,"locy",t);
+				track->findLocation(x,y,&train->location);
+				train->location.rev= vsg::value<bool>(false,"locrev",t);
+				for (auto& c: cars->children) {
+					string dir= trainsetDir+dirSep+vsg::value<string>("","dir",c);
+					string file= vsg::value<string>("","name",c);
+					bool rev= vsg::value<bool>(false,"rev",c);
+					RailCarDef* def= loadRailCarDef(dir,file);
+					if (!def)
+						continue;
+					RailCarInst* car= new RailCarInst(def,root,0,def->brakeValve);
+					car->setLoad(0);
+					car->speed= vsg::value<double>(0,"speed",c);
+					car->handBControl= vsg::value<double>(0,"handbcontrol",c);
+					if (car->airBrake != NULL) {
+						car->airBrake->setCylPressure(
+						  vsg::value<double>(50,"bcp",c));
+						car->airBrake->setAuxResPressure(
+						  vsg::value<double>(50,"arp",c));
+						car->airBrake->setEmergResPressure(
+						  vsg::value<double>(70,"erp",c));
+						car->airBrake->setPipePressure(
+						  vsg::value<double>(50,"bpp",c));
+					}
+					if (vsg::value<bool>(false,"myrailcar",c)) {
+						myRailCar= car;
+						myTrain= train;
+					}
+					car->prev= train->lastCar;
+					car->rev= rev;
+					if (train->lastCar == NULL)
+						train->firstCar= car;
+					else
+						train->lastCar->next= car;
+					train->lastCar= car;
+				}
+				if (train->firstCar == NULL) {
+					cerr<<"empty train\n";
+					delete train;
+					continue;
+				}
+				trainMap[train->name]= train;
+				train->setModelsOff();
+				train->connectAirHoses();
+				if (train->engAirBrake != NULL)
+					train->engAirBrake->setEqResPressure(
+					  vsg::value<double>(70,"eqrp",t));
+				train->calcPerf();
+				float len= 0;
+				for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next)
+					len+= car->def->length;
+				train->endLocation= train->location;
+				train->endLocation.move(-len,1,0);
+				x= 0;
+				for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next) {
+					car->setLocation(x-car->def->length/2,&train->location);
+					x-= car->def->length;
+					if (!myRailCar && car->engine) {
+						myRailCar= car;
+						myTrain= train;
+					}
+				}
+				train->setModelsOn();
+				train->setHeadLight(false);
+				train->name= vsg::value<string>("","name",t);
+				train->dControl= vsg::value<double>(0,"dcontrol",t);
+				train->tControl= vsg::value<double>(0,"tcontrol",t);
+				train->bControl= vsg::value<double>(0,"bcontrol",t);
+				train->engBControl= vsg::value<double>(0,"ebcontrol",t);
+				train->targetSpeed= vsg::value<double>(8.9,"targetspeed",t);
+				trainList.push_back(train);
+				trainMap[train->name]= train;
+				train->setOccupied();
+			}
+		}
+	}
+	if (auto tt= top->getObject("timetable")) {
+		if (!timeTable)
+			timeTable= new tt::TimeTable();
+		timeTable->loadSave(tt);
+	}
+}
+
+void MSTSRoute::saveState(std::string filename)
+{
+	string path= routeDir+dirSep+"ACTIVITIES"+dirSep+filename;
+	if (path.find(".json") == string::npos)
+		path+= ".json";
+	ofstream ofs(path);
+	if (!ofs) {
+		cerr<<"cannot create "<<path<<"\n";
+		return;
+	}
+	ofs<<"{\n";
+	ofs<<" \"trains\": [\n";
+	TrainList allTrains;
+	for (auto i: trainMap)
+		allTrains.push_back(i.second);
+	for (auto t: trainList)
+		if (t->name.size() == 0)
+			allTrains.push_back(t);
+	int n= 0;
+	for (auto t: allTrains) {
+		WLocation loc;
+		t->location.getWLocation(&loc);
+		if (n)
+			ofs<<",\n";
+		ofs<<"  {\n";
+		ofs<<"   \"name\": \""<<t->name<<"\",\n";
+		ofs<<"   \"locx\": "<<loc.coord[0]<<", \"locy\": "<<loc.coord[1]<<", \"locrev\": "<<
+		  (t->location.rev?"true":"false")<<",\n";
+		ofs<<"   \"dcontrol\": "<<t->dControl<<", \"tcontrol\": "<<t->tControl<<
+		  ", \"bcontrol\": "<<t->bControl<<", \"ebcontrol\": "<<t->engBControl<<",\n";
+		ofs<<"   \"targetspeed\": "<<t->targetSpeed<<",\n";
+		if (t->engAirBrake != NULL)
+			ofs<<"   \"eqrp\": "<<t->engAirBrake->getEqResPressure()<<",\n";
+		ofs<<"   \"cars\": [\n";
+		for (auto c=t->firstCar; c; c=c->next) {
+			if (c != t->firstCar)
+				ofs<<",\n";
+			ofs<<"    {";
+			ofs<<" \"name\": \""<<c->def->name<<"\",";
+			ofs<<" \"dir\": \""<<c->def->dir<<"\"";
+			if (c->rev)
+				ofs<<", \"rev\": true";
+			if (c->speed)
+				ofs<<", \"speed\": "<<c->speed<<"";
+			if (c->airBrake != NULL) {
+				ofs<<", \"bcp\": "<<c->airBrake->getCylPressure()<<"";
+				ofs<<", \"arp\": "<<c->airBrake->getAuxResPressure()<<"";
+				float erp= c->airBrake->getPressure("ER");
+				if (erp > 0)
+					ofs<<", erp\": \""<<erp<<"";
+				ofs<<", \"bpp\": "<<c->airBrake->getPipePressure()<<"";
+			}
+			if (c == myRailCar)
+				ofs<<", \"myrailcar\": true";
+			if (c->handBControl)
+				ofs<<", \"handbcontrol\": "<<c->handBControl<<"";
+			ofs<<" }";
+		}
+		ofs<<"\n   ]\n";
+		ofs<<"  }\n";
+		n++;
+	}
+	ofs<<" ],\n";
+	ofs<<" \"switches\": [";
+	Track* track= trackMap[routeID];
+	n= 0;
+	for (auto v: track->vertexList) {
+		if (v->type == Track::VT_SWITCH) {
+			auto sw= (Track::SwVertex*)v;
+			if (sw->isReversed()) {
+				if (n)
+					ofs<<",";
+				ofs<<" "<<sw->id;
+				n++;
+			}
+		}
+	}
+	ofs<<" ],\n";
+	if (timeTable)
+		timeTable->save(ofs);
+	ofs<<" \"time\": "<<simTime<<"\n";
+	ofs<<"}\n";
+}
+
 void MSTSRoute::initSignals()
 {
 	for (int i=0; i<2; i++) {
@@ -2072,6 +2287,7 @@ vsg::ref_ptr<vsg::Object> MstsRouteReader::read(
 	if (!route)
 		return {};
 	route->vsgOptions= vsg::Options::create();
+	route->vsgOptions->add(vsg::json::create());
 	route->vsgOptions->add(vsgXchange::all::create());
 	route->readTiles();
 	route->makeTrack();

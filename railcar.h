@@ -94,6 +94,7 @@ struct RailCarInside {
 
 struct RailCarDef {
 	std::string name;
+	std::string dir;
 	std::string soundFile;
 	std::string brakeValve;
 	float maxEqRes;
