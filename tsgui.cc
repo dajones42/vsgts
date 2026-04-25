@@ -275,7 +275,8 @@ void TSGui::showLeversWindow()
 		auto color= interlocking->getColor(i);
 		auto c1= .8*color + vsg::vec3(.1,.1,.1);
 		auto c2= .9*color + vsg::vec3(.2,.2,.2);
-		float y= state==Interlocking::NORMAL ? .25 : state==Interlocking::REVERSE ? .75 : .5;
+		float y= state==Interlocking::NORMAL ? .25 : state==Interlocking::REVERSE ? .75 :
+		  interlocking->getLockDurationS(i,simTime)>0 ? .5 : .375;
 		int ht= 50;
 		auto occ= interlocking->getSwitchOccupied(i);
 		if (occ==Interlocking::OCCUPIED || occ==Interlocking::ROUTELOCK)

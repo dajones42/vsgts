@@ -419,7 +419,7 @@ void Departure::handleAI(tt::EventSim<double>* sim)
 	if (!train->hasBlock(train->getRow(),nextRow)) {
 		promptForBlock(train,true);
 		train->message= "waiting for block";
-		fprintf(stderr,"waiting for block\n");
+		fprintf(stderr,"waiting for block %d %d\n",train->getRow(),nextRow);
 		sim->schedule(new Departure(time+60,train,row));
 		ttoSim.waitTime= time+61;
 		return;
@@ -753,7 +753,7 @@ double TTOSim::init(bool isClient)
 	for (int i=0; i<timeTable->getNumTrains(); i++) {
 		AITrain* t= (AITrain*) timeTable->getTrain(i);
 		t->init(0);
-		if (t->getPrevTrain() != NULL)
+		if (auto p=t->getPrevTrain(); p && p->getCurrentRow()>=0)
 			continue;
 		int r= t->getCurrentRow();
 		if (r < 0)

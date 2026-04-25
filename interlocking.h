@@ -29,6 +29,8 @@ THE SOFTWARE.
 #include <vector>
 #include <map>
 #include <string>
+#include <iostream>
+#include <fstream>
 #include <vsg/all.h>
 
 #include "track.h"
@@ -135,6 +137,8 @@ class Interlocking {
 	};
 	bool hasLock(int sigLever, Track::SwVertex* sw);
 	std::string image;
+	void save(std::ofstream& ofs);
+	static void loadSave(vsg::Object*);
 };
 
 struct InterlockingParser: public CommandBlockHandler {

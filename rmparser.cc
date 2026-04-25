@@ -296,7 +296,7 @@ void RMParser::parseFile(const char* path)
 				  getDouble(1,-1e10,1e10),
 				  getDouble(2,-1e10,1e10),
 				  getDouble(3,-1e10,1e10),
-				  tokens[4]);
+				  tokens[4],-1);
 			} else if (strcasecmp(cmd,"align") == 0) {
 				Track* t= findTrack(tokens[1]);
 				if (t == NULL)
@@ -460,7 +460,16 @@ void RMParser::parseRailCarDef(RailCarDef* def)
 				MSTSShape shape;
 				if (mstsRoute)
 					shape.vsgOptions= mstsRoute->vsgOptions;
-				shape.readFile(makePath().c_str());
+				auto path= makePath();
+				if (auto i1= path.rfind('/'); i1!=string::npos) {
+					if (auto i2= path.rfind('/',i1-1); i1!=string::npos) {
+						def->dir= path.substr(i2+1,i1-i2-1);
+						def->name= path.substr(i1+1,path.size()-i1-2);
+						def->name+= def->engine?"eng":"wag";
+						cerr<<"newname "<<def->name<<" "<<def->dir<<" "<<i1<<" "<<i2<<"\n";
+					}
+				}
+				shape.readFile(path.c_str());
 				if (tokens.size() > 2)
 					shape.printSubobjects();
 				shape.createRailCar(def);

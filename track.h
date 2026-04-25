@@ -170,6 +170,7 @@ struct Track {
 			};
 		};
 		Node* firstNode;
+		std::string name;
 	};
 	typedef std::list<Edge*> EdgeList;
 	typedef std::list<Vertex*> VertexList;

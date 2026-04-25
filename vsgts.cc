@@ -292,10 +292,14 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			} else {
 				int nNear= 0;
 				int nMoving= 0;
-				for (auto train: trainList) {
-					if (train->distance(myLookAt->eye) < 500) {
+				for (int i=0; timeTable && i<timeTable->getNumTrains(); i++) {
+					AITrain* train= (AITrain*) timeTable->getTrain(i);
+					int r= train->getRow();
+					if (!train->consist || r<0 || train->getActualAr(r)<0)
+						continue;
+					if (train->consist->distance(myLookAt->eye) < 500) {
 						nNear++;
-						if (train->speed)
+						if (train->consist->speed)
 							nMoving++;
 					}
 				}

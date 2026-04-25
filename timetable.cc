@@ -155,6 +155,12 @@ void Train::init(int startTime)
 		row2= t;
 	}
 	row= row1;
+	while (row>=0 && times[row].actualLv>=0) {
+		row1= getNextRow(0);
+		if (row1<0 || times[row1].actualAr<0)
+			break;
+		row= row1;
+	}
 #if 0
 	if (row >= 0) {
 		int lv= times[row].schedLv;
@@ -1197,7 +1203,7 @@ void TimeTable::save(std::ofstream& ofs)
 {
 	ofs<<" \"timetable\": {\n";
 	ofs<<"  \"name\": \""<<timeTable->name<<"\",\n";
-	ofs<<"  \"downSuperior\": "<<(timeTable->downSuperior?"true":"false")<<",\n";
+	ofs<<"  \"downsuperior\": "<<(timeTable->downSuperior?"true":"false")<<",\n";
 	ofs<<"  \"rows\": [\n";
 	for (int i=0; i<timeTable->rows.size(); i++) {
 		auto& s= timeTable->rows[i];
@@ -1208,7 +1214,7 @@ void TimeTable::save(std::ofstream& ofs)
 		ofs<<"    \"distance\": "<<s->distance<<",\n";
 		ofs<<"    \"ntracks\": "<<s->nTracks<<",\n";
 		if (s->callSign.size() > 0)
-			ofs<<"    \"call\": \""<<s->callSign<<"\",\n";
+			ofs<<"    \"callsign\": \""<<s->callSign<<"\",\n";
 		if (s->blockBell.size() > 0)
 			ofs<<"    \"blockbell\": \""<<s->blockBell<<"\",\n";
 		ofs<<"    \"prompt\": "<<(s->promptForBlock?"true":"false")<<",\n";
@@ -1244,6 +1250,8 @@ void TimeTable::save(std::ofstream& ofs)
 			ofs<<"    \"prevtrain\": \""<<t->prevTrain->name<<"\",\n";
 		if (t->nextTrain)
 			ofs<<"    \"nexttrain\": \""<<t->nextTrain->name<<"\",\n";
+		if (t->path)
+			ofs<<"    \"path\": \""<<t->path->name<<"\",\n";
 		ofs<<"    \"times\": [\n";
 		for (int j=0; j<t->times.size(); j++) {
 			auto& tt= t->times[j];
@@ -1324,6 +1332,9 @@ void TimeTable::loadSave(vsg::Object* obj)
 			train->clas= (int)vsg::value<double>(true,"class",t);
 			train->prevTrain= findTrain(vsg::value<string>("","prevtrain",t));
 			train->nextTrain= findTrain(vsg::value<string>("","nexttrain",t));
+			auto pathName= vsg::value<string>("","path",t);
+			if (pathName.size() > 0)
+				train->path= mstsRoute->loadPath(pathName,false);
 			if (auto objs= dynamic_cast<vsg::Objects*>(t->getObject("times"))) {
 				for (int i=0; i<objs->children.size(); i++) {
 					auto& c= objs->children[i];

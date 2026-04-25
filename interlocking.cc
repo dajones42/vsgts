@@ -24,6 +24,10 @@ THE SOFTWARE.
 #include "interlocking.h"
 #include <stdexcept>
 #include <stdlib.h>
+#include <string>
+using namespace std;
+
+#include "ttosim.h"
 
 Interlocking* interlocking= nullptr;
 
@@ -371,4 +375,125 @@ int InterlockingParser::getLeverStates(CommandReader& reader, int idx)
 
 void InterlockingParser::handleEndBlock(CommandReader& reader)
 {
-};
+}
+
+void Interlocking::save(std::ofstream& ofs)
+{
+	ofs<<" \"interlocking\": {\n";
+	ofs<<"  \"useroscallsign\": \""<<userOSCallSign<<"\",\n";
+	ofs<<"  \"levers\": [\n";
+	for (int i=0; i<interlocking->levers.size(); i++) {
+		auto& lever= interlocking->levers[i];
+		if (i > 0)
+			ofs<<",\n";
+		ofs<<"   { \"state\": "<<lever.state<<", \"r\": "<<lever.color.r<<
+		  ", \"g\": "<<lever.color.g<<", \"b\": "<<lever.color.b;
+		if (lever.signal) {
+			ofs<<",\n     \"signal\": [";
+			for (int i=0; i<lever.signal->getNumTracks(); i++) {
+				auto& loc= lever.signal->getTrack(i);
+				WLocation wloc;
+				loc.getWLocation(&wloc);
+				if (i > 0)
+					ofs<<",";
+				ofs<<" { \"x\": "<<wloc.coord[0]<<", \"y\": "<<wloc.coord[1]<<
+				  ", \"z\": "<<wloc.coord[2]<<", \"rev\": "<<(loc.rev?"true":"false")<<" }";
+			}
+			ofs<<" ]";
+		}
+		if (lever.switches.size() > 0) {
+			ofs<<",\n     \"switches\": [";
+			int n= 0;
+			for (auto i: lever.switches) {
+				if (n > 0)
+					ofs<<",";
+				ofs<<" { \"id\": "<<i.first->id<<", \"rev\": "<<i.second<<" }";
+				n++;
+			}
+			ofs<<" ]";
+		}
+		ofs<<" }";
+	}
+	ofs<<"\n  ],\n";
+	ofs<<"  \"interlocks\": [\n";
+	int n= 0;
+	for (auto& lock: interlocking->interlocks) {
+		if (n > 0)
+			ofs<<",\n";
+		ofs<<"   { \"lever1\": "<<lock.lever1<<", \"states1\": "<<lock.states1<<
+		  ", \"lever2\": "<<lock.lever2<<", \"states2\": "<<lock.states2;
+		if (lock.when.size() > 0) {
+			ofs<<",\n     \"when\": [";
+			int m= 0;
+			for (auto i: lock.when) {
+				if (m > 0)
+					ofs<<",";
+				ofs<<" { \"lever\": "<<i.first<<", \"states\": "<<i.second<<" }";
+				m++;
+			}
+			ofs<<" ]";
+		}
+		ofs<<" }";
+		n++;
+	}
+	ofs<<"\n  ]\n";
+	ofs<<" },\n";
+}
+
+void Interlocking::loadSave(vsg::Object* obj)
+{
+	auto lobjs= dynamic_cast<vsg::Objects*>(obj->getObject("levers"));
+	if (!lobjs)
+		return;
+	userOSCallSign= vsg::value<string>("","useroscallsign",obj);
+	interlocking= new Interlocking(lobjs->children.size());
+	for (int i=0; i<lobjs->children.size(); i++) {
+		auto& cobj= lobjs->children[i];
+		int state= (int)vsg::value<double>(1,"state",cobj);
+		auto r= vsg::value<double>(0,"r",cobj);
+		auto g= vsg::value<double>(0,"g",cobj);
+		auto b= vsg::value<double>(0,"b",cobj);
+		interlocking->levers[i].state= (Interlocking::LeverState)state;
+		interlocking->setColor(i,r,g,b);
+		if (auto sobjs= dynamic_cast<vsg::Objects*>(cobj->getObject("signal"))) {
+			auto signal= new Signal;
+			interlocking->levers[i].signal= signal;
+			for (auto& scobj: sobjs->children) {
+				auto x= vsg::value<double>(0,"x",scobj);
+				auto y= vsg::value<double>(0,"y",scobj);
+				auto z= vsg::value<double>(0,"z",scobj);
+				Track::Location loc;
+				findTrackLocation(x,y,z,&loc);
+				loc.rev= vsg::value<bool>(false,"rev",scobj);
+				if (loc.edge != NULL) {
+					signal->addTrack(&loc);
+					loc.edge->signals.push_back(signal);
+				}
+			}
+		}
+		if (auto swobjs= dynamic_cast<vsg::Objects*>(cobj->getObject("switches"))) {
+			for (auto& swcobj: swobjs->children) {
+				int id= (int)vsg::value<double>(0,"id",swcobj);
+				int rev= (int)vsg::value<double>(0,"rev",swcobj);
+				if (auto sw= findTrackSwitch(id))
+					interlocking->addSwitch(i,sw,rev);
+			}
+		}
+	}
+	if (auto iobjs= dynamic_cast<vsg::Objects*>(obj->getObject("interlocks"))) {
+		for (auto& cobj: iobjs->children) {
+			int l1= (int)vsg::value<double>(0,"lever1",cobj);
+			int s1= (int)vsg::value<double>(0,"states1",cobj);
+			int l2= (int)vsg::value<double>(0,"lever2",cobj);
+			int s2= (int)vsg::value<double>(0,"states2",cobj);
+			interlocking->addInterlock(l1,s1,l2,s2);
+			if (auto wobjs= dynamic_cast<vsg::Objects*>(cobj->getObject("when"))) {
+				for (auto& wcobj: wobjs->children) {
+					int l= (int)vsg::value<double>(0,"lever",wcobj);
+					int s= (int)vsg::value<double>(0,"states",wcobj);
+					interlocking->addCondition(l,s);
+				}
+			}
+		}
+	}
+}

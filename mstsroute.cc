@@ -44,6 +44,7 @@ THE SOFTWARE.
 #include "timetable.h"
 #include "mstsace.h"
 #include "signal.h"
+#include "interlocking.h"
 
 using namespace std;
 
@@ -1607,6 +1608,7 @@ Track::Path* MSTSRoute::loadPath(string filename, bool align)
 	Track* track= trackMap[routeID];
 	Track::Path* path= new Track::Path;
 	path->firstNode= pathNodes[0];
+	path->name= filename;
 	for (int i=0; i<trackPath.nNodes; i++) {
 		Track::Path::Node* p= pathNodes[i];
 		p->sw= NULL;
@@ -1915,6 +1917,15 @@ void MSTSRoute::loadSave(vsg::Group* root)
 				i->second->throwSwitch(nullptr,false);
 		}
 	}
+	if (auto locations= dynamic_cast<vsg::Objects*>(top->getObject("locations"))) {
+		for (auto& c: locations->children) {
+			auto name= vsg::value<string>("","name",c);
+			auto x= vsg::value<double>(0,"x",c);
+			auto y= vsg::value<double>(0,"y",c);
+			auto z= vsg::value<double>(0,"z",c);
+			track->saveLocation(x,y,z,name,-1);
+		}
+	}
 	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
 	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
 	if (auto trains= dynamic_cast<vsg::Objects*>(top->getObject("trains"))) {
@@ -1950,6 +1961,18 @@ void MSTSRoute::loadSave(vsg::Group* root)
 						myRailCar= car;
 						myTrain= train;
 					}
+					if (vsg::value<bool>(false,"selected",c)) {
+						selectedRailCar= car;
+						selectedTrain= train;
+					}
+					if (auto w= c->getObject("waybill")) {
+						auto dest= vsg::value<string>("","destination",w);
+						auto r= vsg::value<double>(0,"r",w);
+						auto g= vsg::value<double>(0,"g",w);
+						auto b= vsg::value<double>(0,"b",w);
+						auto p= (int)vsg::value<double>(0,"priority",w);
+						car->addWaybill(dest,r,g,b,p);
+					}
 					car->prev= train->lastCar;
 					car->rev= rev;
 					if (train->lastCar == NULL)
@@ -1979,10 +2002,6 @@ void MSTSRoute::loadSave(vsg::Group* root)
 				for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next) {
 					car->setLocation(x-car->def->length/2,&train->location);
 					x-= car->def->length;
-					if (!myRailCar && car->engine) {
-						myRailCar= car;
-						myTrain= train;
-					}
 				}
 				train->setModelsOn();
 				train->setHeadLight(false);
@@ -1992,6 +2011,7 @@ void MSTSRoute::loadSave(vsg::Group* root)
 				train->bControl= vsg::value<double>(0,"bcontrol",t);
 				train->engBControl= vsg::value<double>(0,"ebcontrol",t);
 				train->targetSpeed= vsg::value<double>(8.9,"targetspeed",t);
+				train->nextStopDist= vsg::value<double>(0,"nextstopdist",t);
 				trainList.push_back(train);
 				trainMap[train->name]= train;
 				train->setOccupied();
@@ -2003,6 +2023,8 @@ void MSTSRoute::loadSave(vsg::Group* root)
 			timeTable= new tt::TimeTable();
 		timeTable->loadSave(tt);
 	}
+	if (auto iobj= top->getObject("interlocking"))
+		Interlocking::loadSave(iobj);
 }
 
 void MSTSRoute::saveState(std::string filename)
@@ -2036,6 +2058,8 @@ void MSTSRoute::saveState(std::string filename)
 		ofs<<"   \"dcontrol\": "<<t->dControl<<", \"tcontrol\": "<<t->tControl<<
 		  ", \"bcontrol\": "<<t->bControl<<", \"ebcontrol\": "<<t->engBControl<<",\n";
 		ofs<<"   \"targetspeed\": "<<t->targetSpeed<<",\n";
+		if (t->nextStopDist)
+			ofs<<"   \"nextstopdist\": "<<t->nextStopDist<<",\n";
 		if (t->engAirBrake != NULL)
 			ofs<<"   \"eqrp\": "<<t->engAirBrake->getEqResPressure()<<",\n";
 		ofs<<"   \"cars\": [\n";
@@ -2059,8 +2083,16 @@ void MSTSRoute::saveState(std::string filename)
 			}
 			if (c == myRailCar)
 				ofs<<", \"myrailcar\": true";
+			if (c == selectedRailCar)
+				ofs<<", \"selected\": true";
 			if (c->handBControl)
 				ofs<<", \"handbcontrol\": "<<c->handBControl<<"";
+			if (c->waybill) {
+				auto w= c->waybill;
+				ofs<<",\n      \"waybill\": { \"destination\": \""<<w->destination<<
+				  "\", \"priority\": "<<w->priority<<", \"r\":"<<w->color.r<<
+				  ", \"g\":"<<w->color.g<<", \"b\":"<<w->color.b<<" }";
+			}
 			ofs<<" }";
 		}
 		ofs<<"\n   ]\n";
@@ -2083,8 +2115,24 @@ void MSTSRoute::saveState(std::string filename)
 		}
 	}
 	ofs<<" ],\n";
+	ofs<<" \"locations\": [";
+	n= 0;
+	for (auto i: track->locations) {
+		if (i.second.rev < 0) {
+			WLocation wloc;
+			i.second.getWLocation(&wloc);
+			if (n)
+				ofs<<",\n";
+			ofs<<"  { \"name\": \""<<i.first<<"\", \"x\": "<<wloc.coord.x<<
+			  ", \"y\": "<<wloc.coord.y<<", \"z\": "<<wloc.coord.z<<" }";
+			n++;
+		}
+	}
+	ofs<<"\n ],\n";
 	if (timeTable)
 		timeTable->save(ofs);
+	if (interlocking)
+		interlocking->save(ofs);
 	ofs<<" \"time\": "<<simTime<<"\n";
 	ofs<<"}\n";
 }

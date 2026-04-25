@@ -468,6 +468,8 @@ ControlCurve* readSMSCurve(MSTSFileNode* curve)
 void Listener::readSMS(Train* train, RailCarInst* car, string& file)
 {
 //	fprintf(stderr,"readSMS %s\n",file.c_str());
+	for (auto i=file.find("\\"); i!=string::npos; i=file.find("\\"))
+		file= file.replace(i,1,"/");
 	file= fixFilenameCase(file.c_str());
 	int i= file.rfind("/");
 	string dir= file.substr(0,i);
