@@ -868,11 +868,11 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 			tbin++;
 		else if (incTransparentBin && ps->zBufMode==1)
 			tbin+= 2;
-		if (ps->alphaTestMode) {
-			matValue->value().alphaMask= 1;
-			matValue->value().alphaMaskCutoff= .6;
-			defines.insert("VSG_ALPHA_TEST");
-		} else {
+		matValue->value().alphaMask= 1;
+		matValue->value().alphaMaskCutoff= .6;
+		defines.insert("VSG_ALPHA_TEST");
+		if (!ps->alphaTestMode) {
+			matValue->value().alphaMaskCutoff= .1;
 			vsg::ColorBlendState::ColorBlendAttachments cbas;
 			VkPipelineColorBlendAttachmentState cba= {};
 			cba.colorWriteMask= VK_COLOR_COMPONENT_R_BIT |
@@ -1398,11 +1398,12 @@ void MSTSShape::createRailCar(RailCarDef* car)
 			auto color= vsg::vec4(((j->color>>16)&0xff)/255.,
 			  ((j->color>>8)&0xff)/255.,(j->color&0xff)/255.,
 			  ((j->color>>24)&0xff)/255.);
-			float radius= j->radius>.5?.1*j->radius:.2*j->radius;
+			float radius= j->radius>.5?.2*j->radius:.4*j->radius;
 			if (j->unit==2 && radius>.15)
 				radius= .15;
 			else if (j->unit!=2 && radius>.06)
 				radius= .06;
+//			cerr<<"light "<<j->unit<<" "<<j->radius<<" "<<radius<<"\n";
 			auto light= createLightPoint(position,color,radius,vsgOptions);
 			auto sw= vsg::Switch::create();
 			sw->addChild(false,light);
