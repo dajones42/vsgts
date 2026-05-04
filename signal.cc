@@ -34,6 +34,7 @@ Signal::Signal(int s)
 	indication= s;
 	trainDistance= 0;
 	distant= false;
+	maxSpeed= 0;
 };
 
 void Signal::addTrack(Track::Location* loc)
@@ -211,6 +212,10 @@ bool SignalParser::handleCommand(CommandReader& reader)
 	}
 	if (reader.getString(0) == "distant") {
 		signal->distant= true;
+		return true;
+	}
+	if (reader.getString(0) == "maxspeed") {
+		signal->maxSpeed= reader.getDouble(1,0,100);
 		return true;
 	}
 	return false;

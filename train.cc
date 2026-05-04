@@ -309,10 +309,26 @@ void Train::adjustControls(float dt)
 			target= -target;
 		d= -d;
 	}
+	float max1= targetSpeed;
+	float max2= targetSpeed;
+	float dist1= 1e10;
+	float dist2= 1e10;
 	for (SigDistList::iterator i=signalList.begin(); i!=signalList.end();
 	  ++i) {
 		float d1= d-i->second;
 		i->first->trainDistance= d1;//+length;
+		if (dControl>0 && i->first->maxSpeed>0) {
+			float max= i->first->maxSpeed;
+			if (d1<0 && max1>=max) {
+				max1= max;
+				if (dist1 > -d1)
+					dist1= -d1;
+			} else if (d1>0 && max2>=max) {
+				max2= max;
+				if (dist2 > d1)
+					dist2= d1;
+			}
+		}
 		if (i->first->getState()==Signal::CLEAR ||
 		  i->first->isDistant())
 			continue;
@@ -328,7 +344,11 @@ void Train::adjustControls(float dt)
 		stop();
 		return;
 	}
+	if (target>max1 && (target>max2 || dist1<length))
+		target= max1;
 	float decel= decelMult*maxDecel;
+	if (target>max2 && (target*target-max2*max2)>2*decel*dist2)
+		target= max2;
 	float speedSq= speed*speed;
 	float maxSpeedSq= target*target;
 	if (maxSpeedSq > 2*d*decel)
@@ -1513,8 +1533,8 @@ void Train::alignSwitches(Track::Vertex* farv)
 				if (loc.rev ? e->v1->dist<e->v2->dist :
 				  e->v2->dist<e->v1->dist)
 					continue;
-//				fprintf(stderr,"signal %p %f\n",
-//				  s,nextStopDist-loc.getDist());
+//				fprintf(stderr,"signal %p %f %f\n",
+//				  s,nextStopDist-loc.getDist(),s->maxSpeed);
 				signalList.push_front(
 				  make_pair(s,nextStopDist-loc.getDist()));
 			}

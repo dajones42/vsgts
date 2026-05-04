@@ -46,6 +46,7 @@ class Signal {
  public:
 	Signal(int s=STOP);
 	float trainDistance;
+	float maxSpeed;
 	bool distant;
 	int getState() { return state; };
 	bool isDistant() { return distant; };

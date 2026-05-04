@@ -229,13 +229,13 @@ void CreateTrain::handleAI(tt::EventSim<double>* sim)
 		sim->schedule(new Departure(t,train,row));
 }
 
-void checkNextStop(AITrain* train, int nextRow)
+float nextStationDistance(AITrain* train, int nextRow)
 {
 	if (nextRow < 0)
-		return;
+		return -1;
 	Station* s= (Station*) timeTable->getRow(nextRow);
 	if (s->locations.size() == 0)
-		return;
+		return -1;
 	float d= 0;
 	int i= 0;
 	int n= s->locations.size();
@@ -267,12 +267,33 @@ void checkNextStop(AITrain* train, int nextRow)
 	}
 	if (m > 0)
 		d/= m;
-	d+= train->consist->getPassOffset();
-	if (d>0 && d<train->consist->nextStopDist) {
-		fprintf(stderr,"nextstopdist %f\n",d);
-		train->consist->nextStopDist= d;
-		train->moveAuth.waitTime= train->getWait(nextRow);
+	return d + train->consist->getPassOffset();
+}
+
+void checkNextStop(AITrain* train, int nextRow)
+{
+	float d1= nextStationDistance(train,nextRow);
+	if (d1 < 0)
+		return;
+	if (d1>0 && d1<train->consist->nextStopDist) {
 		train->moveAuth.updateDistance= 0;
+		train->osDist= 0;
+		if (train->getWait(nextRow) == 0) {
+			int nextRow2= train->getNextRow(0,nextRow);
+			float d2= nextStationDistance(train,nextRow2);
+			if (d2>0 && d2<train->consist->nextStopDist) {
+				train->osDist= d2-d1;
+				train->consist->nextStopDist= d2;
+				train->moveAuth.waitTime= train->getWait(nextRow2);
+			} else {
+				train->consist->nextStopDist= d1;
+				train->moveAuth.waitTime= train->getWait(nextRow);
+			}
+		} else {
+			train->consist->nextStopDist= d1;
+			train->moveAuth.waitTime= train->getWait(nextRow);
+		}
+		fprintf(stderr,"nextstopdist %f %f\n",train->consist->nextStopDist,train->osDist);
 	}
 	if (train->moveAuth.farVertex)
 		train->findSignals(train->moveAuth.farVertex);
@@ -300,6 +321,14 @@ void PathStart::handleAI(tt::EventSim<double>* sim)
 			}
 			train->consist= NULL;
 		}
+		return;
+	}
+	if (!train->hasBlock(train->getRow(),nextRow)) {
+		promptForBlock(train,true);
+		train->message= "waiting for block";
+		fprintf(stderr,"waiting for block %d %d\n",train->getRow(),nextRow);
+		sim->schedule(new PathStart(time+10,train,row,false));
+		ttoSim.waitTime= time+11;
 		return;
 	}
 	if (train->moveAuth.nextNode != NULL) {
@@ -420,8 +449,8 @@ void Departure::handleAI(tt::EventSim<double>* sim)
 		promptForBlock(train,true);
 		train->message= "waiting for block";
 		fprintf(stderr,"waiting for block %d %d\n",train->getRow(),nextRow);
-		sim->schedule(new Departure(time+60,train,row));
-		ttoSim.waitTime= time+61;
+		sim->schedule(new Departure(time+10,train,row));
+		ttoSim.waitTime= time+11;
 		return;
 	}
 	float d= train->findNextStop(nextRow,1);
@@ -1155,8 +1184,8 @@ void AITrain::alignSwitches(Track::Vertex* farv)
 				if (loc.rev ? e->v1->dist<e->v2->dist :
 				  e->v2->dist<e->v1->dist)
 					continue;
-//				fprintf(stderr,"signal %p %f\n",
-//				  s,consist->nextStopDist-loc.getDist());
+//				fprintf(stderr,"signal %p %f %f\n",
+//				  s,consist->nextStopDist-loc.getDist(),s->maxSpeed);
 				consist->signalList.push_front(
 				  make_pair(s,
 				   consist->nextStopDist-loc.getDist()));
@@ -1182,8 +1211,8 @@ void AITrain::alignSwitches(Track::Vertex* farv)
 			float d= consist->location.dDistance(&loc);
 			if (d<0 || consist->location.rev!=loc.rev)
 				continue;
-//			fprintf(stderr,"signal %p %f\n",
-//			  s,consist->nextStopDist-d);
+//			fprintf(stderr,"signal %p %f %f\n",
+//			  s,consist->nextStopDist-d,s->maxSpeed);
 			consist->signalList.push_front(
 			  make_pair(s,consist->nextStopDist-d));
 		}
@@ -1193,7 +1222,7 @@ void AITrain::alignSwitches(Track::Vertex* farv)
 //	find signals on the path a train is about to take
 void AITrain::findSignals(Track::Vertex* farv)
 {
-//	fprintf(stderr,"findsignals %p %f\n",farv,farv->dist);
+	fprintf(stderr,"findsignals %p %f\n",farv,farv->dist);
 	Track::Vertex* v= farv;
 	for (SigDistList::iterator i=consist->signalList.begin();
 	  i!=consist->signalList.end(); ++i)
@@ -1217,8 +1246,8 @@ void AITrain::findSignals(Track::Vertex* farv)
 				if (loc.rev ? e->v1->dist<e->v2->dist :
 				  e->v2->dist<e->v1->dist)
 					continue;
-//				fprintf(stderr,"signal %p %f\n",
-//				  s,consist->nextStopDist-loc.getDist());
+//				fprintf(stderr,"signal %p %f %f\n",
+//				  s,consist->nextStopDist-loc.getDist(),s->maxSpeed);
 				consist->signalList.push_front(
 				  make_pair(s,
 				   consist->nextStopDist-loc.getDist()));
@@ -1242,8 +1271,8 @@ void AITrain::findSignals(Track::Vertex* farv)
 			float d= consist->location.dDistance(&loc);
 			if (d<0 || consist->location.rev!=loc.rev)
 				continue;
-//			fprintf(stderr,"signal %p %f\n",
-//			  s,consist->nextStopDist-d);
+//			fprintf(stderr,"signal %p %f %f\n",
+//			  s,consist->nextStopDist-d,s->maxSpeed);
 			consist->signalList.push_front(
 			  make_pair(s,consist->nextStopDist-d));
 		}

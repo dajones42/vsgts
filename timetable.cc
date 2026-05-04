@@ -202,11 +202,11 @@ void Train::setBlockCleared(int row, int time, int prevRow)
 {
 	for (int i=0; i<timeTable->blocks.size(); i++) {
 		Block* b= timeTable->blocks[i];
-		if (timeTable->rows[row]!=b->station1 &&
-		   timeTable->rows[row]!=b->station2)
+		if (timeTable->rows[row]->callSign!=b->station1->callSign &&
+		   timeTable->rows[row]->callSign!=b->station2->callSign)
 			continue;
-		if (prevRow>=0 && timeTable->rows[prevRow]!=b->station1 &&
-		   timeTable->rows[prevRow]!=b->station2)
+		if (prevRow>=0 && timeTable->rows[prevRow]->callSign!=b->station1->callSign &&
+		   timeTable->rows[prevRow]->callSign!=b->station2->callSign)
 			continue;
 		for (int j=0; j<b->trainTimes.size(); j++) {
 			if (b->trainTimes[j].train==this &&
@@ -233,8 +233,8 @@ void Train::setBlockEntered(int row, int time)
 {
 	for (int i=0; i<timeTable->blocks.size(); i++) {
 		Block* b= timeTable->blocks[i];
-		if (timeTable->rows[row]!=b->station1 &&
-		   timeTable->rows[row]!=b->station2)
+		if (timeTable->rows[row]->callSign!=b->station1->callSign &&
+		   timeTable->rows[row]->callSign!=b->station2->callSign)
 			continue;
 		for (int j=0; j<b->trainTimes.size(); j++) {
 			if (b->trainTimes[j].train==this &&
@@ -1027,13 +1027,18 @@ bool TimeTable::addMeet(Train* t1, Train* t2, Station* s)
 
 Block* TimeTable::findBlock(int row1, int row2)
 {
+	if (row1<0 || row2<0)
+		return nullptr;
 	for (int i=0; i<blocks.size(); i++) {
 		Block* b= blocks[i];
-		if ((b->station1==rows[row1] && b->station2==rows[row2]) ||
-		  (b->station1==rows[row2] && b->station2==rows[row1]))
+		if (b->station1->callSign==rows[row1]->callSign &&
+		  b->station2->callSign==rows[row2]->callSign)
+			return b;
+		if (b->nTracks==1 && b->station1->callSign==rows[row2]->callSign &&
+		  b->station2->callSign==rows[row1]->callSign)
 			return b;
 	}
-	return NULL;
+	return nullptr;
 }
 
 Block* TimeTable::getBlockFor(Train* train, int time)
@@ -1055,7 +1060,7 @@ Block* TimeTable::getBlockFor(Train* train, int time)
 		if (b->trainTimes[i].timeCleared == -1)
 			n++;
 	}
-	if (n < b->nTracks) {
+	if (n < 1) { //b->nTracks) {
 		b->trainTimes.push_back(BlockTimes(train,time));
 		train->nextBlock= nullptr;
 		return b;
