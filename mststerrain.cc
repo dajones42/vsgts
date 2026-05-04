@@ -36,7 +36,7 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 {
 	if (tile->terrModel)
 		return;
-//	scoped_lock lock {loadMutex};
+	scoped_lock lock {loadMutex};
 	readTerrain(tile);
 //	fprintf(stderr,"makeTerrain %d %d %f %f\n",
 //	  tile->x,tile->z,tile->floor,tile->scale);
@@ -97,6 +97,8 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 			}
 			auto stateGroup=
 			  makePatch(patch,i*16,j*16,tile,t12,t21,t22);
+			if (!stateGroup)
+				continue;
 			auto gpConfig=
 			  vsg::GraphicsPipelineConfigurator::create(shaderSet);
 			gpConfig->assignTexture("diffuseMap",
@@ -143,8 +145,8 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 	lod->options= vsgOptions;
 	lod->bound.set(center.x,center.y,center.z,radius);
 	lod->filename= tile->tFilename+".world";
-	lod->children[0]= vsg::PagedLOD::Child{.8,{}};
-	lod->children[1]= vsg::PagedLOD::Child{1,{}};
+	lod->children[0]= vsg::PagedLOD::Child{1.5,{}};
+	lod->children[1]= vsg::PagedLOD::Child{10,{}};
 	group->addChild(lod);
 //	auto cg= vsg::CullGroup::create();
 //	cg->bound.set(center.x,center.y,center.z,radius);

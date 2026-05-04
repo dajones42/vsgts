@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "listener.h"
 
 vsg::LookAt* myLookAt= nullptr;
+CameraController* myCameraController= nullptr;
 
 CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<vsg::Node> node) :
   scene(node),
@@ -48,6 +49,8 @@ CameraController::CameraController(vsg::ref_ptr<vsg::Camera> cam, vsg::ref_ptr<v
 	maxZoom= zoom= (int)z;
 	if (!myLookAt)
 		myLookAt= lookAt.get();
+	if (!myCameraController)
+		myCameraController= this;
 	insideIndex= -1;
 }
 
@@ -83,6 +86,7 @@ void CameraController::setPitch(double degrees)
 
 void CameraController::setZoom(int z)
 {
+//	std::cerr<<"setzoom "<<z<<"\n";
 	if (z < 0)
 		z= 0;
 	if (z > maxZoom)
@@ -371,4 +375,47 @@ void CameraController::setFollow(vsg::MatrixTransform* model, vsg::vec3 offset, 
 	setPitch(pitch);
 	lookAt->up= vsg::dvec3(0,0,1);
 	remoteEye= false;
+}
+
+void CameraController::save(std::ofstream& ofs)
+{
+	ofs<<" \"camera\": {\n";
+	ofs<<"  \"cx\": "<<lookAt->center.x<<", \"cy\": "<<lookAt->center.y<<
+	  ", \"cz\": "<<lookAt->center.z<<",\n";
+	ofs<<"  \"ex\": "<<lookAt->eye.x<<", \"ey\": "<<lookAt->eye.y<<
+	  ", \"ez\": "<<lookAt->eye.z<<",\n";
+	ofs<<"  \"ux\": "<<lookAt->up.x<<", \"uy\": "<<lookAt->up.y<<
+	  ", \"uz\": "<<lookAt->up.z<<",\n";
+	ofs<<"  \"fox\": "<<followOffset.x<<", \"foy\": "<<followOffset.y<<
+	  ", \"foz\": "<<followOffset.z<<",\n";
+	ofs<<"  \"prx\": "<<prevRotation.x<<", \"pry\": "<<prevRotation.y<<
+	  ", \"prz\": "<<prevRotation.z<<", \"prw\": "<<prevRotation.w<<",\n";
+	if (selectedRailCar && follow==selectedRailCar->model)
+		ofs<<"  \"follow\": true,\n";
+	ofs<<"  \"zoom\": "<<zoom<<",\n";
+	ofs<<"  \"insideindex\": "<<insideIndex<<"\n";
+	ofs<<" },\n";
+}
+
+void CameraController::loadSave(vsg::Object* obj)
+{
+	lookAt->center= vsg::dvec3(vsg::value<double>(0,"cx",obj),vsg::value<double>(0,"cy",obj),
+	  vsg::value<double>(0,"cz",obj));
+	lookAt->eye= vsg::dvec3(vsg::value<double>(0,"ex",obj),vsg::value<double>(0,"ey",obj),
+	  vsg::value<double>(1,"ez",obj));
+	lookAt->up= vsg::dvec3(vsg::value<double>(0,"ux",obj),vsg::value<double>(1,"uy",obj),
+	  vsg::value<double>(0,"uz",obj));
+	followOffset= vsg::dvec3(vsg::value<double>(0,"fox",obj),vsg::value<double>(1,"foy",obj),
+	  vsg::value<double>(0,"foz",obj));
+	prevRotation= vsg::dquat(vsg::value<double>(0,"prx",obj),vsg::value<double>(0,"pry",obj),
+	  vsg::value<double>(0,"prz",obj),vsg::value<double>(1,"prw",obj));
+	zoom= (int)vsg::value<double>(0,"zoom",obj);
+	insideIndex= vsg::value<int>(-1,"insideindex",obj);
+	if (vsg::value<bool>(false,"follow",obj) && selectedRailCar)
+		follow= selectedRailCar->model;
+	setZoom(zoom);
+//	std::cerr<<"center "<<lookAt->center<<"\n";
+//	std::cerr<<"eye "<<lookAt->eye<<"\n";
+//	std::cerr<<"up "<<lookAt->up<<"\n";
+//	std::cerr<<"pr "<<prevRotation.x<<" "<<prevRotation.y<<" "<<prevRotation.z<<" "<<prevRotation.w<<"\n";
 }

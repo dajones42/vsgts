@@ -56,7 +56,10 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	void updateListener();
 	bool followInside(RailCarInst* railCar);
 	void setFollow(vsg::MatrixTransform* model, vsg::vec3 offset, float heading, float pitch);
+	void save(std::ofstream& ofs);
+	void loadSave(vsg::Object*);
 };
 extern vsg::LookAt* myLookAt;
+extern CameraController* myCameraController;
 
 #endif

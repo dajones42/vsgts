@@ -35,6 +35,7 @@ using namespace std;
 #include "trackshape.h"
 #include "animation.h"
 #include "signal.h"
+#include "camerac.h"
 
 extern string fixFilenameCase(string);
 
@@ -50,7 +51,7 @@ void MSTSRoute::loadModels(Tile* tile)
 	char buf[100];
 	sprintf(buf,"w%+6.6d%+6.6d.w",tile->x,tile->z);
 	string path= worldDir+dirSep+buf;
-//	fprintf(stderr,"loadModels from %s %f %f\n",path.c_str(),x0,z0);
+//	fprintf(stderr,"loadModels from %s %f %f\n",path.c_str(),x0-myLookAt->eye.x,z0-myLookAt->eye.y);
 	if (readBinWFile(path.c_str(),tile,x0,z0) == 0) {
 	try {
 		MSTSFile file;

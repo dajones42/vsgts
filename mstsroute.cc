@@ -45,6 +45,7 @@ THE SOFTWARE.
 #include "mstsace.h"
 #include "signal.h"
 #include "interlocking.h"
+#include "camerac.h"
 
 using namespace std;
 
@@ -786,7 +787,7 @@ void MSTSRoute::makeTileMap(vsg::Group* root)
 		lod->options= vsgOptions;
 		lod->bound.set(center.x,center.y,center.z,radius);
 		lod->filename= tile->tFilename+"_y.raw";
-		lod->children[0]= vsg::PagedLOD::Child{.6,{}};
+		lod->children[0]= vsg::PagedLOD::Child{1,{}};
 		lod->children[1]= vsg::PagedLOD::Child{0,quad};
 		root->addChild(lod);
 	}
@@ -1926,6 +1927,8 @@ void MSTSRoute::loadSave(vsg::Group* root)
 			track->saveLocation(x,y,z,name,-1);
 		}
 	}
+	trainList.clear();
+	trainMap.clear();
 	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
 	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
 	if (auto trains= dynamic_cast<vsg::Objects*>(top->getObject("trains"))) {
@@ -1986,7 +1989,6 @@ void MSTSRoute::loadSave(vsg::Group* root)
 					delete train;
 					continue;
 				}
-				trainMap[train->name]= train;
 				train->setModelsOff();
 				train->connectAirHoses();
 				if (train->engAirBrake != NULL)
@@ -2013,7 +2015,8 @@ void MSTSRoute::loadSave(vsg::Group* root)
 				train->targetSpeed= vsg::value<double>(8.9,"targetspeed",t);
 				train->nextStopDist= vsg::value<double>(0,"nextstopdist",t);
 				trainList.push_back(train);
-				trainMap[train->name]= train;
+				if (train->name.size() > 0)
+					trainMap[train->name]= train;
 				train->setOccupied();
 			}
 		}
@@ -2025,6 +2028,8 @@ void MSTSRoute::loadSave(vsg::Group* root)
 	}
 	if (auto iobj= top->getObject("interlocking"))
 		Interlocking::loadSave(iobj);
+	if (auto cobj= top->getObject("camera"))
+		myCameraController->loadSave(cobj);
 }
 
 void MSTSRoute::saveState(std::string filename)
@@ -2129,10 +2134,12 @@ void MSTSRoute::saveState(std::string filename)
 		}
 	}
 	ofs<<"\n ],\n";
-	if (timeTable)
+	if (timeTable && timeTable->getNumTrains()>0)
 		timeTable->save(ofs);
 	if (interlocking)
 		interlocking->save(ofs);
+	if (myCameraController)
+		myCameraController->save(ofs);
 	ofs<<" \"time\": "<<simTime<<"\n";
 	ofs<<"}\n";
 }
