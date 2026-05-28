@@ -47,6 +47,9 @@ THE SOFTWARE.
 
 vsg::AmbientLight* ambLight;
 vsg::DirectionalLight* dirLight;
+bool overcast= true;
+float maxALight= .2;
+float maxDLight= .8;
 
 void initSim(vsg::ref_ptr<vsg::Group>& root)
 {
@@ -60,7 +63,14 @@ void initSim(vsg::ref_ptr<vsg::Group>& root)
 	dLight->intensity= .6;
 	dLight->direction.set(0,.6,-.8);
 	dLight->angleSubtended= .009;
-//	dLight->shadowSettings= vsg::HardShadows::create(1);
+	if (overcast) {
+		maxALight= .5;
+		maxDLight= .5;
+	} else {
+//		dLight->shadowSettings= vsg::HardShadows::create(3);
+//		dLight->shadowSettings= vsg::SoftShadows::create(3,.05);
+		dLight->shadowSettings= vsg::PercentageCloserSoftShadows::create(3);
+	}
 	root->addChild(dLight);
 	dirLight= dLight.get();
 	if (!timeTable) {
@@ -106,7 +116,7 @@ void updateLightDirection()
 	auto h= simTime/3600;
 	if (h<6 || h>18) {
 //		fprintf(stderr,"lightdir %f\n",h);
-		ambLight->intensity= .2;
+		ambLight->intensity= .1;
 		dirLight->intensity= 0;
 	} else {
 		int i= (int)floor(h-6);
@@ -117,11 +127,11 @@ void updateLightDirection()
 		dirLight->direction= p;
 		auto z= fabs(p.z);
 		if (z < .05) {
-			ambLight->intensity= .2 + 4*z;
-			dirLight->intensity= .6*20*z;
+			ambLight->intensity= .1 + (maxALight-.1)*20*z;
+			dirLight->intensity= maxDLight*20*z;
 		} else {
-			ambLight->intensity= .4;
-			dirLight->intensity= .6;
+			ambLight->intensity= maxALight;
+			dirLight->intensity= maxDLight;;
 		}
 	}
 }
@@ -334,6 +344,8 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			mstsRoute->consistName.erase(0,i+1);
 			mstsRoute->consistName+= ".con";
 			mstsRoute->loadActivity(railCars.get(),-1);
+			if (mstsRoute->createSkyBox())
+				railCars->addChild(mstsRoute->skyBoxSwitch);
 			auto cr= viewer->compileManager->compile(railCars);
 			updateViewer(*viewer,cr);
 			root->addChild(railCars);
@@ -347,6 +359,8 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			auto railCars= vsg::Group::create();
 			mstsRoute->loadActivity(railCars.get(),-1);
 			mstsRoute->activityName.clear();
+			if (mstsRoute->createSkyBox())
+				railCars->addChild(mstsRoute->skyBoxSwitch);
 			auto cr= viewer->compileManager->compile(railCars);
 			updateViewer(*viewer,cr);
 			root->addChild(railCars);
@@ -381,7 +395,7 @@ int main(int argc, char** argv)
 	windowTraits->debugLayer= arguments.read({"--debug","-d"});
 	windowTraits->apiDumpLayer= arguments.read({"--api","-a"});
 	if (arguments.read({"--fullscreen", "--fs"}))
-	windowTraits->fullscreen= true;
+		windowTraits->fullscreen= true;
 	if (arguments.read({"--window", "-w"}, windowTraits->width,
 	  windowTraits->height)) {
 		windowTraits->fullscreen= false;
@@ -396,10 +410,16 @@ int main(int argc, char** argv)
 	options->add(MstsRouteReader::create());
 	options->add(MstsTerrainReader::create());
 //	vsg::Logger::instance()->level= vsg::Logger::LOGGER_DEBUG;;
+	if (arguments.read({"--shadows", "-s"}))
+		overcast= false;
 
 	auto scene= vsg::Group::create();
 	listener.init();
 	vsg::dvec3 startLocation;
+	while (argc>1 && argv[1][0]=='-') {
+		argv++;
+		argc--;
+	}
 	if (argc>1) {
 		const char* fname= argv[1];
 		argc--;
