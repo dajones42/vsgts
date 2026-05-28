@@ -56,6 +56,7 @@ struct MSTSRoute {
 	std::string rTexturesDir;
 	std::string activityName;
 	std::string consistName;
+	std::string skyImage;
 	int centerTX;
 	int centerTZ;
 	float centerLat;

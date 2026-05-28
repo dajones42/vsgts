@@ -124,6 +124,8 @@ void RMParser::parseMSTSRoute(string& dir, string& route)
 				mstsRoute->wireModelsDir= tokens[2];
 			} else if (strcasecmp(cmd,"path") == 0) {
 				pathFile= tokens[1];
+			} else if (strcasecmp(cmd,"skyimage") == 0) {
+				mstsRoute->skyImage= tokens[1];
 			} else if (strcasecmp(cmd,"ignorepolygon") == 0) {
 				for (int i=1; i<tokens.size(); i++)
 					mstsRoute->ignorePolygon.push_back(
@@ -163,6 +165,8 @@ void RMParser::parseMSTSRoute(string& dir, string& route)
 		mstsRoute->wireTerrain= true;
 	mstsRoute->vsgOptions= vsg::Options::create();
 	mstsRoute->makeTileMap(rootNode);
+	if (mstsRoute->createSkyBox())
+		rootNode->addChild(mstsRoute->skyBoxSwitch);
 	rootNode->addChild(mstsRoute->createTrackLines());
 }
 

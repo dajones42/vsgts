@@ -28,6 +28,8 @@ THE SOFTWARE.
 Activity::Activity()
 {
 	consists= NULL;
+	weather= 0;
+	startTime= 0;
 }
 
 Activity::~Activity()
@@ -177,6 +179,9 @@ void Activity::readFile(const char* path)
 					  line->value->c_str());
 			}
 		}
+		MSTSFileNode* w= trActHdr->children->find("Weather");
+		if (w)
+			weather= atoi(w->getChild(0)->value->c_str());
 	}
 }
 

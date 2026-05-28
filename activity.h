@@ -71,6 +71,7 @@ struct Activity {
 	Traffic* traffic;
 	std::string playerService;
 	int startTime;
+	int weather;
 	Event* events;
 	Activity();
 	~Activity();

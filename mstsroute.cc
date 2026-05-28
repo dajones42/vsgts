@@ -91,6 +91,7 @@ MSTSRoute::MSTSRoute(const char* mDir, const char* rID)
 	worldDir= fixFilenameCase(routeDir+dirSep+"WORLD");
 	rShapesDir= fixFilenameCase(routeDir+dirSep+"SHAPES");
 	rTexturesDir= fixFilenameCase(routeDir+dirSep+"TEXTURES")+dirSep;
+	skyImage= "snowsky.ace";
 	dynTrackBase= NULL;
 	dynTrackRails= NULL;
 	dynTrackWire= NULL;
@@ -756,8 +757,6 @@ void MSTSRoute::makeTileMap(vsg::Group* root)
 	font= vsg::read_cast<vsg::Font>("fonts/times.vsgb",options);
 	if (!font)
 		fprintf(stderr,"failed to load font\n");
-	if (createSkyBox())
-		root->addChild(skyBoxSwitch);
 	vsg::StateInfo stateInfo;
 	stateInfo.lighting= false;
 	auto builder= vsg::Builder::create();
@@ -1228,6 +1227,11 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	activity.readFile(path.c_str());
 	simTime= activity.startTime;
+	switch (activity.weather) {
+	 case 1: skyImage= "snowsky.ace"; break;
+	 case 2: skyImage= "rainsky.ace"; break;
+	 default: skyImage= "daysky.ace"; break;
+	}
 	if (timeTable) {
 		tt::Station* start= timeTable->findStation("start");
 		if (start == NULL)
@@ -1909,6 +1913,7 @@ void MSTSRoute::loadSave(vsg::Group* root)
 		return;
 	}
 	simTime= vsg::value<double>(0,"time",top);
+	skyImage= vsg::value<string>("snowsky.ace","skyimage",top);
 	Track* track= trackMap[routeID];
 	if (auto switches= dynamic_cast<vsg::Objects*>(top->getObject("switches"))) {
 		for (auto& c: switches->children) {
@@ -2140,7 +2145,8 @@ void MSTSRoute::saveState(std::string filename)
 		interlocking->save(ofs);
 	if (myCameraController)
 		myCameraController->save(ofs);
-	ofs<<" \"time\": "<<simTime<<"\n";
+	ofs<<" \"time\": "<<simTime<<",\n";
+	ofs<<" \"skyimage\": "<<skyImage<<"\n";
 	ofs<<"}\n";
 }
 
@@ -2221,7 +2227,9 @@ vsg::ref_ptr<vsg::Switch> MSTSRoute::createTrackLines()
 
 vsg::ref_ptr<vsg::MatrixTransform> MSTSRoute::createSkyBox()
 {
-	std::string path= fixFilenameCase(routeDir+dirSep+"ENVFILES"+dirSep+"TEXTURES"+dirSep+"snowsky.ace");
+	if (skyImage.size() == 0)
+		return {};
+	std::string path= fixFilenameCase(routeDir+dirSep+"ENVFILES"+dirSep+"TEXTURES"+dirSep+skyImage);
 	auto img= readCacheACEFile(path.c_str());
 	if (!img)
 		return {};
@@ -2289,6 +2297,8 @@ vsg::ref_ptr<vsg::MatrixTransform> MSTSRoute::createSkyBox()
 	auto sampler= vsg::Sampler::create();
 	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	sampler->anisotropyEnable= VK_TRUE;
+	sampler->maxAnisotropy= 16;
 	vsgOptions->sharedObjects->share(sampler);
 	gpConfig->assignTexture("diffuseMap",img,sampler);
 	auto matValue= vsg::PhongMaterialValue::create();
@@ -2314,7 +2324,8 @@ vsg::ref_ptr<vsg::MatrixTransform> MSTSRoute::createSkyBox()
 	skyBox= vsg::MatrixTransform::create();
 	skyBox->addChild(stateGroup);
 	skyBoxSwitch= vsg::Switch::create();
-	skyBoxSwitch->addChild(false,skyBox);
+	bool skyOn= myCameraController && myCameraController->zoom<=20;
+	skyBoxSwitch->addChild(skyOn,skyBox);
 	return skyBox;
 }
 
