@@ -397,7 +397,8 @@ void Interlocking::save(std::ofstream& ofs)
 				if (i > 0)
 					ofs<<",";
 				ofs<<" { \"x\": "<<wloc.coord[0]<<", \"y\": "<<wloc.coord[1]<<
-				  ", \"z\": "<<wloc.coord[2]<<", \"rev\": "<<(loc.rev?"true":"false")<<" }";
+				  ", \"z\": "<<wloc.coord[2]<<", \"rev\": "<<(loc.rev?"true":"false")<<
+				  ", \"maxspeed\": "<<lever.signal->maxSpeed<<" }";
 			}
 			ofs<<" ]";
 		}
@@ -467,6 +468,7 @@ void Interlocking::loadSave(vsg::Object* obj)
 				loc.rev= vsg::value<bool>(false,"rev",scobj);
 				if (loc.edge != NULL) {
 					signal->addTrack(&loc);
+					signal->maxSpeed= vsg::value<double>(0,"maxspeed",scobj);
 					loc.edge->signals.push_back(signal);
 				}
 			}
