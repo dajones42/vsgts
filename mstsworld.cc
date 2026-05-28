@@ -1453,6 +1453,8 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeForest(MSTSFileNode* forest,
 	auto sampler= vsg::Sampler::create();
 	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler->anisotropyEnable= VK_TRUE;
+	sampler->maxAnisotropy= 16;
 	vsgOptions->sharedObjects->share(sampler);
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
 	matValue->value().alphaMask= 1;
@@ -1577,6 +1579,8 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 	sampler->borderColor= VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+	sampler->anisotropyEnable= VK_TRUE;
+	sampler->maxAnisotropy= 16;
 	vsgOptions->sharedObjects->share(sampler);
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
 	matValue->value().alphaMask= 1;
@@ -1683,6 +1687,8 @@ void MSTSRoute::makeWater(Tile* tile, float dl, const char* texture,
 	auto sampler= vsg::Sampler::create();
 	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler->anisotropyEnable= VK_TRUE;
+	sampler->maxAnisotropy= 16;
 	vsgOptions->sharedObjects->share(sampler);
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
 	gpConfig->assignTexture("diffuseMap",image,sampler);

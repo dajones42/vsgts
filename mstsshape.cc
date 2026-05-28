@@ -917,6 +917,8 @@ void MSTSShape::makeGeometry(SubObject& subObject, TriList& triList,
 			  VK_SAMPLER_ADDRESS_MODE_REPEAT;
 			sampler->addressModeV=
 			  VK_SAMPLER_ADDRESS_MODE_REPEAT;
+			sampler->anisotropyEnable= VK_TRUE;
+			sampler->maxAnisotropy= 16;
 			gpConfig->assignTexture("diffuseMap",
 			  textures[ti].image,sampler);
 			if (vsgOptions)

@@ -71,6 +71,8 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 	auto sampler= vsg::Sampler::create();
 	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler->anisotropyEnable= VK_TRUE;
+	sampler->maxAnisotropy= 16;
 	vsgOptions->sharedObjects->share(sampler);
 	auto tciv= vsg::TexCoordIndicesValue::create();
 	auto sampler2= vsg::Sampler::create();

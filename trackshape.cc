@@ -263,6 +263,8 @@ vsg::ref_ptr<vsg::StateGroup> Track::makeGeometry(vsg::ref_ptr<vsg::Options> vsg
 	auto sampler= vsg::Sampler::create();
 	sampler->addressModeU= VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	sampler->addressModeV= VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	sampler->anisotropyEnable= VK_TRUE;
+	sampler->maxAnisotropy= 16;
 	vsgOptions->sharedObjects->share(sampler);
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
 	matValue->value().alphaMask= 1;
