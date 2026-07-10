@@ -212,6 +212,27 @@ string fixFilenameCase(const char* path)
 	if (p == NULL)
 		return path;
 	string dirPath(path,p-path);
+	if (strcmp(p,"/..") == 0) {
+		auto i= dirPath.rfind("/");
+		if (i == string::npos)
+			return "";
+		int n= 0;
+		while (dirPath.substr(i) == "/..") {
+			dirPath= dirPath.substr(0,i);
+			n++;
+			i= dirPath.rfind("/");
+			if (i == string::npos)
+				return "";
+		}
+		while (n > 0) {
+			dirPath= dirPath.substr(0,i);
+			n--;
+			i= dirPath.rfind("/");
+			if (i == string::npos)
+				return "";
+		}
+		return fixFilenameCase(dirPath.substr(0,i));
+	}
 	ulDir* dir= ulOpenDir(dirPath.c_str());
 	if (dir == NULL) {
 		dirPath= fixFilenameCase(dirPath.c_str());
