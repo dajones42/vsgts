@@ -36,7 +36,7 @@ float getFloat(MSTSFileNode* node, const char* name, int child, float dflt)
 {
 	MSTSFileNode* n= node->children->find(name);
 	if (n == NULL) {
-		fprintf(stderr,"cannot find %s\n",name);
+//		fprintf(stderr,"cannot find %s\n",name);
 		return dflt;
 	}
 	n= n->getChild(child);
@@ -75,6 +75,26 @@ unsigned int getHex(MSTSFileNode* node, const char* name, int child, float dflt)
 	if (n==NULL || n->value==NULL)
 		return dflt;
 	return (unsigned int)strtoll(n->value->c_str(),NULL,16);
+}
+
+void readCVF(const char* dir, const char* file, RailCarDef* def)
+{
+	string path= string(dir)+"/CABVIEW/"+file;
+	MSTSFile cvfFile;
+	try {
+		cvfFile.readFile(path.c_str());
+		MSTSFileNode* cvf= cvfFile.find("Tr_CabViewFile");
+		if (cvf) {
+			MSTSFileNode* pos= cvf->children->find("Position");
+			if (pos)
+				def->inside.push_back(RailCarInside(
+				  atof(pos->getChild(2)->value->c_str()),
+				  -atof(pos->getChild(0)->value->c_str()),
+				  atof(pos->getChild(1)->value->c_str()),0,0,NULL));
+		}
+	} catch (const char* msg) {
+		return;
+	}
 }
 
 RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Options> vsgOptions)
@@ -182,13 +202,16 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 	MSTSFileNode* sound= wagon->children->find("Sound");
 	MSTSFileNode* inside= wagon->children->find("Inside");
 	if (inside != NULL) {
-		MSTSFileNode* pos=
-		  inside->children->find("PassengerCabinHeadPos");
-		if (pos != NULL)
+		float heading= 0;
+		MSTSFileNode* startDir= inside->children->find("StartDirection");
+		if (startDir)
+			heading= atof(startDir->getChild(1)->value->c_str());
+		MSTSFileNode* pos= inside->children->find("PassengerCabinHeadPos");
+		if (pos)
 			def->inside.push_back(RailCarInside(
 			  atof(pos->getChild(2)->value->c_str()),
 			  atof(pos->getChild(0)->value->c_str()),
-			  atof(pos->getChild(1)->value->c_str()),0,0,NULL));
+			  atof(pos->getChild(1)->value->c_str()),heading,0,NULL));
 //		fprintf(stderr,"inside %f %f %f\n",def->insideCoord[0],
 //		 def->insideCoord[1],def->insideCoord[2]);
 	}
@@ -387,7 +410,12 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 //		fprintf(stderr,"headout %f %f %f\n",def->insideCoord[0],
 //		 def->insideCoord[1],def->insideCoord[2]);
 	}
+	MSTSFileNode* cabview= engine->children->find("CabView");
+	if (cabview)
+		readCVF(dir,cabview->getChild(0)->value->c_str(),def);
 	def->maxEqRes= getFloat(engine,"TrainBrakesControllerMaxSystemPressure",0,70);
+	if (def->maxEqRes < 70)
+		def->maxEqRes= 70;
 //	fprintf(stderr,"got engine\n");
 	MSTSFileNode* tp= engine->children->find("Type");
 	if (tp == NULL)
