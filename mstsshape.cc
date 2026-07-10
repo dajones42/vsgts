@@ -1105,7 +1105,7 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 			sampler->object= mt;
 			sampler->keyframes= keyframes;
 			sampler->name= n.name;
-			if (hasWheels && (a.nFrames==16 ||
+			if (hasWheels && (//a.nFrames==16 ||
 			  strncasecmp(n.name.c_str(),"WHEELS",6) == 0 ||
 			  strncasecmp(n.name.c_str(),"ROD",3) == 0)) {
 				if (keyframes->positions.size()>0 &&
