@@ -279,7 +279,8 @@ MoveAuth Dispatcher::requestAuth(Train* train)
 		if (pn->next != NULL) {
 			if (pn->nextSiding != NULL)
 				break;
-			bl1.add(pn->nextSSEdge->block);
+			if (pn->nextSSEdge)
+				bl1.add(pn->nextSSEdge->block);
 //			fprintf(stderr,"adding %d %d\n",
 //			  pn->nextSSEdge->block,
 //			  blockReservations[pn->nextSSEdge->block]);
