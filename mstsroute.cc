@@ -1241,10 +1241,12 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 			  t->service.c_str(),t->startTime);
 			Track::Path* path= loadService(t->service,root,false,
 			  t->id);
-			tt::Train* train= timeTable->addTrain(t->service);
-			train->setSchedTime(start,
-			  t->startTime-60,t->startTime,0);
-			train->path= path;
+			if (path) {
+				tt::Train* train= timeTable->addTrain(t->service);
+				train->setSchedTime(start,
+				  t->startTime-60,t->startTime,0);
+				train->path= path;
+			}
 		}
 	}
 	if ((activityFlags&01) != 0) {
@@ -1471,7 +1473,12 @@ Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
 	path= fixFilenameCase(consistsDir+dirSep+serv.consistName+".con");
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	MSTSFile conFile;
-	conFile.readFile(path.c_str());
+	try {
+		conFile.readFile(path.c_str());
+	} catch (const char* msg) {
+		std::cerr<<"cannot load consist "<<path<<"\n";
+		return NULL;
+	}
 //	fprintf(stderr,"first=%p\n",conFile.getFirstNode());
 	MSTSFileNode* cfg= conFile.getFirstNode()->get("TrainCfg");
 //	fprintf(stderr,"cfg=%p\n",cfg);
