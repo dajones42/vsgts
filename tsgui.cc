@@ -66,6 +66,10 @@ void TSGui::showMainMenu()
 		if (ImGui::BeginMenu("File")) {
 			if (mstsRoute && ImGui::MenuItem("Save",""))
 				data.showSave= true;
+			if (mstsRoute && simTime>0 && ImGui::MenuItem("Load Consist","")) {
+				mstsRoute->activityName= " Explore";
+				data.loadConsistList();
+			}
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("Display")) {
@@ -350,14 +354,16 @@ void TSGuiData::loadConsistList()
 			MSTSFile conFile;
 			conFile.readFile(file.c_str());
 			MSTSFileNode* cfg= conFile.getFirstNode()->get("TrainCfg");
+			string engFile;
 			for (auto node=cfg->get(0); node; node=node->next) {
 				if (node->value && *(node->value)=="Engine") {
 					auto data= node->get("EngineData");
-					auto engFile= *(data->get(0)->value);
-					listItems.push_back(engFile+" |"+f.stem().string());
+					engFile= *(data->get(0)->value);
 					break;
 				}
 			}
+			if (simTime>0 || engFile.size()>0)
+				listItems.push_back(engFile+" |"+f.stem().string());
 		}
 	}
 	sort(listItems.begin(),listItems.end());

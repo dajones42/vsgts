@@ -46,7 +46,7 @@ THE SOFTWARE.
 #include "listener.h"
 #include "signal.h"
 
-double simTime;
+double simTime= 0;
 int timeMult= 1;
 TTOSim ttoSim;
 std::string userOSCallSign;

@@ -211,12 +211,8 @@ void updateActivityEvents()
 	}
 }
 
-void startExplore()
+void placeExploreConsist(Train* train)
 {
-	TrainMap::iterator i= trainMap.find("explore");
-	if (i == trainMap.end())
-		return;
-	Train* train= i->second;
 	auto ploc= myLookAt->center;
 	auto aim= myLookAt->up;
 	Track::Location tloc;
@@ -242,10 +238,7 @@ void startExplore()
 	train->setHeadLight(false);
 	trainList.push_back(train);
 	train->setOccupied();
-	mstsRoute->initSignals();
 	listener.addTrain(train);
-	listener.setGain(1);
-	ttoSim.init(false);
 }
 
 void updateSignals()
@@ -334,7 +327,8 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 		} else {
 			listener.setGain(0);
 		}
-	} else if (mstsRoute && mstsRoute->activityName==" Explore") {
+	}
+	if (mstsRoute && mstsRoute->activityName==" Explore") {
 		if (TSGuiData::instance().selected==" Explore") {
 			TSGuiData::instance().loadConsistList();
 		} else if (mstsRoute->consistName.size()>0) {
@@ -343,13 +337,26 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			auto i= mstsRoute->consistName.find("|");
 			mstsRoute->consistName.erase(0,i+1);
 			mstsRoute->consistName+= ".con";
+			auto prevTrain= myTrain;
+			auto prevRailCar= myRailCar;
 			mstsRoute->loadActivity(railCars.get(),-1);
-			if (mstsRoute->createSkyBox())
+			auto newTrain= myTrain;
+			if (prevTrain) {
+				myTrain= prevTrain;
+				myRailCar= prevRailCar;
+			}
+			mstsRoute->consistName.clear();
+			if (!mstsRoute->skyBoxSwitch && mstsRoute->createSkyBox())
 				railCars->addChild(mstsRoute->skyBoxSwitch);
 			auto cr= viewer->compileManager->compile(railCars);
 			updateViewer(*viewer,cr);
 			root->addChild(railCars);
-			startExplore();
+			placeExploreConsist(newTrain);
+			if (newTrain == myTrain) {
+				listener.setGain(1);
+				mstsRoute->initSignals();
+				ttoSim.init(false);
+			}
 		}
 	} else if (mstsRoute && mstsRoute->activityName.size()>0) {
 		static bool waitOneFrame= true;
