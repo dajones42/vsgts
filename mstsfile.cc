@@ -209,8 +209,10 @@ void MSTSFile::freeList(MSTSFileNode* first)
 string fixFilenameCase(const char* path)
 {
 	char* p= strrchr((char*)path,'/');
-	if (p == NULL)
-		return path;
+	if (p == NULL) {
+		auto dotpath= string("./")+path;
+		return fixFilenameCase(dotpath.c_str());
+	}
 	string dirPath(path,p-path);
 	if (strcmp(p,"/..") == 0) {
 		auto i= dirPath.rfind("/");
@@ -243,10 +245,16 @@ string fixFilenameCase(const char* path)
 			return path;
 		}
 	}
+	static int count1= 0;
+	static int count2= 0;
 	for (ulDirEnt* ent=ulReadDir(dir); ent!=NULL; ent=ulReadDir(dir)) {
 		if (strcasecmp(p+1,ent->d_name) == 0) {
 			string result= dirPath+"/"+ent->d_name;
 			ulCloseDir(dir);
+			count1++;
+			if (result == path)
+				count2++;
+			fprintf(stderr,"fix %d %d %s %s\n",count1,count2,path,result.c_str());
 			return result;
 		}
 	}

@@ -81,8 +81,8 @@ MSTSRoute::MSTSRoute(const char* mDir, const char* rID)
 	dirSep= "/";
 	routeID= string(rID);
 	fileName= routeID;
-	string routesDir= fixFilenameCase(mstsDir+dirSep+"ROUTES");
-	string globalDir= fixFilenameCase(mstsDir+dirSep+"GLOBAL");
+	string routesDir= mstsDir+dirSep+"ROUTES";
+	string globalDir= mstsDir+dirSep+"GLOBAL";
 	routeDir= fixFilenameCase(routesDir+dirSep+routeID);
 	gShapesDir= fixFilenameCase(globalDir+dirSep+"SHAPES");
 	gTexturesDir= fixFilenameCase(globalDir+dirSep+"TEXTURES")+dirSep;
@@ -91,6 +91,7 @@ MSTSRoute::MSTSRoute(const char* mDir, const char* rID)
 	worldDir= fixFilenameCase(routeDir+dirSep+"WORLD");
 	rShapesDir= fixFilenameCase(routeDir+dirSep+"SHAPES");
 	rTexturesDir= fixFilenameCase(routeDir+dirSep+"TEXTURES")+dirSep;
+	trainsetDir= fixFilenameCase(mstsDir+dirSep+"TRAINS"+dirSep+"TRAINSET");
 	skyImage= "snowsky.ace";
 	dynTrackBase= NULL;
 	dynTrackRails= NULL;
@@ -188,10 +189,10 @@ void MSTSRoute::xy2ll(double x, double y, double* lat, double* lng)
 void MSTSRoute::makeTrack()
 {
 	TSection tSection;
-	string globalDir= fixFilenameCase(mstsDir+dirSep+"GLOBAL");
-	string path= fixFilenameCase(globalDir+dirSep+"tsection.dat");
+	string globalDir= mstsDir+dirSep+"GLOBAL";
+	string path= globalDir+dirSep+"tsection.dat";
 	tSection.readGlobalFile(path.c_str());
-	path= fixFilenameCase(routeDir+dirSep+"tsection.dat");
+	path= routeDir+dirSep+"tsection.dat";
 	tSection.readRouteFile(path.c_str());
 	path= fixFilenameCase(routeDir+dirSep+fileName+".tdb");
 	if (path.size() == 0) {
@@ -1214,8 +1215,9 @@ extern double simTime;
 void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 {
 	if (activityName.size()==0) {
-		simTime= 12*3600;
 		loadExploreConsist(root);
+		if (simTime == 0)
+			simTime= 12*3600;
 		return;
 	}
 	if (activityName.find(".json") != string::npos) {
@@ -1276,10 +1278,9 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 
 void MSTSRoute::loadExploreConsist(vsg::Group* root)
 {
-	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
-	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
-	string consistsDir= fixFilenameCase(trainsDir+dirSep+"CONSISTS");
-	string path= fixFilenameCase(consistsDir+dirSep+consistName);
+	string trainsDir= mstsDir+dirSep+"TRAINS";
+	string consistsDir= trainsDir+dirSep+"CONSISTS";
+	string path= consistsDir+dirSep+consistName;
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	MSTSFile conFile;
 	conFile.readFile(path.c_str());
@@ -1317,7 +1318,7 @@ void MSTSRoute::loadExploreConsist(vsg::Group* root)
 		}
 		if (file == "")
 			continue;
-		dir= fixFilenameCase(dir);
+//		dir= fixFilenameCase(dir);
 		RailCarDef* def= findRailCarDef(file,false);
 		if (def == NULL) {
 			def= readMSTSWag(dir.c_str(),file.c_str(),vsgOptions);
@@ -1346,8 +1347,14 @@ void MSTSRoute::loadExploreConsist(vsg::Group* root)
 	if (train->firstCar == NULL) {
 		fprintf(stderr,"empty train\n");
 		delete train;
+		return;
 	}
-	train->name= "explore";;
+	train->name= "explore";
+	if (trainMap.size() > 0) {
+		char buf[50];
+		sprintf(buf,"%ld",trainMap.size());
+		train->name+= buf;
+	}
 	trainMap[train->name]= train;
 	train->setModelsOff();
 	float initAux= 50;
@@ -1372,15 +1379,13 @@ void MSTSRoute::loadExploreConsist(vsg::Group* root)
 
 void MSTSRoute::loadConsist(LooseConsist* consist, vsg::Group* root)
 {
-	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
-	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
 	Train* train= new Train;
 	float initPipe= 0;
 	float initAux= 50;
 	float initCyl= 50;
 	float initEqRes= 50;
 	for (Wagon* w=consist->wagons; w!=NULL; w=w->next) {
-		string dir= fixFilenameCase(trainsetDir+"/"+w->dir);
+		string dir= trainsetDir+"/"+w->dir;
 		string file= w->name+(w->isEngine?".eng":".wag");
 		RailCarDef* def= findRailCarDef(file,false);
 		if (def == NULL) {
@@ -1455,8 +1460,8 @@ void MSTSRoute::loadConsist(LooseConsist* consist, vsg::Group* root)
 Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
   bool player, int serviceId)
 {
-	string servicesDir= fixFilenameCase(routeDir+dirSep+"SERVICES");
-	string path= fixFilenameCase(servicesDir+dirSep+filename+".srv");
+	string servicesDir= routeDir+dirSep+"SERVICES";
+	string path= servicesDir+dirSep+filename+".srv";
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	Service serv;
 	serv.readFile(path.c_str());
@@ -1467,10 +1472,9 @@ Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
 		fprintf(stderr,"no path\n");
 		return NULL;
 	}
-	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
-	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
-	string consistsDir= fixFilenameCase(trainsDir+dirSep+"CONSISTS");
-	path= fixFilenameCase(consistsDir+dirSep+serv.consistName+".con");
+	string trainsDir= mstsDir+dirSep+"TRAINS";
+	string consistsDir= trainsDir+dirSep+"CONSISTS";
+	path= consistsDir+dirSep+serv.consistName+".con";
 //	fprintf(stderr,"path=%s\n",path.c_str());
 	MSTSFile conFile;
 	try {
@@ -1516,7 +1520,7 @@ Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
 		}
 		if (file == "")
 			continue;
-		dir= fixFilenameCase(dir);
+//		dir= fixFilenameCase(dir);
 		RailCarDef* def= findRailCarDef(file,false);
 		if (def == NULL) {
 			def= readMSTSWag(dir.c_str(),file.c_str(),vsgOptions);
@@ -1605,8 +1609,8 @@ Track::Path* MSTSRoute::loadService(string filename, vsg::Group* root,
 Track::Path* MSTSRoute::loadPath(string filename, bool align)
 {
 	TrackPath trackPath;
-	string pathsDir= fixFilenameCase(routeDir+dirSep+"PATHS");
-	string filepath= fixFilenameCase(pathsDir+dirSep+filename);
+	string pathsDir= routeDir+dirSep+"PATHS";
+	string filepath= pathsDir+dirSep+filename;
 //	fprintf(stderr,"filepath=%s\n",filepath.c_str());
 	trackPath.readFile(filepath.c_str());
 	vector<Track::Path::Node*> pathNodes;
@@ -1898,7 +1902,7 @@ RailCarDef* MSTSRoute::loadRailCarDef(string& dir, string& file)
 {
 	RailCarDef* def= findRailCarDef(file,false);
 	if (!def) {
-		dir= fixFilenameCase(dir);
+		//dir= fixFilenameCase(dir);
 		def= readMSTSWag(dir.c_str(),file.c_str(),vsgOptions);
 		if (def)
 			railCarDefMap[file]= def;
@@ -1941,8 +1945,6 @@ void MSTSRoute::loadSave(vsg::Group* root)
 	}
 	trainList.clear();
 	trainMap.clear();
-	string trainsDir= fixFilenameCase(mstsDir+dirSep+"TRAINS");
-	string trainsetDir= fixFilenameCase(trainsDir+dirSep+"TRAINSET");
 	if (auto trains= dynamic_cast<vsg::Objects*>(top->getObject("trains"))) {
 		for (auto& t: trains->children) {
 			if (auto cars= dynamic_cast<vsg::Objects*>(t->getObject("cars"))) {
@@ -2236,7 +2238,7 @@ vsg::ref_ptr<vsg::MatrixTransform> MSTSRoute::createSkyBox()
 {
 	if (skyImage.size() == 0)
 		return {};
-	std::string path= fixFilenameCase(routeDir+dirSep+"ENVFILES"+dirSep+"TEXTURES"+dirSep+skyImage);
+	std::string path= routeDir+dirSep+"ENVFILES"+dirSep+"TEXTURES"+dirSep+skyImage;
 	auto img= readCacheACEFile(path.c_str());
 	if (!img)
 		return {};

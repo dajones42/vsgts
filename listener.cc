@@ -131,6 +131,11 @@ ALuint Listener::findBuffer(string& file, float maxDuration)
 		return i->second;
 	slSample sample;
 	loadWav(file.c_str(),&sample);
+	if (sample.getLength() == 0) {
+		string fixed= fixFilenameCase(file.c_str());
+		if (fixed.size() > 0)
+			loadWav(fixed.c_str(),&sample);
+	}
 	if (sample.getLength() == 0)
 		return 0;
 	ALuint buf= makeBuffer(&sample,maxDuration);
@@ -470,7 +475,7 @@ void Listener::readSMS(Train* train, RailCarInst* car, string& file)
 //	fprintf(stderr,"readSMS %s\n",file.c_str());
 	for (auto i=file.find("\\"); i!=string::npos; i=file.find("\\"))
 		file= file.replace(i,1,"/");
-	file= fixFilenameCase(file.c_str());
+//	file= fixFilenameCase(file.c_str());
 	int i= file.rfind("/");
 	string dir= file.substr(0,i);
 //	fprintf(stderr,"dir %s\n",dir.c_str());
@@ -556,7 +561,6 @@ void Listener::readSMS(Train* train, RailCarInst* car, string& file)
 //				fprintf(stderr,"file %s\n",
 //				  fnode->children->value->c_str());
 				string path= dir+"/"+*(fnode->children->value);
-				path= fixFilenameCase(path.c_str());
 				ALuint buf= findBuffer(path);
 //				fprintf(stderr,"file %s %d\n",path.c_str(),buf);
 				if (buf == 0)

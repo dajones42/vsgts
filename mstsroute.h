@@ -54,6 +54,7 @@ struct MSTSRoute {
 	std::string worldDir;
 	std::string rShapesDir;
 	std::string rTexturesDir;
+	std::string trainsetDir;
 	std::string activityName;
 	std::string consistName;
 	std::string skyImage;
