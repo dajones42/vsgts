@@ -65,7 +65,7 @@ void VInfo::addNormal(float dx, float dy)
 	nEdges++;
 }
 
-vsg::ref_ptr<vsg::StateGroup> Track::makeGeometry(vsg::ref_ptr<vsg::Options> vsgOptions)
+vsg::ref_ptr<vsg::StateGroup> Track::makeGeometry(vsg::ref_ptr<vsg::Options> vsgOptions, bool alpha)
 {
 	if (shape == NULL)
 		return NULL;
@@ -269,7 +269,8 @@ vsg::ref_ptr<vsg::StateGroup> Track::makeGeometry(vsg::ref_ptr<vsg::Options> vsg
 	auto gpConfig= vsg::GraphicsPipelineConfigurator::create(shaderSet);
 	matValue->value().alphaMask= 1;
 	matValue->value().alphaMaskCutoff= .6;
-	gpConfig->shaderHints->defines.insert("VSG_ALPHA_TEST");
+	if (alpha)
+		gpConfig->shaderHints->defines.insert("VSG_ALPHA_TEST");
 	gpConfig->assignTexture("diffuseMap",shape->image,sampler);
 	gpConfig->assignDescriptor("material",matValue);
 	gpConfig->enableArray("vsg_Vertex",VK_VERTEX_INPUT_RATE_VERTEX,12);

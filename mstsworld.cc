@@ -608,6 +608,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 		if (swVertex) {
 			swVertex->model= clone;
 			swVertex->animation= animation;
+			animation->max1= true;
 			animation->time= swVertex->isReversed() ? 0 : 1;
 		}
 		return clone;
@@ -637,10 +638,11 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 		AnimModelInfo* ami= new AnimModelInfo(model,animation,animated);
 		trackModelMap[*filename]= ami;
 		if (swVertex) {
-			animation= TwoStateAnimation::create();
+			auto animation= TwoStateAnimation::create();
 			auto clone= ami->cloneModel(animation);
 			swVertex->model= clone;
 			swVertex->animation= animation;
+			animation->max1= true;
 			animation->time= swVertex->isReversed() ? 0 : 1;
 			return clone;
 		}
@@ -783,7 +785,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeDynTrack(TrackSections& trackSections, bo
 	group->addChild(track.makeGeometry(vsgOptions));
 	if (!bridge) {
 		track.shape= dynTrackBase;
-		group->addChild(track.makeGeometry(vsgOptions));
+		group->addChild(track.makeGeometry(vsgOptions,false));
 		if (bermHeight > 0) {
 			track.shape= dynTrackBerm;
 			group->addChild(track.makeGeometry(vsgOptions));
@@ -794,7 +796,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeDynTrack(TrackSections& trackSections, bo
 	}
 	if (!bridge && dynTrackTies) {
 		track.shape= dynTrackTies;
-		group->addChild(track.makeGeometry(vsgOptions));
+		group->addChild(track.makeGeometry(vsgOptions,false));
 	}
 	if (wireHeight > 0) {
 		track.shape= dynTrackWire;
@@ -1661,9 +1663,9 @@ void MSTSRoute::makeWater(Tile* tile, float dl, const char* texture,
 			vi+= 4;
 		}
 	}
-	string envDir= fixFilenameCase(routeDir+dirSep+"ENVFILES");
-	string envTexDir= fixFilenameCase(envDir+dirSep+"TEXTURES");
-	string path= fixFilenameCase(envTexDir+dirSep+texture);
+	string envDir= routeDir+dirSep+"ENVFILES";
+	string envTexDir= envDir+dirSep+"TEXTURES";
+	string path= envTexDir+dirSep+texture;
 	vsg::ref_ptr<vsg::Data> image= readCacheACEFile(path.c_str());
 	if (!image)
 		return;
