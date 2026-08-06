@@ -49,4 +49,5 @@ class TwoStateAnimation : public vsg::Inherit<vsg::Animation, TwoStateAnimation>
  public:
 	TwoStateAnimation();
 	bool update(double simulationTime) override;
+	bool max1= false;
 };

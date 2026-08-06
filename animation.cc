@@ -90,9 +90,12 @@ bool TwoStateAnimation::update(double simulationTime)
 	if (speed<0 && time<=0) {
 		done= true;
 		time= 0;
-	} else if (speed>0 && time>=1) {//_maxTime) {
+	} else if (max1 && speed>0 && time>=1) {
 		done= true;
-		time= 1;//_maxTime;
+		time= 1;
+	} else if (speed>0 && time>=_maxTime) {
+		done= true;
+		time= _maxTime;
 	}
 	for (auto& sampler: samplers)
 		sampler->update(time);
