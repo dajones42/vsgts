@@ -122,7 +122,7 @@ class ElectricEngine : public LocoEngine, public CommandBlockHandler {
 	void setMaxPower(float p) { maxPower= p; }
 	void setMaxForce(float p) { maxForce= p; }
 	void setMaxCForce(float p) { maxCForce= p; }
-	void setNNotches(int n) { nNotches= n; }
+	void setNNotches(int n) { if (n>1) nNotches= n; }
 	virtual float getThrottleInc();
 	virtual float getReverserInc();
 	virtual float getForce(float tControl, float dControl,
