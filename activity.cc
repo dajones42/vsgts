@@ -65,9 +65,20 @@ void Activity::readFile(const char* path)
 			startTime= 0;
 			MSTSFileNode* def=
 			  player->children->find("Player_Traffic_Definition");
-			if (def != NULL)
+			if (def != NULL) {
 				startTime=
 				  atoi(def->getChild(0)->value->c_str());
+				for (int i=1; i<1000; i+=10) {
+					if (strcmp(def->getChild(i)->c_str(),"ArrivalTime") != 0)
+						break;
+					StationStop stop;
+					stop.aTime= atoi(def->getChild(i+1)->get(0)->c_str());
+					stop.dTime= atoi(def->getChild(i+3)->get(0)->c_str());
+					stop.distance= atof(def->getChild(i+7)->get(0)->c_str());
+					stop.platformID= atoi(def->getChild(i+9)->get(0)->c_str());
+					stops.push_back(stop);
+				}
+			}
 		}
 		MSTSFileNode* traf=
 		  trActFile->children->find("Traffic_Definition");

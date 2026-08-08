@@ -29,7 +29,7 @@ using namespace std;
 #include "mstsroute.h"
 #include "mstsace.h"
 
-static const bool microtex= false;
+static const bool microtex= false; // often hangs if on
 
 //	makes 3D models for each patch in a tile
 void MSTSRoute::makeTerrainPatches(Tile* tile)

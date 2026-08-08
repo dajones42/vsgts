@@ -254,7 +254,7 @@ string fixFilenameCase(const char* path)
 			count1++;
 			if (result == path)
 				count2++;
-			fprintf(stderr,"fix %d %d %s %s\n",count1,count2,path,result.c_str());
+//			fprintf(stderr,"fix %d %d %s %s\n",count1,count2,path,result.c_str());
 			return result;
 		}
 	}

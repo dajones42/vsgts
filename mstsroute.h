@@ -40,6 +40,7 @@ struct RailCarDef;
 #include "animation.h"
 #include "track.h"
 #include "ghproj.h"
+#include "activity.h"
 
 struct MSTSRoute {
 	std::string mstsDir;
@@ -181,7 +182,7 @@ struct MSTSRoute {
 	vsg::ref_ptr<vsg::Node> loadTrackModel(std::string* filename, Track::SwVertex* sw);
 	void overrideTrackModel(std::string& shapename, std::string& model);
 	vsg::ref_ptr<vsg::Node> loadStaticModel(std::string* filename,
-	  MSTSSignal* signal=NULL);
+	  MSTSSignal* signal=NULL, bool isLeverlCr= false);
 	vsg::ref_ptr<vsg::Node> loadHazardModel(std::string* filename);
 	vsg::Node* attachSwitchStand(Tile* tile, vsg::Node* model,
 	  double x, double y, double z);
@@ -243,6 +244,7 @@ struct MSTSRoute {
 	vsg::ref_ptr<vsg::Font> font;
 	void saveState(std::string filename);
 	RailCarDef* loadRailCarDef(std::string& dir, std::string& file);
+	std::vector<StationStop> playerStops;
 };
 extern MSTSRoute* mstsRoute;
 

@@ -1098,6 +1098,11 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 					  n.positions.find(k->first);
 					if (k1 != n.positions.end())
 						keyframes->add((double)k->first,k1->second,k->second);
+					else if (k == n.quats.begin())
+						keyframes->add((double)k->first,n.positions.begin()->second,
+						  k->second);
+					else
+						keyframes->add((double)k->first,n.positions.end()->second,k->second);
 				}
 			}
 			auto sampler= vsg::TransformSampler::create();

@@ -1262,6 +1262,8 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 					  playerPath);
 			}
 		}
+		for (auto s: activity.stops)
+			playerStops.push_back(s);
 	}
 	for (LooseConsist* c=activity.consists; c!=NULL; c=c->next) {
 //		fprintf(stderr,"consist %d %d %d %d %f %f\n",

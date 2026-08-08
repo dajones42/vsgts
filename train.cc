@@ -82,6 +82,7 @@ Train::Train(int id)
 	moving= 5;
 	modelCouplerSlack= 1;
 	remoteControl= 0;
+	absDistance= 0;
 	targetSpeed= 0;
 	maxTargetSpeed= 2.235;
 	decelMult= .3;
@@ -528,6 +529,7 @@ void Train::move(float dt)
 		//stop();
 		return;
 	}
+	absDistance+= fabs(dx1);
 	for (RailCarInst* car=firstCar; car!=NULL; car=car->next)
 		car->move(dt*car->speed+err);
 	for (RailCarInst* car=firstCar; car!=NULL; car=car->next)

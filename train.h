@@ -58,6 +58,7 @@ struct Train {
 	float drag2;
 	float maxBForce;
 	float maxCForce;
+	float absDistance;
 	EngAirBrake* engAirBrake;
 	int moving;
 	int modelCouplerSlack;

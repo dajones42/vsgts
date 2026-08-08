@@ -141,6 +141,9 @@ void MSTSRoute::loadModels(Tile* tile)
 				    z0+atof(pos->getChild(2)->value->c_str()),
 				    atof(pos->getChild(1)->value->c_str()));
 #endif
+			} else if (*(node->value)=="LevelCr" && file) {
+				model=
+				  loadStaticModel(file->getChild(0)->value,NULL,true);
 			} else if (file != NULL) {
 				model=
 				  loadStaticModel(file->getChild(0)->value);
@@ -429,11 +432,13 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 			  case 62: // levelcr
 				//fprintf(stderr,"levelcr %d\n",visible);
 				if (visible)
-					model= loadStaticModel(&filename);
+					model= loadStaticModel(&filename,NULL,true);
+				break;
+			  case 17: // signal
+				model= loadStaticModel(&filename);
 				break;
 			  case 3: // static
 			  case 56: // gantry
-			  case 17: // signal
 			  case 64: // speedpost
 				model= loadStaticModel(&filename);
 //				if (prevCode==3 && model)
@@ -486,7 +491,7 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 //	loads a static model
 //	just returns a pointer if already loaded
 vsg::ref_ptr<vsg::Node> MSTSRoute::loadStaticModel(string* filename,
-  MSTSSignal* signal)
+  MSTSSignal* signal, bool isLevelCr)
 {
 	if (filename == NULL)
 		return {};
@@ -569,6 +574,10 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadStaticModel(string* filename,
 			signal->model= clone;
 			signal->createLights(vsgOptions);
 			return clone;
+		}
+		if (isLevelCr && animation) {
+			for (auto s: animation->samplers)
+				s->update(s->maxTime());
 		}
 		return model;
 	} catch (const char* msg) {

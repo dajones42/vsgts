@@ -22,6 +22,8 @@ THE SOFTWARE.
 #ifndef ACTIVITY_H
 #define ACTIVITY_H
 
+#include <string>
+#include <vector>
 #include "mstsfile.h"
 
 struct Wagon {
@@ -63,6 +65,13 @@ struct Event {
 	Event* next;
 };
 
+struct StationStop {
+	int aTime;
+	int dTime;
+	float distance;
+	int platformID;
+};
+
 struct Activity {
 	void saveConsist(MSTSFileNode* list);
 	void saveTrItem(int type, MSTSFileNode* list);
@@ -73,6 +82,7 @@ struct Activity {
 	int startTime;
 	int weather;
 	Event* events;
+	std::vector<StationStop> stops;
 	Activity();
 	~Activity();
 	void readFile(const char* path);

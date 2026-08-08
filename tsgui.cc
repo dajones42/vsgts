@@ -176,6 +176,14 @@ void TSGui::showStatusWindow()
 		}
 		if (slack.size() > 0)
 			ImGui::Text("Couplers: %s",slack.c_str());
+		if (mstsRoute && mstsRoute->playerStops.size()>0) {
+			auto stop= mstsRoute->playerStops[0];
+			auto d= stop.distance - myTrain->absDistance - myTrain->length;
+			ImGui::Text("Next Stop: %.0f m %d:%2.2d a %d:%2.2d d",
+			  d,stop.aTime/3600,stop.aTime/60%60,stop.dTime/3600,stop.dTime/60%60);
+			if (d < -100)
+				mstsRoute->playerStops.erase(mstsRoute->playerStops.begin());
+		}
 	}
 	if (timeTable) {
 		for (int i=timeTable->getNumTrains()-1; i>=0; i--) {
