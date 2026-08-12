@@ -2046,6 +2046,15 @@ void MSTSRoute::loadSave(vsg::Group* root)
 		Interlocking::loadSave(iobj);
 	if (auto cobj= top->getObject("camera"))
 		myCameraController->loadSave(cobj);
+	if (auto stops= dynamic_cast<vsg::Objects*>(top->getObject("stops"))) {
+		for (auto& s: stops->children) {
+			StationStop stop;
+			stop.aTime= vsg::value<double>(0,"atime",s);
+			stop.dTime= vsg::value<double>(0,"dtime",s);
+			stop.distance= vsg::value<double>(0,"distance",s);
+			playerStops.push_back(stop);
+		}
+	}
 }
 
 void MSTSRoute::saveState(std::string filename)
@@ -2156,6 +2165,18 @@ void MSTSRoute::saveState(std::string filename)
 		interlocking->save(ofs);
 	if (myCameraController)
 		myCameraController->save(ofs);
+	if (playerStops.size() > 0) {
+		ofs<<" \"stops\": [";
+		n= 0;
+		for (auto s: playerStops) {
+			if (n)
+				ofs<<",\n";
+			ofs<<"  { \"atime\": "<<s.aTime<<", \"dtime\": "<<s.dTime<<
+			  ", \"distance\": "<<s.distance<<" }";
+			n++;
+		}
+		ofs<<"\n ],\n";
+	}
 	ofs<<" \"time\": "<<simTime<<",\n";
 	ofs<<" \"skyimage\": "<<skyImage<<"\n";
 	ofs<<"}\n";
