@@ -124,6 +124,9 @@ void MSTSRoute::loadModels(Tile* tile)
 			} else if (*(node->value)=="Transfer") {
 				model= makeTransfer(next,
 				  file->getChild(0)->value,tile,pos,qdir);
+				if (model)
+					tile->models->addChild(model);
+				continue;
 			} else if (*(node->value)=="Forest") {
 				model= makeForest(next,tile,pos,qdir);
 			} else if (*(node->value)=="Hazard" && file!=NULL) {
@@ -466,6 +469,9 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 				  vsg::vec3(posX,posY,posZ),
 				  vsg::quat(-qDirX,-qDirY,-qDirZ,qDirW),
 				  width,height);
+				tile->models->addChild(model);
+				model= NULL;
+				break;
 			  default:
 				break;
 			}
@@ -1520,7 +1526,23 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	int minZ= (int)std::floor((center.z-radius)/8);
 	int maxZ= (int)std::ceil((center.z+radius)/8);
 	vsg::mat4 rot= vsg::rotate(quat);
+	if (rot(1,1) < 1) {
+//		std::cerr<<"tquat "<<quat<<"\n";
+//		std::cerr<<"trot "<<rot<<"\n";
+		rot(1,1)= 1;
+		rot(1,0)= 0;
+		rot(1,2)= 0;
+		rot(0,1)= 0;
+		rot(2,1)= 0;
+		auto a= atan2(rot(0,2),rot(0,0));
+		rot(0,0)= cos(a);
+		rot(0,2)= sin(a);
+		rot(2,0)= -rot(0,2);
+		rot(2,2)= rot(0,0);
+//		std::cerr<<"trot "<<rot<<"\n";
+	}
 	vsg::mat3 invrot= vsg::inverse_3x3(rot);
+//	std::cerr<<"tinvrot "<<invrot<<"\n";
 	int nx= maxX-minX+1;
 	int nz= maxZ-minZ+1;
 	int nv= nx*nz;
@@ -1541,7 +1563,8 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 			float u= p.x/w + .5;
 			float v= -p.z/h + .5;
 			texCoords->at(vi)= vsg::vec2(u,v);
-			normals->at(vi)= getNormal(x,z,tile,t12,t21,t22);
+			auto normal= getNormal(x,z,tile,t12,t21,t22);
+			normals->at(vi)= vsg::vec3(normal.x,normal.z,-normal.y);
 			if (i<nx-1 && j<nz-1) {
 				float a11= getAltitude(x+8,z+8,tile,t12,t21,t22);
 				float a01= getAltitude(x,z+8,tile,t12,t21,t22);
@@ -1566,7 +1589,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 		}
 	}
 	string path= rTexturesDir+dirSep+(*filename);
-	vsg::ref_ptr<vsg::Data> image= readCacheACEFile(path.c_str());
+	vsg::ref_ptr<vsg::Data> image= readCacheACEFile(path.c_str(),false,true);
 	if (!image)
 		return {};
 	auto attributeArrays= vsg::DataList{verts,normals,texCoords,colors};
@@ -1612,7 +1635,10 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeTransfer(string* filename, Tile* tile,
 	gpConfig->copyTo(commands,vsgOptions->sharedObjects);
 	stateGroup->stateCommands.swap(commands);
 	stateGroup->prototypeArrayState= gpConfig->getSuitableArrayState();
-	return stateGroup;
+	auto mt= vsg::MatrixTransform::create();
+	mt->matrix= vsg::dmat4(1,0,0,0, 0,0,1,0, 0,1,0,0, center.x+x0,center.z+z0,center.y,1) * vsg::dmat4(rot);
+	mt->addChild(stateGroup);
+	return mt;
 }
 
 //	makes a 3D model for water in a tile
