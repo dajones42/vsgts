@@ -24,8 +24,10 @@ THE SOFTWARE.
 
 #include <vsg/all.h>
 
+#include "mstsfile.h"
 #include "mstsbfile.h"
 #include "mstsace.h"
+#include "mstsroute.h"
 
 vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path, bool expand, uint8_t alpha)
 {
@@ -50,8 +52,8 @@ vsg::ref_ptr<vsg::Data> readMSTSACE(const char* path, bool expand, uint8_t alpha
 			if (wid == (1<<i))
 				break;
 //	}
-	if (wid<4 || wid>4096 || ht<4 || ht>4096 || i>=12) {
-		fprintf(stderr,"bad ace %s %d %d %d %d %d\n",
+	if (wid<4 || wid>4096 || ht<4 || ht>4096) {// || i>=12) {
+		fprintf(stderr,"bad ace %s %x %d %d %d %d\n",
 		  path,flags,wid,ht,colors,offset);
 		return {};
 	}
@@ -244,12 +246,36 @@ vsg::ref_ptr<vsg::Data> readCacheACEFile(const char* path, bool tryPNG, bool exp
 	ACEMap::iterator i= aceMap.find(path);
 	if (i != aceMap.end() && i->second)
 		return vsg::ref_ptr(i->second);
+	if (mstsRoute && (strstr(path,".dds") || strstr(path,".DDS"))) {
+		auto object= vsg::read(path,mstsRoute->vsgOptions);
+		if (!object) {
+			auto fixed= fixFilenameCase(path);
+			object= vsg::read(fixed,mstsRoute->vsgOptions);
+		}
+		if (auto data= object.cast<vsg::Data>()) {
+			aceMap[path]= data.get();
+			data->ref();
+			return data;
+		}
+		return {};
+	}
 	vsg::ref_ptr<vsg::Data> image= readMSTSACE(path,expand,alpha);
 	if (image) {
 		aceMap[path]= image.get();
 		image->ref();
+		return image;
 	}
-	return image;
+	if (strstr(path,".ace") || strstr(path,".ACE")) {
+		string ddsPath(path);
+		ddsPath= ddsPath.substr(0,ddsPath.size()-4)+".dds";
+		auto data= readCacheACEFile(ddsPath.c_str(),tryPNG,expand,alpha);
+		if (data) {
+			aceMap[path]= data.get();
+			data->ref();
+			return data;
+		}
+	}
+	return {};
 #if 0
 	if (strstr(path,".ace") || strstr(path,".ACE")) {
 		image= readMSTSACE(path);
