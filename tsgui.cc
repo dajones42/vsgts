@@ -77,6 +77,8 @@ void TSGui::showMainMenu()
 				data.showStatus= true;
 			if (timeTable && ImGui::MenuItem("Block Sheet",""))
 				data.showBlocks= true;
+			if (data.listItems.size()>0 && ImGui::MenuItem("Last Message",""))
+				data.showMessage= true;
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("Print")) {
