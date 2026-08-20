@@ -62,6 +62,18 @@ int getInt(MSTSFileNode* node, const char* name, int child, float dflt)
 	return atoi(n->value->c_str());
 }
 
+int getNotches(MSTSFileNode* throttle)
+{
+	int n= getInt(throttle,"NumNotches",0,9);
+	float step= atof(throttle->get(2)->c_str());
+	fprintf(stderr,"notches %d %f\n",n,step);
+	if (n > 2)
+		return n-1;
+	if (step>=.01 && step<=.5)
+		return (int)(1/step+.5);
+	return 8;
+}
+
 //	gets a hex value from a named field
 //	ignores any unit suffix at the moment
 unsigned int getHex(MSTSFileNode* node, const char* name, int child, float dflt)
@@ -160,10 +172,15 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		  getHex(state,"LightColour",0,0)));
 	}
 	path= string(dir)+"/"+wshape->getChild(0)->value->c_str();
-	MSTSShape shape;
-	shape.vsgOptions= vsgOptions;
-	shape.readFile(path.c_str());
-	shape.createRailCar(def);
+	try {
+		MSTSShape shape;
+		shape.vsgOptions= vsgOptions;
+		shape.readFile(path.c_str());
+		shape.createRailCar(def);
+	} catch (const char* msg) {
+		fprintf(stderr,"cannot read %s\n",path.c_str());
+		return NULL;
+	}
 	def->mass0= def->mass1= 1e3*getFloat(wagon,"Mass",0,20);
 	def->length= getFloat(wagon,"Size",2,10);
 	MSTSFileNode* coupling= wagon->children->find("Coupling");
@@ -197,6 +214,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		if (mt)
 			mt->addChild(fashape.createModel(0,10));
 		} catch (const char* msg) {
+			fprintf(stderr,"cannot read %s\n",path.c_str());
 		}
 	}
 	MSTSFileNode* sound= wagon->children->find("Sound");
@@ -430,7 +448,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		def->engine= e;
 		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0));
 		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0));
-		e->setNNotches(getInt(throttle,"NumNotches",0,9)-1);
+		e->setNNotches(getNotches(throttle));
 		fprintf(stderr,"maxforce %f\n",e->getMaxForce());
 	}
 	if (*tp->value == "Electric") {
@@ -438,7 +456,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		def->engine= e;
 		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0));
 		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0));
-		e->setNNotches(getInt(throttle,"NumNotches",0,9)-1);
+		e->setNNotches(getNotches(throttle));
 		fprintf(stderr,"maxforce %f\n",e->getMaxForce());
 	}
 	if (*tp->value == "Steam") {
@@ -478,7 +496,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 				RailCarSmoke smoke;
 				smoke.position= vsg::vec3(
 				  atof(stackFX->getChild(2)->value->c_str()),
-				  atof(stackFX->getChild(0)->value->c_str()),
+				  -atof(stackFX->getChild(0)->value->c_str()),
 				  atof(stackFX->getChild(1)->value->c_str()));
 				smoke.normal= vsg::vec3(
 				  atof(stackFX->getChild(5)->value->c_str()),
