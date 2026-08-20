@@ -163,13 +163,13 @@ void MSTSRoute::makeTerrainPatches(Tile* tile)
 vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
   Tile* tile, Tile* t12, Tile* t21, Tile* t22)
 {
-	if ((patch->u0>.5 && patch->dudx>=0 && patch->dudz>=0) ||
-	  (patch->v0>.5 && patch->dvdx>=0 && patch->dvdz>=0) ||
-	  (patch->u0<.5 && patch->dudx<=0 && patch->dudz<=0) ||
-	  (patch->v0<.5 && patch->dvdx<=0 && patch->dvdz<=0)) {
+	if ((patch->u0>.5 && (patch->dudx>=.01 || patch->dudz>=.01)) ||
+	  (patch->v0>.5 && (patch->dvdx>=.01 || patch->dvdz>=.01)) ||
+	  (patch->u0<.5 && (patch->dudx<=-.01 || patch->dudz<=-.01)) ||
+	  (patch->v0<.5 && (patch->dvdx<=-.01 || patch->dvdz<=-.01))) {
 		fprintf(stderr,"makepatch %d %d %d %d %f %f %f %f %f %f\n",tile->x,tile->z,i0,j0,
 		  patch->u0,patch->dudx,patch->dudz,patch->v0,patch->dvdx,patch->dvdz);
-		if (patch->u0<.5 && patch->dudx<0)
+		if (patch->u0<.5 && patch->dudx<-.01)
 			patch->dudx*= -1;
 	}
 	float uvmult= tile->microTexUVMult;
