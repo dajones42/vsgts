@@ -1471,6 +1471,8 @@ void  Train::setOccupied()
 	Track::Location loc= endLocation;
 	loc.edge->occupied++;
 	loc.move(getLength(),0,1);
+	location.edge->updateSignals();
+	endLocation.edge->updateSignals();
 }
 
 //	marks the track occupied by train as unoccupied
@@ -1479,6 +1481,8 @@ void  Train::clearOccupied()
 	Track::Location loc= endLocation;
 	loc.move(getLength(),0,-1);
 	loc.edge->occupied--;
+	location.edge->updateSignals();
+	endLocation.edge->updateSignals();
 }
 
 float Train::getThrottleInc()
