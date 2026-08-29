@@ -156,10 +156,9 @@ void Train::init(int startTime)
 	}
 	row= row1;
 	while (row>=0 && times[row].actualLv>=0) {
-		row1= getNextRow(0);
+		row= row1= getNextRow(0);
 		if (row1<0 || times[row1].actualAr<0)
 			break;
-		row= row1;
 	}
 #if 0
 	if (row >= 0) {

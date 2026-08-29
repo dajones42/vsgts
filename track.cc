@@ -25,6 +25,7 @@ THE SOFTWARE.
 */
 
 #include <vsg/all.h>
+#include <iostream>
 
 #include "track.h"
 #include "spline.h"
@@ -1575,6 +1576,33 @@ Track::Edge* Track::addCurve(Vertex* v1, int n1, Vertex* v2, int n2)
 		n1= 1;
 	}
 	return addEdge(ET_STRAIGHT,v1,n1,v2,n2);
+}
+
+void Track::addCurveEdges(Vertex* v1, int n1, Vertex* v2, int n2, float radius, float angle, SSEdge* ssEdge)
+{
+	auto radians= angle*M_PI/180;
+	if (fabs(angle) < 21) {
+		Track::SplineEdge* e= (Track::SplineEdge*)
+		  addEdge(Track::ET_SPLINE,v1,n1,v2,n2);
+		e->length= fabs(radius*radians);
+		e->setCircle(radius,radians);
+		e->ssEdge= ssEdge;
+		e->ssOffset= ssEdge->length;
+		ssEdge->length+= e->length;
+		return;
+	}
+	std::cerr<<"addce "<<radius<<" "<<angle<<"\n";
+	auto dir= normalize(v2->location.coord - v1->location.coord);
+	auto perp= vsg::dvec3(-dir.y,dir.x,0);
+	auto offset= perp*radius*(1-cos(radians/2));
+	auto p= .5*(v2->location.coord+v1->location.coord);
+	if (angle < 0)
+		p-= offset;
+	else
+		p+= offset;
+	auto v= addVertex(VT_SIMPLE,p[0],p[1],p[2]);
+	addCurveEdges(v1,n1,v,1,radius,angle/2,ssEdge);
+	addCurveEdges(v,0,v2,n2,radius,angle/2,ssEdge);
 }
 
 void Track::addSwitchStand(int swid, double offset, double zoffset,

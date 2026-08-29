@@ -106,7 +106,7 @@ MSTSRoute::MSTSRoute(const char* mDir, const char* rID)
 	srDynTrack= false;
 	ustDynTrack= true;
 	ignoreHiddenTerrain= false;
-	signalSwitchStands= false;
+	signalSwitchStands= true;
 	createSignals= true;
 	wireTerrain= false;
 }
@@ -292,13 +292,7 @@ void MSTSRoute::makeTrack()
 				  convX(s2->tx,s2->x),convZ(s2->tz,s2->z),
 				  s2->y+.275);
 			if (s1->radius > 0) {
-				Track::SplineEdge* e= (Track::SplineEdge*)
-				  track->addEdge(Track::ET_SPLINE,v1,n1,v2,n2);
-				e->length= s1->length;
-				e->setCircle(s1->radius,s1->angle*3.14159/180);
-				e->ssEdge= sse;
-				e->ssOffset= sse->length;
-				sse->length+= e->length;
+				track->addCurveEdges(v1,n1,v2,n2,s1->radius,s1->angle,sse);
 			} else {
 				Track::Edge* e=
 				 track->addEdge(Track::ET_STRAIGHT,v1,n1,v2,n2);
@@ -1070,6 +1064,8 @@ float MSTSRoute::getAltitude(float x, float z,
 		x+= 2048;
 		t21= tile;
 		t22= t12;
+		if (!t21)
+			return 0;
 		tile= findTile(t21->x-1,t21->z);
 		t12= findTile(t21->x-1,t21->z-1);
 	}
@@ -1078,6 +1074,8 @@ float MSTSRoute::getAltitude(float x, float z,
 		z-= 2048;
 		t12= tile;
 		t22= t21;
+		if (!t12)
+			return 0;
 		tile= findTile(t12->x,t12->z+1);
 		t21= findTile(t12->x+1,t12->z+1);
 	}
@@ -2126,7 +2124,7 @@ void MSTSRoute::saveState(std::string filename)
 			ofs<<" }";
 		}
 		ofs<<"\n   ]\n";
-		ofs<<"  }\n";
+		ofs<<"  }";
 		n++;
 	}
 	ofs<<" ],\n";
@@ -2178,7 +2176,7 @@ void MSTSRoute::saveState(std::string filename)
 		ofs<<"\n ],\n";
 	}
 	ofs<<" \"time\": "<<simTime<<",\n";
-	ofs<<" \"skyimage\": "<<skyImage<<"\n";
+	ofs<<" \"skyimage\": \""<<skyImage<<"\"\n";
 	ofs<<"}\n";
 }
 

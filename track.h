@@ -192,6 +192,7 @@ struct Track {
 	Edge* addEdge(int type, Vertex* v1, int n1, Vertex* v2, int n2);
 	Vertex* addVertex(int type, double x, double y, float z);
 	Edge* addCurve(Vertex* v1, int n1, Vertex* v2, int n2);
+	void addCurveEdges(Vertex* v1, int n1, Vertex* v2, int n2, float radius, float angle, SSEdge* ssEdge);
 	float findLocation(double x, double y, double z, Location* loc);
 	float findLocation(double x, double y, Location* loc);
 	void saveLocation(double x, double y, double z, std::string& name,
