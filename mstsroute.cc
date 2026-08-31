@@ -1915,12 +1915,18 @@ RailCarDef* MSTSRoute::loadRailCarDef(string& dir, string& file)
 	return def;
 }
 
+extern void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root);
+
 void MSTSRoute::loadSave(vsg::Group* root)
 {
 	string path= routeDir+dirSep+"ACTIVITIES"+dirSep+activityName;
 	auto top= vsg::read_cast<vsg::Object>(path,vsgOptions);
 	if (!top) {
 		cerr<<"cannot read "<<path<<"\n";
+		return;
+	}
+	if (top->getObject("mapObjects")) {
+		loadSSsim(top,root);
 		return;
 	}
 	simTime= vsg::value<double>(0,"time",top);

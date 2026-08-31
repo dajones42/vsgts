@@ -58,6 +58,7 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	void setFollow(vsg::MatrixTransform* model, vsg::vec3 offset, float heading, float pitch);
 	void save(std::ofstream& ofs);
 	void loadSave(vsg::Object*);
+	void setHome(vsg::dvec3 center, float heading=0);
 };
 extern vsg::LookAt* myLookAt;
 extern CameraController* myCameraController;

@@ -1081,12 +1081,16 @@ float AITrain::findNextStop(int nextRow, int siding)
 		consist->nextStopDist= 0;
 		return 0;
 	}
-	float d= checkOccupied(farv);
-	if (d > 0) {
-		consist->nextStopDist= 0;
-		return d;
+	if (canThrowSwitches) {
+		float d= checkOccupied(farv);
+		if (d > 0) {
+			consist->nextStopDist= 0;
+			return d;
+		}
+		alignSwitches(farv);
+	} else {
+		findSignals(farv);
 	}
-	alignSwitches(farv);
 	if (consist->endLocation.getDist() < 0) {
 		for (SigDistList::iterator i=consist->signalList.begin();
 		  i!=consist->signalList.end(); ++i)

@@ -34,7 +34,8 @@ Interlocking* interlocking= nullptr;
 //	creates an interlocking with the specified number of levers
 Interlocking::Interlocking(int nLevers)
 {
-	levers.resize(nLevers);
+	if (nLevers > 0)
+		levers.resize(nLevers);
 	for (int i=0; i<nLevers; i++)
 		levers[i].state= NORMAL;
 	lockDelay= 120;
@@ -104,7 +105,7 @@ bool Interlocking::toggleState(int lever, int timeS)
 			sig->setState(Signal::CLEAR);
 	} else if (getLockDurationS(lever,timeS) <= 0) {
 		if (levers[lever].lockTime==0 && sig!=NULL &&
-		  sig->trainDistance>0 && !sig->isDistant()) {
+		  sig->trainDistance>0 && sig->trainDistance<1e3 && !sig->isDistant()) {
 			levers[lever].state= (LeverState)(REVERSE|NORMAL);
 			levers[lever].lockTime= timeS;
 			//addRouteLock(sig,timeS);

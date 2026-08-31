@@ -64,6 +64,8 @@ set(SOURCES
 	rmparser.cc
 	interlocking.cc
 	smoke.cc
+	sssim.cc
+	vsgjson.cc
 )
 
 add_executable(tsviewer tsviewer.cc ${SOURCES})

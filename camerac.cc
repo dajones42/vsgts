@@ -419,3 +419,14 @@ void CameraController::loadSave(vsg::Object* obj)
 //	std::cerr<<"up "<<lookAt->up<<"\n";
 //	std::cerr<<"pr "<<prevRotation.x<<" "<<prevRotation.y<<" "<<prevRotation.z<<" "<<prevRotation.w<<"\n";
 }
+
+void CameraController::setHome(vsg::dvec3 center, float heading)
+{
+	auto dir= vsg::dquat(vsg::radians(heading),vsg::dvec3(0,0,1)) * vsg::dvec3(1,0,0);
+	lookAt->center= center;
+	lookAt->eye= center - .1*dir;
+	lookAt->up= vsg::dvec3(0,0,1);
+	setZoom(0);
+	setPitch(0);
+	remoteEye= false;
+}

@@ -123,6 +123,7 @@ class Train {
 	bool endVisible;
 	std::string route;
 	Block* nextBlock;
+	bool canThrowSwitches;
 	Train(std::string s) {
 		name= s;
 		prevTrain= nextTrain= NULL;
@@ -133,6 +134,7 @@ class Train {
 		startVisible= false;
 		endVisible= false;
 		nextBlock= nullptr;
+		canThrowSwitches= true;
 	};
 	MeetMap meets;
 	void setSchedTime(Station* s, int ar, int lv, int wait);
@@ -143,6 +145,7 @@ class Train {
 	void setBlockCleared(int row, int time, int prevRow=-1);
 	void setBlockEntered(int row, int time);
 	void parse(CommandReader& reader);
+	void setReadDown(bool b) { readDown= b; };
 	void addWait(int row, int w) { times[row].wait+= w; };
 	int getSchedAr(int row) { return times[row].schedAr; };
 	int getSchedLv(int row) { return times[row].schedLv; };
@@ -259,4 +262,5 @@ class TimeTable {
 }
 
 extern tt::TimeTable* timeTable;
+extern int parseTime(string s);
 #endif

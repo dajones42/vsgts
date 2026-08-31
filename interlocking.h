@@ -97,17 +97,23 @@ class Interlocking {
 		return levers[lever].state;
 	};
 	void setColor(int lever, float r, float g, float b) {
+		if (lever+1 > levers.size())
+			levers.resize(lever+1);
 		levers[lever].color= vsg::vec3(r,g,b);
 	};
 	vsg::vec3 getColor(int lever) {
 		return levers[lever].color;
 	};
 	void addSwitch(int lever, Track::SwVertex* sw, int rev) {
+		if (lever+1 > levers.size())
+			levers.resize(lever+1);
 		levers[lever].switches.push_back(std::make_pair(sw,rev));
 		sw->hasInterlocking= 1;
 		switch2LeverMap[sw]= lever;
 	};
 	void setSignal(int lever, Signal* sig) {
+		if (lever+1 > levers.size())
+			levers.resize(lever+1);
 		levers[lever].signal= sig;
 	};
 	Signal* getSignal(int lever) {

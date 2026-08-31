@@ -322,7 +322,7 @@ Track::SwVertex* Track::findSwitch(double x, double y, double z, double tol)
 //			loc.coord= matrix->preMult(loc.coord);
 		double dx= loc.coord[0] - x;
 		double dy= loc.coord[1] - y;
-		double dz= loc.coord[2] - z;
+		double dz= z>0 ? loc.coord[2] - z : 0;
 		double d= dx*dx + dy*dy + dz*dz;
 		if (bestd > d) {
 			bestd= d;
@@ -1166,7 +1166,7 @@ void Track::saveLocation(double x, double y, double z, std::string& name,
   int rev)
 {
 	Location loc;
-	float d= findLocation(x,y,z,&loc);
+	float d= z<0 ? findLocation(x,y,&loc) : findLocation(x,y,z,&loc);
 	loc.rev= rev;
 	locations.insert(make_pair(name,loc));
 //	printf("%.3lf|%.3lf|%.3lf|%s|%f\n",x,y,z,name.c_str(),d);

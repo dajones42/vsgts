@@ -290,13 +290,13 @@ void TSGui::showLeversWindow()
 		auto c1= .8*color + vsg::vec3(.1,.1,.1);
 		auto c2= .9*color + vsg::vec3(.2,.2,.2);
 		float y= state==Interlocking::NORMAL ? .25 : state==Interlocking::REVERSE ? .75 :
-		  interlocking->getLockDurationS(i,simTime)>0 ? .5 : .375;
+		  interlocking->getLockDurationS(i,simTime)>0 ? .5 : .3;
 		int ht= 50;
 		auto occ= interlocking->getSwitchOccupied(i);
 		if (occ==Interlocking::OCCUPIED || occ==Interlocking::ROUTELOCK)
 			ht= 55;
 		auto sig= interlocking->getSignal(i);
-		if (sig && sig->trainDistance>0)
+		if (sig && sig->trainDistance>0 && sig->trainDistance<1e3)
 			ht= 55;
 		ImGui::PushID(i);
 		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(color.r,color.g,color.b,1));
