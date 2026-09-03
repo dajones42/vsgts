@@ -376,6 +376,8 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			for (auto t: trainList)
 				listener.addTrain(t);
 			listener.setGain(1);
+			if (interlocking)
+				timeMult= 0;
 		}
 	} else if (!mstsRoute && !TSGuiData::instance().showSelect && TSGuiData::instance().selected.find(".tdb")) {
 		auto options= vsg::Options::create();

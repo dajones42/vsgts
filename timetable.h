@@ -160,6 +160,10 @@ class Train {
 	bool getReadDown() { return readDown; };
 	Train* getNextTrain() { return nextTrain; };
 	Train* getPrevTrain() { return prevTrain; };
+	void setPrevTrain(Train* t) {
+		prevTrain= t;
+		t->nextTrain= this;
+	};
 	void makePlayer() { prevTrain= this; endVisible= true; };
 	int mustWait(int time, int fromRow, int toRow, int eta,
 	  std::string* reason);

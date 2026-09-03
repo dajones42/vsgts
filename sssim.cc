@@ -47,57 +47,42 @@ using namespace std;
 #include "camerac.h"
 #include "vsgjson.h"
 
-void parseSignalLock(int lever, string& locks)
-{
-	while (locks.size() > 0) {
-		auto lock= locks;
-		auto i= locks.find(",");
-		if (i == string::npos) {
-			locks= "";
-		} else {
-			lock= locks.substr(0,i-1);
-			locks= locks.substr(i);
-		}
-		auto lever2= atoi(lock.c_str());
-		if (lever2<1 || lever2>interlocking->getNumLevers())
-			continue;
-		int state= Interlocking::NORMAL | Interlocking::REVERSE;
-		if (lock.find("N") != string::npos)
-			state= Interlocking::NORMAL;
-		else if (lock.find("R") != string::npos)
-			state= Interlocking::REVERSE;
-		interlocking->addInterlock(lever-1,Interlocking::REVERSE,lever2-1,state);
-	}
-}
-
 typedef std::vector<std::pair<int,int> > Conditions;
 
-void addSignalLocking(int lever, Track::Vertex* v, Track::Edge* e, int depth, Conditions& when)
+static void addSignalLocking(int lever, Track::Vertex* v, Track::Edge* e, int depth, Conditions& when)
 {
+	if (depth > 50) {
+		std::cerr<<"addSignalLocking depth exceeded\n";
+		return;
+	}
+	double length= 0;
 	while (v->type!=Track::VT_SWITCH && e) {
 		if (depth>1 && e->signals.size() > 0) {
 			for (auto s: e->signals) {
 				for (int i=0; i<interlocking->getNumLevers(); i++) {
 					if (s == interlocking->getSignal(i)) {
-//						for (int j=0; j<depth; j++)
-//							std::cerr<<" ";
-//						std::cerr<<"found signal "<<(i+1);
+						for (int j=0; j<depth; j++)
+							std::cerr<<" ";
+						std::cerr<<"found signal "<<(i+1);
 						if (lever < i+1) {
-//							std::cerr<<" lock when";
+							std::cerr<<" lock when";
 							interlocking->addInterlock(lever-1,Interlocking::REVERSE,
 							  i,Interlocking::NORMAL);
 							for (int j=0; j<when.size(); j++) {
 								interlocking->addCondition(when[j].first,
 								  when[j].second);
-//								std::cerr<<" "<<when[j].first+1<<" "<<when[j].second;
+								std::cerr<<" "<<when[j].first+1<<" "<<when[j].second;
 							}
 						}
-//						std::cerr<<"\n";
+						std::cerr<<"\n";
 					}
 				}
 			}
 			return;
 		}
+		length+= e->length;
+		if (length> 2e3)
+			return;
 		e= v->nextEdge(e);
 		if (!e)
 			break;
@@ -146,6 +131,215 @@ void addSignalLocking(int lever, Track::Vertex* v, Track::Edge* e, int depth, Co
 	}
 }
 
+static void parseSignalLock(int lever, string& locks)
+{
+	std::cerr<<"signallock "<<lever<<" "<<locks<<"\n";
+	if (locks == "calc") {
+		auto sig= interlocking->getSignal(lever-1);
+//		std::cerr<<"signal "<<lever<<" "<<sig<<"\n";
+		for (int j=0; j<sig->getNumTracks(); j++) {
+			auto loc= sig->getTrack(j);
+			Conditions when;
+			if (loc.rev)
+				addSignalLocking(lever,loc.edge->v1,loc.edge,1,when);
+			else
+				addSignalLocking(lever,loc.edge->v2,loc.edge,1,when);
+		}
+	} else {
+		while (locks.size() > 0) {
+			auto lock= locks;
+			auto i= locks.find(",");
+			if (i == string::npos) {
+				locks= "";
+			} else {
+				lock= locks.substr(0,i);
+				locks= locks.substr(i+1);
+			}
+			auto lever2= atoi(lock.c_str());
+			if (lever2<1 || lever2>interlocking->getNumLevers())
+				continue;
+			int state= Interlocking::NORMAL | Interlocking::REVERSE;
+			if (lock.find("N") != string::npos)
+				state= Interlocking::NORMAL;
+			else if (lock.find("R") != string::npos)
+				state= Interlocking::REVERSE;
+			interlocking->addInterlock(lever-1,Interlocking::REVERSE,lever2-1,state);
+		}
+	}
+}
+
+static void createTrains(JsonArray& trains, JsonObject& consists, Track* track, vsg::Group* root)
+{
+	for (int i=0; i<trains.size(); i++) {
+		auto t= trains.getObject(i);
+		auto startTime= t.getString("startTime");
+		auto entrance= t.getString("entrance");
+		auto exit= t.getString("exit");
+		auto stops= t.getArray("stops");
+		auto s1= timeTable->findStation(entrance);
+		auto s2= timeTable->findStation(exit);
+		bool readDown= s1->getNumTracks()==2;
+		auto name= t.getString("name");
+		if (startTime.find(":") != string::npos) {
+			Train* train= new Train;
+			train->name= name;
+			auto consist= consists.getArray(t.getString("consist"));
+			for (int j=0; j<consist.size(); j++) {
+				auto s= consist.getString(j);
+				bool rev= s[0]=='^';
+				if (rev)
+					s= s.substr(1);
+				auto k= s.find("/");
+				if (k == string::npos)
+					continue;
+				string dir= mstsRoute->trainsetDir+mstsRoute->dirSep+s.substr(0,k);
+				string file= s.substr(k+1);
+				auto def= mstsRoute->loadRailCarDef(dir,file);
+				if (!def)
+					continue;
+				RailCarInst* car= new RailCarInst(def,root,0,def->brakeValve);
+				car->setLoad(0);
+				car->prev= train->lastCar;
+				car->rev= rev;
+				if (train->lastCar == NULL)
+					train->firstCar= car;
+				else
+					train->lastCar->next= car;
+				train->lastCar= car;
+			}
+			if (train->firstCar == NULL) {
+				cerr<<"empty train "<<name<<"\n";
+				delete train;
+				continue;
+			}
+			track->findLocation(entrance,&train->location);
+			Track::Location endLoc;
+			track->findLocation(exit,&endLoc);
+			track->findSPT(endLoc,true);
+			auto e= train->location.edge;
+			train->location.rev= e->v1->dist < e->v2->dist;
+			auto d1= train->location.getDist();
+			if (readDown) {
+				auto d= d1 + s1->getDistance();
+				if (s2->getDistance() < d)
+					s2->setDistance(d);
+				for (int j=0; j<stops.size(); j++) {
+					auto stop= stops.getObject(j).getString("stop");
+					auto s= timeTable->findStation(stop);
+					if (s) {
+						Track::Location loc;
+						track->findLocation(stop,&loc);
+						d= d1 - loc.getDist() + s1->getDistance();
+						if (s->getDistance() < d)
+							s->setDistance(d);
+					}
+				}
+			} else {
+				auto d= d1 + s2->getDistance();
+				if (s1->getDistance() < d)
+					s1->setDistance(d);
+				for (int j=0; j<stops.size(); j++) {
+					auto stop= stops.getObject(j).getString("stop");
+					auto s= timeTable->findStation(stop);
+					if (s) {
+						Track::Location loc;
+						track->findLocation(stop,&loc);
+						d= loc.getDist() + s2->getDistance();
+						if (s->getDistance() < d)
+							s->setDistance(d);
+					}
+				}
+			}
+			train->setModelsOff();
+			train->calcPerf();
+			float len= 0;
+			for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next)
+				len+= car->def->length;
+			train->endLocation= train->location;
+			train->location.move(len,1,0);
+			float x= 0;
+			for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next) {
+				car->setLocation(x-car->def->length/2,&train->location);
+				x-= car->def->length;
+			}
+			train->targetSpeed= t.getDouble("maxSpeed")/2.23693;
+			trainList.push_back(train);
+			if (train->name.size() > 0)
+				trainMap[train->name]= train;
+			train->setOccupied();
+		}
+	}
+}
+
+static void scheduleTrains(JsonArray& trains)
+{
+	for (int i=0; i<trains.size(); i++) {
+		auto t= trains.getObject(i);
+		auto startTime= t.getString("startTime");
+		auto entrance= t.getString("entrance");
+		auto exit= t.getString("exit");
+		auto stops= t.getArray("stops");
+		auto s1= timeTable->findStation(entrance);
+		auto s2= timeTable->findStation(exit);
+		bool readDown= s1->getNumTracks()==2;
+		auto name= t.getString("name");
+		auto ttTrain= timeTable->addTrain(name);
+		ttTrain->canThrowSwitches= false;
+		ttTrain->route= entrance.substr(0,1)+"-"+exit.substr(0,1);
+		auto s1Time= parseTime(startTime);
+		if (startTime.find(":") == string::npos) {
+			auto prevTrain= timeTable->findTrain(startTime);
+			if (!prevTrain)
+				continue;
+			ttTrain->setPrevTrain(prevTrain);
+			s1Time= 0;
+			for (int i=0; i<timeTable->getNumRows(); i++) {
+				auto time= prevTrain->getSchedLv(i) + prevTrain->getWait(i) + 60;
+				if (s1Time < time)
+					s1Time= time;
+			}
+		}
+		auto s2Time= s1Time+60;
+		int s3Time= 0;
+		int s3Wait= 30;
+		tt::Station* s3= nullptr;
+		int s4Time= 0;
+		int s4Wait= 30;
+		tt::Station* s4= nullptr;
+		if (stops.size() > 0) {
+			auto stop= stops.getObject(0);
+			s3= timeTable->findStation(stop.getString("stop"));
+			s3Time= parseTime(stop.getString("stopTime"));
+			s3Wait= stop.getInt("stopWait",30);
+			s2Time= s3Time+60;
+			stop= stops.getObject(1);
+			if (stop.getString("stop").size() > 0) {
+				s4= timeTable->findStation(stop.getString("stop"));
+				s4Time= parseTime(stop.getString("stopTime"));
+				s4Wait= stop.getInt("stopWait",30);
+				s2Time= s4Time+60;
+			}
+		}
+		if (readDown) {
+			ttTrain->setReadDown(true);
+			ttTrain->setSchedTime(s1,s1Time-60,s1Time,0);
+			if (s3)
+				ttTrain->setSchedTime(s3,s3Time-s3Wait,s3Time,0);
+			if (s4)
+				ttTrain->setSchedTime(s4,s4Time-s4Wait,s4Time,0);
+			ttTrain->setSchedTime(s2,s2Time,s2Time+30,0);
+		} else {
+			ttTrain->setReadDown(false);
+			ttTrain->setSchedTime(s2,s2Time,s2Time+30,0);
+			if (s4)
+				ttTrain->setSchedTime(s4,s4Time-s4Wait,s4Time,0);
+			if (s3)
+				ttTrain->setSchedTime(s3,s3Time-s3Wait,s3Time,0);
+			ttTrain->setSchedTime(s1,s1Time-60,s1Time,0);
+		}
+	}
+}
+
 void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 {
 	JsonObject top(topobj);
@@ -160,6 +354,7 @@ void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 		timeTable= new tt::TimeTable();
 	interlocking= new Interlocking(0);
 	map<int,string> signalLocks;
+	vector<tt::Station*> stations;
 	auto mapObjects= top.getArray("mapObjects");
 	for (int i=0; i<mapObjects.size(); i++) {
 		auto o= mapObjects.getObject(i);
@@ -185,8 +380,9 @@ void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 			std::cerr<<" wloc "<<wl.coord<<" "<<loc.offset<<" "<<loc.edge<<"\n";
 			auto s= timeTable->addStation(name);
 			s->setCallSign(name.substr(0,2));
-			s->setDistance(o.getInt("column"));
-			timeTable->addRow(s);
+			s->setNumTracks(2+o.getInt("column"));
+			s->setDistance(0);
+			stations.push_back(s);
 		} else if (type == "switch") {
 			auto sw= track->findSwitch(u,v,0);
 			auto lever= o.getInt("lever");
@@ -223,114 +419,20 @@ void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 			}
 		}
 	}
-	for (auto i: signalLocks) {
-//		std::cerr<<"signallock "<<i.first<<" "<<i.second<<"\n";
-		if (i.second != "calc") {
-			parseSignalLock(i.first,i.second);
-		} else {
-			auto sig= interlocking->getSignal(i.first-1);
-//			std::cerr<<"signal "<<i.first<<" "<<sig<<"\n";
-			for (int j=0; j<sig->getNumTracks(); j++) {
-				auto loc= sig->getTrack(j);
-				Conditions when;
-				if (loc.rev)
-					addSignalLocking(i.first,loc.edge->v1,loc.edge,1,when);
-				else
-					addSignalLocking(i.first,loc.edge->v2,loc.edge,1,when);
-			}
-		}
-	}
+	for (auto i: signalLocks)
+		parseSignalLock(i.first,i.second);
 	for (auto i: track->switchMap)
 		i.second->hasInterlocking= 1;
 	auto consists= top.getObject("consists");
 	auto trains= top.getArray("trains");
-	for (int i=0; i<trains.size(); i++) {
-		auto t= trains.getObject(i);
-		Train* train= new Train;
-		train->name= t.getString("name");
-		auto consist= consists.getArray(t.getString("consist"));
-		for (int j=0; j<consist.size(); j++) {
-			auto s= consist.getString(j);
-			bool rev= s[0]=='^';
-			if (rev)
-				s= s.substr(1);
-			auto k= s.find("/");
-			if (k == string::npos)
-				continue;
-			string dir= mstsRoute->trainsetDir+mstsRoute->dirSep+s.substr(0,k);
-			string file= s.substr(k+1);
-			auto def= mstsRoute->loadRailCarDef(dir,file);
-			if (!def)
-				continue;
-			RailCarInst* car= new RailCarInst(def,root,0,def->brakeValve);
-			car->setLoad(0);
-			car->prev= train->lastCar;
-			car->rev= rev;
-			if (train->lastCar == NULL)
-				train->firstCar= car;
-			else
-				train->lastCar->next= car;
-			train->lastCar= car;
-		}
-		if (train->firstCar == NULL) {
-			cerr<<"empty train\n";
-			delete train;
-			continue;
-		}
-		auto entrance= t.getString("entrance");
-		auto exit= t.getString("exit");
-		track->findLocation(entrance,&train->location);
-		Track::Location endLoc;
-		track->findLocation(exit,&endLoc);
-		track->findSPT(endLoc,true);
-		auto e= train->location.edge;
-		train->location.rev= e->v1->dist < e->v2->dist;
-		train->setModelsOff();
-		train->calcPerf();
-		float len= 0;
-		for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next)
-			len+= car->def->length;
-		train->endLocation= train->location;
-		train->location.move(len,1,0);
-		float x= 0;
-		for (RailCarInst* car=train->firstCar; car!=NULL; car=car->next) {
-			car->setLocation(x-car->def->length/2,&train->location);
-			x-= car->def->length;
-		}
-		train->targetSpeed= t.getDouble("maxSpeed")/2.23693;
-		trainList.push_back(train);
-		if (train->name.size() > 0)
-			trainMap[train->name]= train;
-		train->setOccupied();
-		auto startTime= t.getString("startTime");
-		auto ttTrain= timeTable->addTrain(train->name);
-		ttTrain->canThrowSwitches= false;
-		ttTrain->route= entrance.substr(0,1)+"-"+exit.substr(0,1);
-		auto s1= timeTable->findStation(entrance);
-		auto s1Time= parseTime(startTime);
-		auto s2= timeTable->findStation(exit);
-		auto s2Time= s1Time+60;
-		auto s3Time= 0;
-		tt::Station* s3= nullptr;
-		auto stops= t.getArray("stops");
-		if (stops.size() > 0) {
-			auto stop= stops.getObject(0);
-			s3= timeTable->findStation(stop.getString("stop"));
-			s3Time= parseTime(stop.getString("stopTime"));
-			s2Time= s3Time+60;
-		}
-		if (s1->getDistance() < s2->getDistance()) {
-			ttTrain->setReadDown(true);
-			ttTrain->setSchedTime(s1,s1Time-60,s1Time,0);
-			if (s3)
-				ttTrain->setSchedTime(s3,s3Time-30,s3Time,0);
-			ttTrain->setSchedTime(s2,s2Time,s2Time+30,0);
-		} else {
-			ttTrain->setReadDown(false);
-			ttTrain->setSchedTime(s2,s2Time,s2Time+30,0);
-			if (s3)
-				ttTrain->setSchedTime(s3,s3Time-30,s3Time,0);
-			ttTrain->setSchedTime(s1,s1Time-60,s1Time,0);
-		}
+	createTrains(trains,consists,track,root);
+	multimap<double,tt::Station*> sortMap;
+	for (auto s: stations)
+		sortMap.insert(pair(s->getDistance(),s));
+	for (auto i: sortMap) {
+		auto s= i.second;
+		timeTable->addRow(s);
+		std::cerr<<"station "<<s->getName()<<" "<<s->getDistance()<<" "<<s->getNumTracks()<<"\n";
 	}
+	scheduleTrains(trains);
 }

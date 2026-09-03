@@ -74,6 +74,7 @@ class Interlocking {
 			signal= NULL;
 			lockTime= 0;
 			routeLock= NULL;
+			color= vsg::vec3(.5,.5,.5);
 		};
 	};
 	std::vector<Lever> levers;
