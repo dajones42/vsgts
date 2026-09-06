@@ -55,7 +55,7 @@ public:
 		auto p= (static_cast<const vsg::doubleValue*>(objects->children[index].get()));
 		return p ? (int)p->value() : dflt;
 	}
-	int getDouble(int index, double dflt=0) {
+	double getDouble(int index, double dflt=0) {
 		if (!objects || index>=size())
 			return dflt;
 		auto p= (static_cast<const vsg::doubleValue*>(objects->children[index].get()));
@@ -94,7 +94,7 @@ public:
 			return dflt;
 		return (int)vsg::value<double>(dflt,name,object);
 	}
-	int getDouble(std::string name, double dflt=0) {
+	double getDouble(std::string name, double dflt=0) {
 		if (!object)
 			return dflt;
 		return vsg::value<double>(dflt,name,object);
