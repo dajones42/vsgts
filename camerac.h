@@ -48,6 +48,8 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	int maxZoom;
 	double zoom1Dist;
 	int insideIndex;
+	vsg::dvec3 homeCenter;
+	float homeAngle;
 	void setZoom(int z);
 	void incZoom(int dz) { setZoom(zoom+dz); }
 	void incHeading(double degrees);
@@ -58,7 +60,7 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	void setFollow(vsg::MatrixTransform* model, vsg::vec3 offset, float heading, float pitch);
 	void save(std::ofstream& ofs);
 	void loadSave(vsg::Object*);
-	void setHome(vsg::dvec3 center, float heading=0);
+	void setHome(vsg::dvec3 center, float angle=0);
 };
 extern vsg::LookAt* myLookAt;
 extern CameraController* myCameraController;

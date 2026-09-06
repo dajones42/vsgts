@@ -162,6 +162,8 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 			setZoom(15);
 		setPitch(-90);
 		keyPress.handled= true;
+	} else if (keyPress.keyBase=='1' && !myRailCar) {
+		setHome(homeCenter,homeAngle);
 	} else if (keyPress.keyBase=='1' && followInside(myRailCar)) {
 		selectedTrain= myTrain;
 		selectedRailCar= myRailCar;
@@ -420,13 +422,16 @@ void CameraController::loadSave(vsg::Object* obj)
 //	std::cerr<<"pr "<<prevRotation.x<<" "<<prevRotation.y<<" "<<prevRotation.z<<" "<<prevRotation.w<<"\n";
 }
 
-void CameraController::setHome(vsg::dvec3 center, float heading)
+void CameraController::setHome(vsg::dvec3 center, float angle)
 {
-	auto dir= vsg::dquat(vsg::radians(heading),vsg::dvec3(0,0,1)) * vsg::dvec3(1,0,0);
+	auto dir= vsg::dquat(vsg::radians(angle),vsg::dvec3(0,0,1)) * vsg::dvec3(1,0,0);
+	std::cerr<<"sethome "<<center<<"  "<<angle<<"  "<<dir<<"\n";
 	lookAt->center= center;
 	lookAt->eye= center - .1*dir;
 	lookAt->up= vsg::dvec3(0,0,1);
 	setZoom(0);
 	setPitch(0);
 	remoteEye= false;
+	homeCenter= center;
+	homeAngle= angle;
 }
