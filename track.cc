@@ -442,20 +442,7 @@ int Track::Location::move(float dist, int throwSwitches, int dOccupied)
 		}
 		dist-= max;
 		Vertex* v= reverse==this->rev ? edge->v2 : edge->v1;
-		if (dOccupied < 0) {
-			v->occupied--;
-			edge->occupied--;
-			if (edge->occupied==0 && edge->track->updateSignals &&
-			  edge->signals.size()>0)
-				edge->updateSignals();
-#if 0
-//			fprintf(stderr,"%d %d-%d %d %d %d %d\n",
-//			  v->id,edge->v1->id,edge->v2->id,
-			fprintf(stderr," %d %d %d %d\n",
-			  edge->occupied,dOccupied,
-			  edge->track->updateSignals,edge->signals.size());
-#endif
-		}
+		auto e= edge;
 		if (edge != v->edge1) {
 			if (v->type==VT_SWITCH && throwSwitches)
 				((SwVertex*)v)->throwSwitch(edge,false);
@@ -469,9 +456,27 @@ int Track::Location::move(float dist, int throwSwitches, int dOccupied)
 		} else {
 			edge= v->edge2;
 		}
+		if (dOccupied < 0) {
+			v->occupied--;
+			e->decOccupied(false);
+			if (e->trackCircuit && e->trackCircuit!=edge->trackCircuit)
+				e->trackCircuit->decOccupied();
+			if (e->occupied==0 && e->track->updateSignals &&
+			  e->signals.size()>0)
+				e->updateSignals();
+#if 0
+//			fprintf(stderr,"%d %d-%d %d %d %d %d\n",
+//			  v->id,edge->v1->id,edge->v2->id,
+			fprintf(stderr," %d %d %d %d\n",
+			  edge->occupied,dOccupied,
+			  edge->track->updateSignals,edge->signals.size());
+#endif
+		}
 		if (dOccupied > 0) {
 			v->occupied++;
-			edge->occupied++;
+			edge->incOccupied(false);
+			if (edge->trackCircuit && edge->trackCircuit!=e->trackCircuit)
+				edge->trackCircuit->incOccupied();
 			if (edge->occupied>0 && edge->track->updateSignals &&
 			  edge->signals.size()>0)
 				edge->updateSignals();
@@ -2087,4 +2092,15 @@ Track* Track::expand()
 		copy->addEdge(ET_STRAIGHT,v1,n1,v2,n2);
 	}
 	return copy;
+}
+
+TrackCircuit* TrackCircuit::get(string& name)
+{
+	static map<string,TrackCircuit*> trackCircuitMap;
+	auto i= trackCircuitMap.find(name);
+	if (i != trackCircuitMap.end())
+		return i->second;
+	auto tc= new TrackCircuit(name);
+	trackCircuitMap[name]= tc;
+	return tc;
 }

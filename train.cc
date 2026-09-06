@@ -821,10 +821,10 @@ void Train::uncouple(RailCarInst* car, bool keepRear, int newID)
 //	fprintf(stderr,"len2 %f\n",d);
 	if (keepRear) {
 		newt->endLocation.move(-d,0,0);
-		newt->endLocation.edge->occupied++;
+		newt->endLocation.edge->incOccupied(true);
 	} else {
 		newt->location.move(d,0,0);
-		newt->location.edge->occupied++;
+		newt->location.edge->incOccupied(true);
 	}
 	calcPerf();
 	newt->calcPerf();
@@ -953,7 +953,7 @@ void Train::coupleOther()
 	if (endLocation.distance(&otherTrain->location) < .001) {
 		fprintf(stderr,"couple rf\n");
 		endLocation= otherTrain->endLocation;
-		otherTrain->location.edge->occupied--;
+		otherTrain->location.edge->decOccupied(true);
 		lastCar->next= otherTrain->firstCar;
 		otherTrain->firstCar->prev= lastCar;
 		lastCar= otherTrain->lastCar;
@@ -961,7 +961,7 @@ void Train::coupleOther()
 		fprintf(stderr,"couple rr\n");
 		endLocation= otherTrain->location;
 		endLocation.rev= !endLocation.rev;
-		otherTrain->endLocation.edge->occupied--;
+		otherTrain->endLocation.edge->decOccupied(true);
 		otherTrain->reverseCars();
 		lastCar->next= otherTrain->firstCar;
 		otherTrain->firstCar->prev= lastCar;
@@ -969,7 +969,7 @@ void Train::coupleOther()
 	} else if (location.distance(&otherTrain->endLocation) < .001) {
 		fprintf(stderr,"couple fr\n");
 		location= otherTrain->location;
-		otherTrain->endLocation.edge->occupied--;
+		otherTrain->endLocation.edge->decOccupied(true);
 		otherTrain->lastCar->next= firstCar;
 		firstCar->prev= otherTrain->lastCar;
 		firstCar= otherTrain->firstCar;
@@ -977,7 +977,7 @@ void Train::coupleOther()
 		fprintf(stderr,"couple ff\n");
 		location= otherTrain->endLocation;
 		location.rev= !location.rev;
-		otherTrain->location.edge->occupied--;
+		otherTrain->location.edge->decOccupied(true);
 		otherTrain->reverseCars();
 		otherTrain->lastCar->next= firstCar;
 		firstCar->prev= otherTrain->lastCar;
@@ -1469,7 +1469,7 @@ void  Train::setHeadLight(bool on)
 void  Train::setOccupied()
 {
 	Track::Location loc= endLocation;
-	loc.edge->occupied++;
+	loc.edge->incOccupied(true);
 	loc.move(getLength(),0,1);
 	location.edge->updateSignals();
 	endLocation.edge->updateSignals();
@@ -1480,7 +1480,7 @@ void  Train::clearOccupied()
 {
 	Track::Location loc= endLocation;
 	loc.move(getLength(),0,-1);
-	loc.edge->occupied--;
+	loc.edge->decOccupied(true);
 	location.edge->updateSignals();
 	endLocation.edge->updateSignals();
 }

@@ -28,6 +28,7 @@ THE SOFTWARE.
 #include <list>
 #include <map>
 #include <vsg/all.h>
+#include <iostream>
 
 class TrackShape;
 
@@ -38,6 +39,17 @@ struct WLocation {
 };
 
 struct Signal;
+
+struct TrackCircuit {
+	std::string name;
+	int occupied= 0;
+	explicit TrackCircuit(std::string& s) {
+		name= s;
+	}
+	static TrackCircuit* get(std::string& name);
+	void incOccupied() { occupied++; }
+	void decOccupied() { occupied--; }
+};
 
 struct Track {
 	enum { ET_STRAIGHT, ET_SPLINE } EdgeType;
@@ -55,6 +67,7 @@ struct Track {
 		Track* track;
 		float curvature;	// degrees
 		std::list<Signal*> signals;
+		TrackCircuit* trackCircuit= nullptr;
 		Vertex* otherV(Vertex* v) { return v==v1 ? v2 : v1; };
 		float grade() {
 			return length<=0 ? 0 :
@@ -64,6 +77,16 @@ struct Track {
 			return v==v1 ? grade() : -grade();
 		}
 		void updateSignals();
+		void incOccupied(bool chgtc) {
+			occupied++;
+			if (chgtc && trackCircuit)
+				trackCircuit->incOccupied();
+		}
+		void decOccupied(bool chgtc) {
+			occupied--;
+			if (chgtc && trackCircuit)
+				trackCircuit->decOccupied();
+		}
 	};
 	struct SplineEdge : public Edge { //spline track section
 		float dd1[3];
