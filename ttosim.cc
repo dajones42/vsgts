@@ -1346,7 +1346,7 @@ void AITrain::approach(double time)
 	takeSiding= 0;
 	string reason;
 	int meetAhead= mustWait(time,row1,row2,eta,&reason);
-	if (meetAhead == 1) {
+	if (meetAhead == 1 && canThrowSwitches) {
 		fprintf(stderr,"take siding %s\n",reason.c_str());
 		takeSiding= 1;
 		Station* s= (Station*) timeTable->getRow(row1);

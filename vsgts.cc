@@ -241,6 +241,8 @@ void placeExploreConsist(Train* train)
 	listener.addTrain(train);
 }
 
+extern void updateModelBoardLights();
+
 void updateSignals()
 {
 	for (int i=0; i<mstsSignals.size(); i++) {
@@ -319,6 +321,7 @@ void updateSim(double dt, vsg::ref_ptr<vsg::Group>& root, vsg::ref_ptr<vsg::View
 			startSwitchAnimation(viewer->animationManager);
 			startPanAnimation(viewer->animationManager);
 			updateSignals();
+			updateModelBoardLights();
 			updateActivityEvents();
 			updateLightDirection();
 			if (mstsRoute && mstsRoute->skyBox)

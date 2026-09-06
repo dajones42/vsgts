@@ -46,6 +46,7 @@ using namespace std;
 #include "interlocking.h"
 #include "camerac.h"
 #include "vsgjson.h"
+#include "mstsace.h"
 
 typedef std::vector<std::pair<int,int> > Conditions;
 
@@ -340,6 +341,121 @@ static void scheduleTrains(JsonArray& trains)
 	}
 }
 
+struct ModelBoardLight {
+	int lever= 0;
+	TrackCircuit* trackCircuit= nullptr;
+	vsg::Switch* lightSwitch= nullptr;
+	ModelBoardLight(int l, TrackCircuit* tc, vsg::Switch* sw) {
+		lever= l;
+		trackCircuit= tc;
+		lightSwitch= sw;
+	}
+};
+static std::vector<ModelBoardLight> modelBoardLights;
+
+static void makeModelBoard(JsonObject mb, vsg::dvec3 center, double angle, vsg::Group* root)
+{
+	if (!mb.object)
+		return;
+	string path= mstsRoute->routeDir+mstsRoute->dirSep+"sssim"+mstsRoute->dirSep+mb.getString("image");
+	std::cerr<<"modelboard path "<<path<<"\n";
+	auto image= readCacheACEFile(path.c_str());
+	if (!image)
+		return;
+	auto builder= vsg::Builder::create();
+	vsg::StateInfo state;
+	state.image= image;
+	state.lighting= false;
+	state.two_sided= true;
+	vsg::GeometryInfo geom;
+	auto width= mb.getDouble("width");
+	auto height= mb.getDouble("height");
+	auto vOffset= mb.getDouble("vOffset");
+	geom.position.set(0,0,vOffset);
+	geom.dx.set(0,-width,0);
+	geom.dy.set(0,0,-height);
+//	geom.color= vsg::vec4(1,1,1,1);
+	std::cerr<<"pos "<<geom.position<<"\n";
+	std::cerr<<"dx "<<geom.dx<<"\n";
+	std::cerr<<"dy "<<geom.dy<<"\n";
+	auto quad= builder->createQuad(geom, state);
+	auto dist= -mb.getDouble("distance");
+	auto mt= vsg::MatrixTransform::create();
+	if (dist < 0) {
+		angle+= 180;
+		dist= -dist;
+	}
+	mt->matrix= vsg::translate(center) *
+	  vsg::rotate(vsg::radians(angle),vsg::dvec3(0,0,1)) * vsg::translate(vsg::dvec3(dist,0,0));
+	mt->addChild(quad);
+	root->addChild(mt);
+	std::cerr<<"matrix "<<mt->matrix<<"\n";
+	std::cerr<<"offset "<<dist<<" "<<
+	  (vsg::rotate(vsg::radians(angle),vsg::dvec3(0,0,1)) * vsg::translate(vsg::dvec3(dist,0,0)))<<"\n";
+	auto lmt= vsg::MatrixTransform::create();
+	lmt->matrix= vsg::translate(vsg::dvec3(0,0,vOffset)) * vsg::rotate(vsg::radians(90.),vsg::dvec3(0,1,0));
+	mt->addChild(lmt);
+	auto lights= mb.getArray("lights");
+	for (int i=0; i<lights.size(); i++) {
+		auto light= lights.getObject(i);
+		auto radius= light.getDouble("radius");
+		auto x= light.getDouble("x");
+		auto y= light.getDouble("y");
+		auto colorHexS= light.getString("color");
+		auto lever= light.getInt("lever");
+		auto trackCircuit= light.getString("trackCircuit");
+		auto colorHex= strtol(colorHexS.c_str(),nullptr,16);
+		auto red= ((colorHex&0xff0000)>>16)/255.;
+		auto green= ((colorHex&0xff00)>>8)/255.;
+		auto blue= (colorHex&0xff)/255.;
+		auto lightPoint= createLightPoint(vsg::vec3(-y,-x,-.01),vsg::vec4(red,green,blue,1),radius,
+		  mstsRoute->vsgOptions);
+		auto sw= vsg::Switch::create();
+		sw->addChild(false,lightPoint);
+		lmt->addChild(sw);
+		if (lever > 0)
+			modelBoardLights.push_back(ModelBoardLight(lever,nullptr,sw));
+		if (trackCircuit.size() > 0)
+			modelBoardLights.push_back(ModelBoardLight(0,TrackCircuit::get(trackCircuit),sw));
+	}
+}
+
+void updateModelBoardLights()
+{
+	if (!interlocking)
+		return;
+	for (auto& mbl: modelBoardLights) {
+		if (mbl.lever > 0) {
+			auto signal= interlocking->getSignal(mbl.lever-1);
+			if (signal)
+				mbl.lightSwitch->setAllChildren(signal->getIndication()!=Signal::STOP);
+		}
+		if (mbl.trackCircuit)
+			mbl.lightSwitch->setAllChildren(mbl.trackCircuit->occupied>0);
+	}
+}
+
+void makeTrackCircuit(Signal* signal, string name)
+{
+	auto flip= name.substr(0,1) == "^";
+	if (flip)
+		name= name.substr(1);
+	auto tc= TrackCircuit::get(name);
+	for (int i=0; i<signal->getNumTracks(); i++) {
+		auto loc= signal->getTrack(i);
+		auto e= loc.edge;
+		auto v= (flip?!loc.rev:loc.rev) ? e->v1 : e->v2;
+		while (e) {
+			e->trackCircuit= tc;
+			std::cerr<<"tc "<<name<<" "<<e<<"\n";
+			e= v->nextEdge(e);
+			if (!e || e->signals.size()>0)
+				break;
+			v= e->otherV(v);
+		}
+	}
+}
+
 void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 {
 	JsonObject top(topobj);
@@ -350,11 +466,14 @@ void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 	std::cerr<<"msts center "<<mstsRoute->centerTX<<" "<<mstsRoute->centerTZ<<"\n";
 	std::cerr<<"sssim center "<<centerTX<<" "<<centerTZ<<" "<<du<<" "<<dv<<"\n";
 	Track* track= trackMap[mstsRoute->routeID];
+	for (auto e: track->edgeList)
+		e->signals.clear();
 	if (!timeTable)
 		timeTable= new tt::TimeTable();
 	interlocking= new Interlocking(0);
 	map<int,string> signalLocks;
 	vector<tt::Station*> stations;
+	map<Signal*,string> trackCircuitMap;
 	auto mapObjects= top.getArray("mapObjects");
 	for (int i=0; i<mapObjects.size(); i++) {
 		auto o= mapObjects.getObject(i);
@@ -367,8 +486,14 @@ void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 			WLocation wl;
 			loc.getWLocation(&wl);
 			auto y= o.getDouble("y");
-			std::cerr<<"camera "<<u<<" "<<v<<" "<<wl.coord[2]<<" "<<y<<"\n";
-			myCameraController->setHome(vsg::dvec3(u,v,wl.coord[2]+y));
+			auto dx= wl.coord[0] - u;
+			auto dy= wl.coord[1] - v;
+			auto angle= atan2(dy,dx) + M_PI;
+			angle= o.getDouble("angle",angle*180/M_PI);
+			std::cerr<<"camera "<<u<<" "<<v<<" "<<wl.coord[2]<<" "<<y<<" "<<angle<<"\n";
+			auto center= vsg::dvec3(u,v,wl.coord[2]+y);
+			myCameraController->setHome(center,angle-180);
+			makeModelBoard(o.getObject("modelBoard"),center,angle-180,root);
 		} else if (type == "location") {
 			auto name= o.getString("name");
 			track->saveLocation(u,v,-1,name);
@@ -400,27 +525,32 @@ void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 			}
 		} else if (type == "signal") {
 			auto lever= o.getInt("lever");
-			if (lever == 0)
-				continue;
 //			std::cerr<<"signal "<<lever<<" "<<u<<" "<<v<<"\n";
-			interlocking->setColor(lever-1,1,0,0);
 			Track::Location loc;
 			track->findLocation(u,v,&loc);
 			loc.rev= 1-o.getInt("direction");
 			if (loc.edge) {
 //				std::cerr<<" "<<loc.offset<<" "<<loc.edge->length<<" "<<loc.rev<<"\n";
-				auto signal= new Signal;
+				auto signal= new Signal(lever?Signal::STOP:Signal::CLEAR);
 				signal->addTrack(&loc);
 				loc.edge->signals.push_back(signal);
-				interlocking->setSignal(lever-1,signal);
-				auto lock= o.getString("lock");
-				if (lock.size() > 0)
-					signalLocks[lever]= lock;
+				if (lever) {
+					interlocking->setColor(lever-1,1,0,0);
+					interlocking->setSignal(lever-1,signal);
+					auto lock= o.getString("lock");
+					if (lock.size() > 0)
+						signalLocks[lever]= lock;
+				}
+				auto trackCircuit= o.getString("trackCircuit");
+				if (trackCircuit.size() > 0)
+					trackCircuitMap[signal]= trackCircuit;
 			}
 		}
 	}
 	for (auto i: signalLocks)
 		parseSignalLock(i.first,i.second);
+	for (auto i: trackCircuitMap)
+		makeTrackCircuit(i.first,i.second);
 	for (auto i: track->switchMap)
 		i.second->hasInterlocking= 1;
 	auto consists= top.getObject("consists");

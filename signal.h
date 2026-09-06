@@ -50,7 +50,7 @@ class Signal {
 	bool distant;
 	int getState() { return state; };
 	bool isDistant() { return distant; };
-	void setState(int s) { state= s; };
+	void setState(int s) { state= s; update(); };
 	void addTrack(Track::Location* loc);
 	int getNumTracks() { return tracks.size(); };
 	Track::Location& getTrack(int i) { return tracks[i]; };
