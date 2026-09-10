@@ -47,6 +47,7 @@ using namespace std;
 #include "camerac.h"
 #include "vsgjson.h"
 #include "mstsace.h"
+#include "tsgui.h"
 
 typedef std::vector<std::pair<int,int> > Conditions;
 
@@ -184,6 +185,7 @@ static void createTrains(JsonArray& trains, JsonObject& consists, Track* track, 
 		if (startTime.find(":") != string::npos) {
 			Train* train= new Train;
 			train->name= name;
+			train->modelCouplerSlack= 0;
 			auto consist= consists.getArray(t.getString("consist"));
 			for (int j=0; j<consist.size(); j++) {
 				auto s= consist.getString(j);
@@ -301,41 +303,28 @@ static void scheduleTrains(JsonArray& trains)
 			}
 		}
 		auto s2Time= s1Time+60;
-		int s3Time= 0;
-		int s3Wait= 30;
-		tt::Station* s3= nullptr;
-		int s4Time= 0;
-		int s4Wait= 30;
-		tt::Station* s4= nullptr;
-		if (stops.size() > 0) {
-			auto stop= stops.getObject(0);
-			s3= timeTable->findStation(stop.getString("stop"));
-			s3Time= parseTime(stop.getString("stopTime"));
-			s3Wait= stop.getInt("stopWait",30);
-			s2Time= s3Time+60;
-			stop= stops.getObject(1);
-			if (stop.getString("stop").size() > 0) {
-				s4= timeTable->findStation(stop.getString("stop"));
-				s4Time= parseTime(stop.getString("stopTime"));
-				s4Wait= stop.getInt("stopWait",30);
-				s2Time= s4Time+60;
-			}
+		vector<tt::Station*> stopStations;
+		vector<int> stopTimes;
+		vector<int> stopWaits;
+		for (int i=0; i<stops.size(); i++) {
+			auto stop= stops.getObject(i);
+			stopStations.push_back(timeTable->findStation(stop.getString("stop")));
+			auto time= parseTime(stop.getString("stopTime"));
+			stopTimes.push_back(time);
+			stopWaits.push_back(stop.getInt("stopWait",30));
+			s2Time= time+60;
 		}
 		if (readDown) {
 			ttTrain->setReadDown(true);
 			ttTrain->setSchedTime(s1,s1Time-60,s1Time,0);
-			if (s3)
-				ttTrain->setSchedTime(s3,s3Time-s3Wait,s3Time,0);
-			if (s4)
-				ttTrain->setSchedTime(s4,s4Time-s4Wait,s4Time,0);
+			for (int i=0; i<stopStations.size(); i++)
+				ttTrain->setSchedTime(stopStations[i],stopTimes[i]-stopWaits[i],stopTimes[i],0);
 			ttTrain->setSchedTime(s2,s2Time,s2Time+30,0);
 		} else {
 			ttTrain->setReadDown(false);
 			ttTrain->setSchedTime(s2,s2Time,s2Time+30,0);
-			if (s4)
-				ttTrain->setSchedTime(s4,s4Time-s4Wait,s4Time,0);
-			if (s3)
-				ttTrain->setSchedTime(s3,s3Time-s3Wait,s3Time,0);
+			for (int i=stopStations.size()-1; i>=0; i--)
+				ttTrain->setSchedTime(stopStations[i],stopTimes[i]-stopWaits[i],stopTimes[i],0);
 			ttTrain->setSchedTime(s1,s1Time-60,s1Time,0);
 		}
 	}
@@ -447,7 +436,7 @@ void makeTrackCircuit(Signal* signal, string name)
 		auto v= (flip?!loc.rev:loc.rev) ? e->v1 : e->v2;
 		while (e) {
 			e->trackCircuit= tc;
-			std::cerr<<"tc "<<name<<" "<<e<<"\n";
+//			std::cerr<<"tc "<<name<<" "<<e<<"\n";
 			e= v->nextEdge(e);
 			if (!e || e->signals.size()>0)
 				break;
@@ -565,4 +554,24 @@ void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 		std::cerr<<"station "<<s->getName()<<" "<<s->getDistance()<<" "<<s->getNumTracks()<<"\n";
 	}
 	scheduleTrains(trains);
+	for (auto i: sortMap)
+		i.second->setNumTracks(1);
+	set<string> startTimes;
+	for (int i=0; i<trains.size(); i++) {
+		auto t= trains.getObject(i);
+		auto startTime= t.getString("startTime");
+		if (startTime.find(":") != string::npos) {
+			auto start= parseTime(startTime)-60;
+			char buf[50];
+			sprintf(buf,"%2.2d:%2.2d",start/3600,start/60%60);
+			startTimes.insert(string(buf)+" "+t.getString("name"));
+		}
+	}
+	TSGuiData& guiData= TSGuiData::instance();
+	guiData.listItems.clear();
+	for (auto& s: startTimes)
+		guiData.listItems.push_back(s);
+	guiData.selectType= "startTime";
+	guiData.selected= "Select start time";
+	guiData.showSelect= true;
 }

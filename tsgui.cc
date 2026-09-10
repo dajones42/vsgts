@@ -39,6 +39,7 @@ using namespace filesystem;
 #include "camerac.h"
 #include "interlocking.h"
 #include "track.h"
+#include "timetable.h"
 
 void TSGui::record(vsg::CommandBuffer& cb) const
 {
@@ -235,19 +236,24 @@ void TSGui::showSelectWindow()
 		}
 		ImGui::EndCombo();
 	}
-	if (mstsRoute && mstsRoute->activityName==" Explore" && data.selected!="Select a consist") {
+	if (data.selectType=="startTime" && data.selected!="Select start time" && ImGui::Button("Start")) {
+		simTime= parseTime(data.selected);
+		timeMult= 1;
+		std::cerr<<"starttime "<<simTime<<"\n";
+		data.showSelect= false;
+	}
+	if (data.selectType=="consist" && data.selected!="Select a consist") {
 		ImGui::Text("%s","Center start location the select Load.");
 		if (ImGui::Button("Load")) {
 			mstsRoute->consistName= data.selected;
 			data.showSelect= false;
 		}
 	}
-	if (mstsRoute && mstsRoute->activityName.size()==0 && data.selected!="Select an activity" &&
-	  ImGui::Button("Load")) {
+	if (data.selectType=="activity" && data.selected!="Select an activity" && ImGui::Button("Load")) {
 		mstsRoute->activityName= data.selected;
 		data.showSelect= false;
 	}
-	if (!mstsRoute && data.selected!="Select a route" && ImGui::Button("Load")) {
+	if (data.selectType=="route" && data.selected!="Select a route" && ImGui::Button("Load")) {
 		data.showSelect= false;
 	}
 	ImGui::End();
@@ -330,6 +336,7 @@ void TSGuiData::loadRouteList()
 	}
 	sort(listItems.begin(),listItems.end());
 	selected= "Select a route";
+	selectType= "route";
 	showSelect= true;
 }
 
@@ -345,6 +352,7 @@ void TSGuiData::loadActivityList()
 	}
 	sort(listItems.begin(),listItems.end());
 	selected= "Select an activity";
+	selectType= "activity";
 	if (listItems.size() == 1) {
 		mstsRoute->activityName= " Explore";
 		loadConsistList();
@@ -378,6 +386,7 @@ void TSGuiData::loadConsistList()
 	}
 	sort(listItems.begin(),listItems.end());
 	selected= "Select a consist";
+	selectType= "consist";
 	showSelect= true;
 }
 

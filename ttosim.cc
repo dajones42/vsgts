@@ -185,6 +185,8 @@ void promptForBlock(AITrain* train, bool grant)
 //	this is done to prevent new train from blocking an incoming train
 void CreateTrain::handleAI(tt::EventSim<double>* sim)
 {
+	if (time+30 < simTime)
+		return;
 	fprintf(stderr,"create %s at %f\n",train->getName().c_str(),time);
 	int t= time+train->getWait(row);
 	if (t < train->getSchedLv(row))

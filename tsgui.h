@@ -56,6 +56,7 @@ public:
 	double fps;
 	std::vector<std::string> listItems;
 	std::string selected;
+	std::string selectType;
 	void loadRouteList();
 	void loadActivityList();
 	void loadConsistList();
