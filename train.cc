@@ -221,7 +221,7 @@ void Train::calcRemoteControlAccel(float dt)
 void Train::convertToAirBrakes()
 {
 	if (bControl > 0) {
-		float max= engAirBrake->getMaxEqResPressure();
+		float max= engAirBrake ? engAirBrake->getMaxEqResPressure() : 70;
 		float cyl= bControl*5*max/7;
 		float eq= max-2*cyl/7;
 		if (engAirBrake != NULL)
@@ -237,7 +237,7 @@ void Train::convertToAirBrakes()
 			}
 		}
 	} else {
-		float max= engAirBrake->getMaxEqResPressure();
+		float max= engAirBrake ? engAirBrake->getMaxEqResPressure() : 70;
 		if (engAirBrake != NULL)
 			engAirBrake->setEqResPressure(max);
 		for (RailCarInst* car=firstCar; car!=NULL; car=car->next) {
@@ -561,7 +561,7 @@ void Train::move(float dt)
 				stop();
 			}
 		}
-		if (couple)// && modelCouplerSlack)
+		if (couple && (modelCouplerSlack || (otherTrain && otherTrain->modelCouplerSlack)))
 			coupleOther();
 		if (couple)
 			stop();
