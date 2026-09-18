@@ -1596,7 +1596,7 @@ void Track::addCurveEdges(Vertex* v1, int n1, Vertex* v2, int n2, float radius, 
 		ssEdge->length+= e->length;
 		return;
 	}
-	std::cerr<<"addce "<<radius<<" "<<angle<<"\n";
+//	std::cerr<<"addce "<<radius<<" "<<angle<<"\n";
 	auto dir= normalize(v2->location.coord - v1->location.coord);
 	auto perp= vsg::dvec3(-dir.y,dir.x,0);
 	auto offset= perp*radius*(1-cos(radians/2));

@@ -41,6 +41,7 @@ struct RailCarDef;
 #include "track.h"
 #include "ghproj.h"
 #include "activity.h"
+#include "tsection.h"
 
 struct MSTSRoute {
 	std::string mstsDir;
@@ -64,6 +65,7 @@ struct MSTSRoute {
 	float centerLat;
 	float centerLong;
 	double cosCenterLat;
+	TSection tSection;
 	struct Terrain {
 		unsigned short y[256][256];
 		unsigned char f[256][256];
@@ -179,7 +181,8 @@ struct MSTSRoute {
 	std::mutex loadMutex;
 	int readBinWFile(const char* filename, Tile* tile, float x0, float z0);
 	void loadTerrainData(Tile* tile);
-	vsg::ref_ptr<vsg::Node> loadTrackModel(std::string* filename, Track::SwVertex* sw);
+	vsg::ref_ptr<vsg::Node> loadTrackModel(std::string* filename, Track::SwVertex* sw, int shapeIdx);
+	vsg::ref_ptr<vsg::Node> makeWireModel(int shapeIdx);
 	void overrideTrackModel(std::string& shapename, std::string& model);
 	vsg::ref_ptr<vsg::Node> loadStaticModel(std::string* filename,
 	  MSTSSignal* signal=NULL, bool isLeverlCr= false);
@@ -245,6 +248,7 @@ struct MSTSRoute {
 	void saveState(std::string filename);
 	RailCarDef* loadRailCarDef(std::string& dir, std::string& file);
 	std::vector<StationStop> playerStops;
+	void readTrkFile();
 };
 extern MSTSRoute* mstsRoute;
 

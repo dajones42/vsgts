@@ -188,10 +188,10 @@ void MSTSRoute::xy2ll(double x, double y, double* lat, double* lng)
 //	Makes Track class data from tsection and tdb data
 void MSTSRoute::makeTrack()
 {
-	TSection tSection;
+	readTrkFile();
 	string globalDir= mstsDir+dirSep+"GLOBAL";
 	string path= globalDir+dirSep+"tsection.dat";
-	tSection.readGlobalFile(path.c_str());
+	tSection.readGlobalFile(path.c_str(),true);
 	path= routeDir+dirSep+"tsection.dat";
 	tSection.readRouteFile(path.c_str());
 	path= fixFilenameCase(routeDir+dirSep+fileName+".tdb");
@@ -1274,6 +1274,20 @@ void MSTSRoute::loadActivity(vsg::Group* root, int activityFlags)
 	for (Event* e=activity.events; e!=NULL; e=e->next) {
 		eventMap[e->id]= e;
 	}
+}
+
+void MSTSRoute::readTrkFile()
+{
+	string path= routeDir+dirSep+routeID+".trk";
+	fprintf(stderr,"trkpath=%s\n",path.c_str());
+	MSTSFile trkFile;
+	trkFile.readFile(path.c_str());
+	MSTSFileNode* trk= trkFile.find("Tr_RouteFile");
+	MSTSFileNode* electric= trk->get("Electrified");
+	MSTSFileNode* owh= trk->get("OverheadWireHeight");
+	if (owh && atoi(electric->c_str()))
+		wireHeight= atof(owh->get(0)->c_str());
+	fprintf(stderr,"wire height %f %p %p\n",wireHeight,trk,owh);
 }
 
 void MSTSRoute::loadExploreConsist(vsg::Group* root)

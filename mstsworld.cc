@@ -117,8 +117,9 @@ void MSTSRoute::loadModels(Tile* tile)
 						}
 					}
 				}
+				int sectionIdx= atoi(next->get("SectionIdx")->get(0)->c_str());
 				model= loadTrackModel(file->getChild(0)->value,
-				  swVertex);
+				  swVertex,sectionIdx);
 			} else if (*(node->value)=="Dyntrack") {
 				model= makeDynTrack(next);
 			} else if (*(node->value)=="Transfer") {
@@ -224,6 +225,7 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 	float posX,posY,posZ,qDirX,qDirY,qDirZ,qDirW;
 	string filename;
 	int uid= 0;
+	int sectionIdx= 0;
 	bool print= false;
 	bool visible= false;
 	TrackSections trackSections;
@@ -347,7 +349,6 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 		 case 101: // static detaillevel
 		 case 104: // static flags
 		 case 105: // collide flags
-		 case 119: // sectionidx
 			//reader.getString();
 			//reader.getInt();
 			//fprintf(stderr," %d %x\n",code,reader.getInt());
@@ -358,6 +359,10 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 			//reader.getFloat();
 			//fprintf(stderr," %d %f\n",code,reader.getFloat());
 			reader.getBytes(NULL,len);
+			break;
+		 case 119: // sectionidx
+			reader.getString();
+			sectionIdx= reader.getInt();
 			break;
 		 case 108: // uid
 			reader.getString();
@@ -458,7 +463,7 @@ int MSTSRoute::readBinWFile(const char* wfilename, Tile* tile,
 					if (i != tile->swVertexMap.end())
 						swVertex= i->second;
 					model= loadTrackModel(&filename,
-					  swVertex);
+					  swVertex,sectionIdx);
 				}
 				break;
 			  case 6: // trackobj
@@ -600,7 +605,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadStaticModel(string* filename,
 //	loads a track model and attaches it to the Track data so it
 //	can be animated
 vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
-  Track::SwVertex* swVertex)
+  Track::SwVertex* swVertex, int shapeIdx)
 {
 	if (filename == NULL)
 		return {};
@@ -640,16 +645,15 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 		auto model= shape.createModel(0,10,false,true);
 		auto animation= shape.animation;
 		auto animated= shape.getAnimatedTransforms();
-#if 0
 		if (wireHeight > 0) {
-			string path= wireModelsDir+dirSep+*filename+".osg";
-			osg::Node* wire= osgDB::readNodeFile(path);
-			osg::Group* g= new osg::Group;
-			g->addChild(wire);
-			g->addChild(model);
-			model= g;
+			auto wire= makeWireModel(shapeIdx);
+			if (wire) {
+				auto g= vsg::Group::create();
+				g->addChild(wire);
+				g->addChild(model);
+				model= g;
+			}
 		}
-#endif
 		AnimModelInfo* ami= new AnimModelInfo(model,animation,animated);
 		trackModelMap[*filename]= ami;
 		if (swVertex) {
@@ -669,6 +673,83 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::loadTrackModel(string* filename,
 		fprintf(stderr,"loadTrackModel caught %s\n",error.what());
 		return {};
 	}
+}
+
+vsg::ref_ptr<vsg::Node> MSTSRoute::makeWireModel(int shapeIdx)
+{
+	if (dynTrackBase == NULL && srDynTrack)
+		makeSRDynTrackShapes();
+	if (dynTrackBase == NULL && ustDynTrack)
+		makeUSTDynTrackShapes();
+	if (dynTrackBase==NULL && makeDynTrackShapes())
+		;
+	else if (dynTrackBase==NULL && makeUSTDynTrackShapes())
+		;
+	if (!dynTrackWire)
+		return {};
+	auto i= tSection.shapeMap.find(shapeIdx);
+	if (i == tSection.shapeMap.end())
+		return {};
+	Track track;
+	for (int j=0; j<i->second->paths.size(); j++) {
+		auto path= i->second->paths[j];
+		float x= path->start[2];
+		float y= path->start[0];
+		float radians= path->angle*M_PI/180;
+		float dx= cos(radians);
+		float dy= sin(radians);
+		Track::Vertex* pv= track.addVertex(Track::VT_SIMPLE,y,x,0);
+		for (int n=0; n<path->sections.size(); n++) {
+			auto k= tSection.curveMap.find(path->sections[n]);
+			if (k == tSection.curveMap.end()) {
+				float d= tSection.lengthMap[path->sections[n]];
+				x+= dx*d;
+				y+= dy*d;
+			} else {
+				float d= k->second->angle*M_PI/180;
+				float r= k->second->radius;
+				float x0= 1;
+				float y0= 0;
+				float cs= .9998477;
+				float sn= -.0174524;
+				float sr= d>0 ? r : -r;
+				int m= (int)(abs(d/sn));
+				for (int i=0; i<m-1; i++) {
+					float x1= cs*x0 + sn*y0;
+					float y1= cs*y0 - sn*x0;
+					float cy= sr*(1-x1);
+					float cx= r*y1;
+					float vx= x + dx*cx - dy*cy;
+					float vy= y + dy*cx + dx*cy;
+					Track::Vertex* v= track.addVertex(Track::VT_SIMPLE,vy,vx,0);
+					track.addEdge(Track::ET_STRAIGHT,pv,n==0?0:1,v,0);
+					x0= x1;
+					y0= y1;
+					pv= v;
+				}
+				float a= atan2(dy,dx);
+				x0= sr*sin(d);
+				y0= sr*(1-cos(d));
+				x+= dx*x0 - dy*y0;
+				y+= dy*x0 + dx*y0;
+				dx= cos(a+d);
+				dy= sin(a+d);
+			}
+			Track::Vertex* v= track.addVertex(Track::VT_SIMPLE,y,x,0);
+			track.addEdge(Track::ET_STRAIGHT,pv,n==0?0:1,v,0);
+			pv= v;
+		}
+	}
+	auto group= vsg::Group::create();
+	track.shape= dynTrackWire;
+	auto geom= track.makeGeometry(vsgOptions);
+	if (!geom)
+		return {};
+	group->addChild(geom);
+	vsg::ref_ptr<vsg::MatrixTransform> mt= vsg::MatrixTransform::create();
+	mt->matrix= vsg::dmat4(1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,0,1);
+	mt->addChild(group);
+	return mt;
 }
 
 vsg::ref_ptr<vsg::Node> MSTSRoute::loadHazardModel(string* filename)
@@ -813,7 +894,7 @@ vsg::ref_ptr<vsg::Node> MSTSRoute::makeDynTrack(TrackSections& trackSections, bo
 		track.shape= dynTrackTies;
 		group->addChild(track.makeGeometry(vsgOptions,false));
 	}
-	if (wireHeight > 0) {
+	if (wireHeight>0 && dynTrackWire) {
 		track.shape= dynTrackWire;
 		group->addChild(track.makeGeometry(vsgOptions));
 	}

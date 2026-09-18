@@ -71,6 +71,8 @@ void TSection::readGlobalFile(const char* path, bool saveShapes)
 		for (MSTSFileNode* s= shapes->children->find("TrackShape");
 		  s!=NULL; s=s->find("TrackShape")) {
 			int index= atoi(s->getChild(0)->value->c_str());
+			if (s->children->find("RoadShape"))
+				continue;
 			MSTSFileNode* mainRoute= s->children->find("MainRoute");
 			if (mainRoute != NULL)
 				mainRouteMap[index]=
