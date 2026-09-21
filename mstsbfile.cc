@@ -36,23 +36,23 @@ MSTSBFile::MSTSBFile()
 	compressed= 0;
 	cBuf= NULL;
 	uBuf= NULL;
-	in= NULL;
 	read= 0;
 }
 
 //	opens the specified file and determines type
 int MSTSBFile::open(const char* filename)
 {
-	in= fopen(filename,"r");
-	if (in == NULL) {
+	in.open(filename);
+	if (!in) {
 		string fixed= fixFilenameCase(filename);
 		if (fixed.size() > 0)
-			in= fopen(fixed.c_str(),"r");
+			in.open(fixed);
 	}
-	if (in == NULL)
+	if (!in)
 		return 1;
 	char magic[16];
-	if (fread(magic,1,16,in) != 16)
+	in.read(magic,16);
+	if (!in)
 		return 1;
 	if (strncmp(magic,"SIMISA",6) != 0)
 		return 1;
@@ -82,8 +82,6 @@ int MSTSBFile::open(const char* filename)
 
 MSTSBFile::~MSTSBFile()
 {
-	if (in != NULL)
-		fclose(in);
 	if (compressed)
 		inflateEnd(&strm);
 	if (cBuf)
@@ -97,13 +95,13 @@ int MSTSBFile::getBytes(Byte* bytes, int n)
 {
 	if (!compressed & bytes!=NULL) {
 		read+= n;
-		return fread(bytes,1,n,in);
+		in.read((char*)bytes,n);
+		return in.gcount();
 	}
 	if (!compressed) {
-		Byte b;
+		char b;
 		for (int i=0; i<n; i++)
-			if (fread(&b,1,1,in) != 1)
-				break;
+			in.read(&b,1);
 		read+= n;
 		return n;
 	}
@@ -124,7 +122,8 @@ int MSTSBFile::getBytes(Byte* bytes, int n)
 		strm.avail_out= BUFSZ;
 		if (strm.avail_in == 0) {
 			strm.next_in= cBuf;
-			strm.avail_in= fread(cBuf,1,BUFSZ,in);
+			in.read((char*)cBuf,BUFSZ);
+			strm.avail_in= in.gcount();
 			if (strm.avail_in <= 0)
 				return i;
 		}
@@ -144,10 +143,6 @@ int MSTSBFile::getBytes(Byte* bytes, int n)
 //	skips forward in the file
 void MSTSBFile::seek(int offset)
 {
-	if (!compressed) {
-		fseek(in,offset,SEEK_SET);
-		return;
-	}
 	getBytes(NULL,offset-read);
 }
 
@@ -198,16 +193,7 @@ std::string MSTSBFile::getString(int n)
 	std::string s;
 	for (int i=0; i<n; i++) {
 		int c= getShort();
-		if (c <= 0x7f) {
-			s.push_back(c);
-		} else if (c <= 0x7ff) {
-			s.push_back(0xc0 + ((c>>6)&0x1f));
-			s.push_back(0x80 + (c&0x3f));
-		} else {
-			s.push_back(0xe0 + ((c>>12)&0xf));
-			s.push_back(0x80 + ((c>>6)&0x3f));
-			s.push_back(0x80 + ((c>>6)&0x3f));
-		}
+		appendU8(s,c);
 	}
 	return s;
 }

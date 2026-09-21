@@ -40,12 +40,28 @@ MSTSFileNode* MSTSFileNode::find(const char* value)
 
 int MSTSFile::getChar()
 {
-	unsigned char bytes[2];
-	if (fread(bytes,1,2,inFile) != 2)
+	char bytes[2];
+	inFile.read(bytes,2);
+	if (!inFile)
 		return EOF;
-	if (bytes[hiByte] != 0)
-		return '?';
-	return bytes[loByte];
+	int c= (bytes[hiByte]<<8) + bytes[loByte];
+	if (c > 0x7f)
+		fprintf(stderr,"nonascii %d %d %d\n",c,bytes[hiByte],bytes[loByte]);
+	return c;
+}
+
+void appendU8(string& s, int c)
+{
+	if (c <= 0x7f) {
+		s.push_back(c);
+	} else if (c <= 0x7ff) {
+		s.push_back(0xc0 + ((c>>6)&0x1f));
+		s.push_back(0x80 + (c&0x3f));
+	} else {
+		s.push_back(0xe0 + ((c>>12)&0xf));
+		s.push_back(0x80 + ((c>>6)&0x3f));
+		s.push_back(0x80 + (c&0x3f));
+	}
 }
 
 int MSTSFile::getToken(string& token)
@@ -75,7 +91,7 @@ int MSTSFile::getToken(string& token)
 				if (c == 'n')
 					c= '\n';
 			}
-			token+= (char) c;
+			appendU8(token,c);
 		}
 	} else {
 		while (c!=' ' && c!='\t' && c!='\n' && c!='\r') {
@@ -83,7 +99,7 @@ int MSTSFile::getToken(string& token)
 				savedC= c;
 				break;
 			}
-			token+= (char) c;
+			appendU8(token,c);
 			c= getChar();
 		}
 	}
@@ -115,18 +131,19 @@ int MSTSFile::parseList(MSTSFileNode* parent)
 
 void MSTSFile::openFile(const char* path)
 {
-	inFile= fopen(path,"r");
-	if (inFile == NULL) {
+	inFile.open(path);
+	if (!inFile) {
 		string fixed= fixFilenameCase(path);
 		if (fixed.size() > 0)
-			inFile= fopen(fixed.c_str(),"r");
+			inFile.open(fixed);
 	}
-	if (inFile == NULL) {
+	if (!inFile) {
 //		fprintf(stderr,"cannot open %s\n",path);
 		throw "MSTSFile: cannot open file";
 	}
 	char mark[2];
-	if (fread(mark,1,2,inFile) != 2)
+	inFile.read(mark,2);
+	if (!inFile)
 		throw "MSTSFile: doesn't have a BOM\n";
 	if (mark[0] == '\377') {
 		loByte= 0;
@@ -181,16 +198,14 @@ int MSTSFile::getLine(string& line)
 			break;
 		if (c == '\r')
 			continue;
-		line+= (char) c;
+		appendU8(line,c);
 	}
 	return line.length();
 }
 
 void MSTSFile::closeFile()
 {
-	if (inFile != NULL)
-		fclose(inFile);
-	inFile= NULL;
+	inFile.close();
 }
 
 void MSTSFile::freeList(MSTSFileNode* first)

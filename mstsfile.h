@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 using namespace std;
 #include <string>
+#include <fstream>
 
 struct MSTSFileNode {
 	string* value;
@@ -81,14 +82,14 @@ struct MSTSFileNode {
 class MSTSFile {
 	int hiByte;
 	int loByte;
-	FILE* inFile;
+	ifstream inFile;
 	int getChar();
 	int getToken(string& token);
 	int parseList(MSTSFileNode* parent);
 	void freeList(MSTSFileNode* first);
 	MSTSFileNode* firstNode;
  public:
-	MSTSFile() { inFile= NULL; firstNode= NULL; }
+	MSTSFile() { firstNode= NULL; }
 	~MSTSFile() { closeFile(); freeList(firstNode); }
 	MSTSFileNode* getFirstNode() { return firstNode; }
 	MSTSFileNode* find(const char* s) {
@@ -106,5 +107,6 @@ class MSTSFile {
 
 std::string fixFilenameCase(const char* path);
 std::string fixFilenameCase(std::string);
+void appendU8(std::string& s, int c);
 
 #endif

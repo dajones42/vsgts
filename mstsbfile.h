@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 #include <zlib.h>
 #include <string>
+#include <fstream>
 
 #define BUFSZ 4096
 
@@ -35,7 +36,7 @@ struct MSTSBFile {
 	Byte* cBuf;
 	Byte* uBuf;
 	Byte* next;
-	FILE* in;
+	std::ifstream in;
 	int read;
 	MSTSBFile();
 	~MSTSBFile();

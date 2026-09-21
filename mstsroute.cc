@@ -611,39 +611,30 @@ void MSTSRoute::readTerrain(Tile* tile)
 		return;
 	tile->terrain= new Terrain;
 	string path= tilesDir+dirSep+tile->tFilename+"_y.raw";
-	FILE* in= fopen(path.c_str(),"r");
-	if (in == NULL) {
+	ifstream iny(path);
+	if (!iny) {
 		fprintf(stderr,"cannot read %s\n",path.c_str());
 		memset(tile->terrain->y,0,sizeof(tile->terrain->y));
 	} else {
-		if (fread(tile->terrain->y,sizeof(tile->terrain->y),1,in) != 1)
+		iny.read((char*)tile->terrain->y,sizeof(tile->terrain->y));
+		if (!iny)
 			fprintf(stderr,"cannot read %s\n",path.c_str());
-		fclose(in);
+		iny.close();
 	}
-#if 0
-	path= tilesDir+dirSep+tile->tFilename+"_n.raw";
-	in= fopen(path.c_str(),"r");
-	if (in == NULL) {
-//		fprintf(stderr,"cannot read %s\n",path.c_str());
-		memset(tile->terrain->n,0,sizeof(tile->terrain->n));
-	} else {
-		if (fread(tile->terrain->n,sizeof(tile->terrain->n),1,in) != 1)
-			fprintf(stderr,"cannot read %s\n",path.c_str());
-		fclose(in);
-	}
-#endif
 	path= tilesDir+dirSep+tile->tFilename+"_f.raw";
-	in= fopen(path.c_str(),"r");
-	if (in == NULL) {
+	ifstream inf(path);
+	if (!inf) {
 //		fprintf(stderr,"cannot read %s\n",path.c_str());
 		memset(tile->terrain->f,0,sizeof(tile->terrain->f));
 	} else {
-		if (fread(tile->terrain->f,sizeof(tile->terrain->f),1,in) != 1)
+		inf.read((char*)tile->terrain->f,sizeof(tile->terrain->f));
+		if (!inf)
 			fprintf(stderr,"cannot read %s\n",path.c_str());
-		fclose(in);
+		inf.close();
 	}
 }
 
+#if 0
 //	writes terrain data
 //	this was used once to build under water terrain based on an
 //	electronic chart
@@ -660,6 +651,7 @@ void MSTSRoute::writeTerrain(Tile* tile)
 	fwrite(tile->terrain->y,1,sizeof(tile->terrain->y),out);
 	fclose(out);
 }
+#endif
 
 #if 0
 void MSTSRoute::loadTerrainData(Tile* tile)
@@ -1285,9 +1277,10 @@ void MSTSRoute::readTrkFile()
 	MSTSFileNode* trk= trkFile.find("Tr_RouteFile");
 	MSTSFileNode* electric= trk->get("Electrified");
 	MSTSFileNode* owh= trk->get("OverheadWireHeight");
-	if (owh && atoi(electric->c_str()))
+	if (owh && atoi(electric->get(0)->c_str()))
 		wireHeight= atof(owh->get(0)->c_str());
-	fprintf(stderr,"wire height %f %p %p\n",wireHeight,trk,owh);
+	fprintf(stderr,"wire height %f %p %p %p '%s' '%s'\n",
+	  wireHeight,trk,owh,electric,owh->get(0)->c_str(),electric->get(0)->c_str());
 }
 
 void MSTSRoute::loadExploreConsist(vsg::Group* root)

@@ -30,6 +30,7 @@ THE SOFTWARE.
 #include "morse.h"
 
 using namespace std;
+#include <fstream>
 
 struct SoundTableEntry {
 	float min;
@@ -146,33 +147,36 @@ ALuint Listener::findBuffer(string& file, float maxDuration)
 //	slSample(file) doesn't skip unknown chunks in wav file.
 void Listener::loadWav(const char* filename, slSample* sample)
 {
-	FILE* in= fopen(filename,"r");
-	if (in == NULL) {
+	ifstream in(filename);
+	if (!in) {
 		fprintf(stderr,"cannot read %s\n",filename);
 		return;
 	}
 	char magic[4];
-	if (fread(magic,4,1,in)==0 || strncmp(magic,"RIFF",4)!=0) {
+	in.read(magic,4);
+	if (!in || strncmp(magic,"RIFF",4)!=0) {
 		fprintf(stderr,"bad wav format %s\n",filename);
-		fclose(in);
+		in.close();
 		return;
 	}
 	int len;
-	if (fread(&len,4,1,in)==0 || fread(magic,4,1,in)==0 ||
-	  strncmp(magic,"WAVE",4)!=0) {
+	in.read((char*)&len,4);
+	in.read(magic,4);
+	if (!in || strncmp(magic,"WAVE",4)!=0) {
 		fprintf(stderr,"bad wav format %s\n",filename);
-		fclose(in);
+		in.close();
 		return;
 	}
-	while (!feof(in)) {
-		if (fread(magic,4,1,in)==0 || fread(&len,4,1,in)==0) {
-//			fprintf(stderr,"bad wav format %s\n",filename);
-			fclose(in);
+	while (in) {
+		in.read(magic,4);
+		in.read((char*)&len,4);
+		if (!in) {
+			in.close();
 			return;
 		}
 		if (strncmp(magic,"fmt ",4)==0) {
 			unsigned short header[8];
-			fread(&header,sizeof(header),1,in);
+			in.read((char*)&header,16);
 			len-= sizeof(header);
 			if (header[0] != 1)
 				fprintf(stderr,"not pcm wav %s %d\n",
@@ -182,17 +186,19 @@ void Listener::loadWav(const char* filename, slSample* sample)
 			sample->setBps(header[7]);
 		} else if (strncmp(magic,"data",4)==0) {
 			unsigned char* buf= (unsigned char*) malloc(len);
-			fread(buf,1,len,in);
+			in.read((char*)buf,len);
 			sample->setBuffer(buf,len);
 			free(buf);
 			if (sample->getBps() == 16)
 				sample->changeToUnsigned();
 			len= 0;
 		}
-		for (; len>0; len--)
-			getc(in);
+		for (; len>0; len--) {
+			char c;
+			in.read(&c,1);
+		}
 	}
-	fclose(in);
+	in.close();
 }
 	
 ALuint Listener::makeBuffer(slSample* sample, float maxDuration)
