@@ -367,9 +367,9 @@ float SteamEngine::getForce(float throttle, float reverser,
 			throttle= cutoff/release.getMinX();
 			cutoff= release.getMinX();
 		}
-		if (boilerPressure < .99*maxBoilerPressure)
-			fprintf(stderr,"aicutoff %f %f %f %f %f %f\n",
-			  cutoff,throttle,maxCutoff,boilerPressure,usage,maxUsage);
+//		if (boilerPressure < .99*maxBoilerPressure)
+//			fprintf(stderr,"aicutoff %f %f %f %f %f %f\r",
+//			  cutoff,throttle,maxCutoff,boilerPressure,usage,maxUsage);
 	}
 	usage*= .6; // usage is moving average
 	if (cylPressure < backPres)

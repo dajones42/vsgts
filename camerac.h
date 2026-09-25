@@ -50,6 +50,7 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	int insideIndex;
 	vsg::dvec3 homeCenter;
 	float homeAngle;
+	std::vector<vsg::dvec3> path;
 	void setZoom(int z);
 	void incZoom(int dz) { setZoom(zoom+dz); }
 	void incHeading(double degrees);
@@ -61,6 +62,7 @@ class CameraController : public vsg::Inherit<vsg::Visitor, CameraController>
 	void save(std::ofstream& ofs);
 	void loadSave(vsg::Object*);
 	void setHome(vsg::dvec3 center, float angle=0);
+	void moveAlongPath(bool toRight);
 };
 extern vsg::LookAt* myLookAt;
 extern CameraController* myCameraController;

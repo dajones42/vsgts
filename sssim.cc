@@ -342,6 +342,37 @@ struct ModelBoardLight {
 };
 static std::vector<ModelBoardLight> modelBoardLights;
 
+static void addBuilding(JsonObject building, vsg::dvec3 center, vsg::dvec3 wlCoord, double angle, vsg::Group* root)
+{
+	if (!building.object)
+		return;
+	center.z= wlCoord.z + building.getDouble("y");
+	auto dist= building.getDouble("distance");
+	if (dist) {
+		auto dir= center-wlCoord;
+		dir.z= 0;
+		center+= dist*vsg::normalize(dir);
+	}
+	string tpath= mstsRoute->routeDir+mstsRoute->dirSep+"sssim"+mstsRoute->dirSep;
+	string spath= tpath+building.getString("shape");
+	fprintf(stderr,"building %s %s\n",spath.c_str(),tpath.c_str());
+	MSTSShape shape;
+	try {
+		shape.readFile(spath.c_str(),tpath.c_str());
+		auto model= shape.createModel(0);
+		if (model) {
+			auto mt= vsg::MatrixTransform::create();
+			mt->matrix= vsg::dmat4(1,0,0,0, 0,0,1,0, 0,1,0,0,
+			  center.x,center.y,center.z,1) *
+			  vsg::rotate(vsg::radians(-90-angle),vsg::dvec3(0,1,0));
+			mt->addChild(model);
+			root->addChild(mt);
+		}
+	} catch (const char* msg) {
+		fprintf(stderr,"cannot load building %s\n",spath.c_str());
+	}
+}
+
 static void makeModelBoard(JsonObject mb, vsg::dvec3 center, double angle, vsg::Group* root)
 {
 	if (!mb.object)
@@ -483,6 +514,13 @@ void loadSSsim(vsg::ref_ptr<vsg::Object> topobj, vsg::Group* root)
 			auto center= vsg::dvec3(u,v,wl.coord[2]+y);
 			myCameraController->setHome(center,angle-180);
 			makeModelBoard(o.getObject("modelBoard"),center,angle-180,root);
+			addBuilding(o.getObject("building"),center,wl.coord,angle-180,root);
+			auto path= o.getArray("path");
+			for (int i=0; i<path.size(); i++) {
+				auto pos= path.getArray(i);
+				myCameraController->path.push_back(
+				  vsg::dvec3(pos.getDouble(0),pos.getDouble(1),pos.getDouble(2)+wl.coord[2]));
+			}
 		} else if (type == "location") {
 			auto name= o.getString("name");
 			track->saveLocation(u,v,-1,name);

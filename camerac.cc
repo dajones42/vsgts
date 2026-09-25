@@ -141,10 +141,24 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		}
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == vsg::KEY_Left) {
-		incHeading(5);
+		if ((keyPress.keyModifier&vsg::MODKEY_Control) == 0) {
+			incHeading(5);
+		} else if (follow && selectedRailCar && selectedRailCar->prev) {
+			selectedRailCar= selectedRailCar->prev;
+			follow= selectedRailCar->model;
+		} else if (!follow && path.size()>0) {
+			moveAlongPath(false);
+		}
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == vsg::KEY_Right) {
-		incHeading(-5);
+		if ((keyPress.keyModifier&vsg::MODKEY_Control) == 0) {
+			incHeading(-5);
+		} else if (follow && selectedRailCar && selectedRailCar->next) {
+			selectedRailCar= selectedRailCar->next;
+			follow= selectedRailCar->model;
+		} else if (!follow && path.size()>0) {
+			moveAlongPath(true);
+		}
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == vsg::KEY_Page_Up) {
 		incZoom(-1);
@@ -434,4 +448,28 @@ void CameraController::setHome(vsg::dvec3 center, float angle)
 	remoteEye= false;
 	homeCenter= center;
 	homeAngle= angle;
+}
+
+void CameraController::moveAlongPath(bool toRight)
+{
+	if (follow || path.size()==0)
+		return;
+	int besti= -1;
+	double bestd= 1e10;
+	for (int i=0; i<path.size(); i++) {
+		auto d= vsg::length(path[i]-lookAt->center);
+		if (d < bestd) {
+			bestd= d;
+			besti= i;
+		}
+	}
+	auto lookV= lookAt->eye - lookAt->center;
+	if (toRight && besti<path.size()-1)
+		lookAt->center= path[besti+1];
+	else if (!toRight && besti>0)
+		lookAt->center= path[besti-1];
+	else if (besti>=0 && bestd>10)
+		lookAt->center= path[besti];
+	lookAt->eye= lookAt->center + lookV;
+	setZoom(0);
 }
