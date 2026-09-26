@@ -40,6 +40,8 @@ MSTSFileNode* MSTSFileNode::find(const char* value)
 
 int MSTSFile::getChar()
 {
+	if (hiByte < 0)
+		return inFile.get();
 	char bytes[2];
 	inFile.read(bytes,2);
 	if (!inFile)
@@ -124,6 +126,8 @@ int MSTSFile::parseList(MSTSFileNode* parent)
 				return 1;
 		} else {
 			n->value= new string(token);
+			if (token == "include")
+				includeNodes.push_back(n);
 		}
 	}
 	return 1;
@@ -132,14 +136,22 @@ int MSTSFile::parseList(MSTSFileNode* parent)
 void MSTSFile::openFile(const char* path)
 {
 	inFile.open(path);
+	prevFile= path;
 	if (!inFile) {
 		string fixed= fixFilenameCase(path);
 		if (fixed.size() > 0)
 			inFile.open(fixed);
+		prevFile= fixed;
 	}
 	if (!inFile) {
 //		fprintf(stderr,"cannot open %s\n",path);
 		throw "MSTSFile: cannot open file";
+	}
+	if (inFile.peek() < 0xfe) {
+//		fprintf(stderr,"ASCII MSTS file %s\n",path);
+		loByte= 0;
+		hiByte= -1;
+		return;
 	}
 	char mark[2];
 	inFile.read(mark,2);
@@ -178,12 +190,54 @@ void MSTSFile::readFile(const char* path)
 				  path);
 		} else {
 			n->value= new string(token);
+			if (token == "include")
+				includeNodes.push_back(n);
 		}
 	}
 	closeFile();
 	if (last && last->value)
 		fprintf(stderr,"last item is file %s is a string %s\n",
 		  path,last->value->c_str());
+}
+
+void MSTSFile::readIncludeFiles()
+{
+	if (includeNodes.size() == 0)
+		return;
+	int i= prevFile.rfind("/");
+	auto dir= i==string::npos ? string("") : prevFile.substr(0,i+1);
+	for (int i=0; i<includeNodes.size(); i++) {
+		auto node= includeNodes[i]->next;
+		string file= node->children->c_str();
+		for (auto j=file.find("\\"); j!=string::npos; j=file.find("\\"))
+			file= file.replace(j,1,"/");
+		string path= file[0]=='/' ? file : dir+file;
+//		fprintf(stderr,"include path %s\n",path.c_str());
+		auto next= node->next;
+		try {
+			openFile(path.c_str());
+		} catch (const char* msg) {
+			fprintf(stderr,"%s\n",msg);
+			continue;
+		}
+		string token;
+		while (getToken(token)) {
+			MSTSFileNode* n= new MSTSFileNode();
+			node->next= n;
+			node= n;
+			if (token == "(") {
+				if (parseList(n))
+					fprintf(stderr,"unexpected end of file %s\n",
+					  path.c_str());
+			} else {
+				n->value= new string(token);
+				if (token == "include")
+					includeNodes.push_back(n);
+			}
+		}
+		node->next= next;
+		closeFile();
+	}
 }
 
 int MSTSFile::getLine(string& line)

@@ -25,6 +25,7 @@ THE SOFTWARE.
 using namespace std;
 #include <string>
 #include <fstream>
+#include <vector>
 
 struct MSTSFileNode {
 	string* value;
@@ -88,6 +89,8 @@ class MSTSFile {
 	int parseList(MSTSFileNode* parent);
 	void freeList(MSTSFileNode* first);
 	MSTSFileNode* firstNode;
+	std::vector<MSTSFileNode*> includeNodes;
+	std::string prevFile;
  public:
 	MSTSFile() { firstNode= NULL; }
 	~MSTSFile() { closeFile(); freeList(firstNode); }
@@ -97,6 +100,7 @@ class MSTSFile {
 	}
 	void readFile(const char* path);
 	void openFile(const char* path);
+	void readIncludeFiles();
 	int getLine(string& token);
 	void closeFile();
 	void printTree(MSTSFileNode* node, string indent);

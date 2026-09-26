@@ -120,6 +120,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 	MSTSFile wagFile;
 	try {
 		wagFile.readFile(path.c_str());
+		wagFile.readIncludeFiles();
 	} catch (const char* msg) {
 		fprintf(stderr,"cannot read %s\n",path.c_str());
 		return NULL;
