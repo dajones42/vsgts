@@ -355,7 +355,7 @@ void RailCarInst::LinReg::sum(double w, double o, double x, double y, double z,
 void RailCarInst::LinReg::calc()
 {
 	double d= sw*soo - so*so;
-	if (d > 1e-20) {
+	if (d > 1e-5) {
 		ax= (soo*sx-so*sxo)/d;
 		ay= (soo*sy-so*syo)/d;
 		az= (soo*sz-so*szo)/d;
@@ -448,7 +448,7 @@ void RailCarInst::move(float distance)
 //		fprintf(stderr,"%d\n",i);
 //		fprintf(stderr,"lrup %f %f %f\n",lr->up[0],lr->up[1],lr->up[2]);
 //		fprintf(stderr,"fwd %f %f %f\n",fwd[0],fwd[1],fwd[2]);
-//		fprintf(stderr,"oldside %f %f %f\n",-lr->by,lr->bx,0);
+//		fprintf(stderr,"oldside %f %f %d\n",-lr->by,lr->bx,0);
 //		fprintf(stderr,"side %f %f %f\n",side[0],side[1],side[2]);
 //		}
 //		fprintf(stderr,"up %f %f %f\n",up[0],up[1],up[2]);
@@ -494,13 +494,19 @@ void RailCarInst::move(float distance)
 			continue;
 		LinReg* lr= linReg[i];
 		LinReg* plr= linReg[part.parent];
-		auto fwd= vsg::normalize(vsg::dvec3(lr->bx,lr->by,0));
-		auto pfwd= vsg::normalize(vsg::dvec3(plr->bx,plr->by,0));
-		auto dot= vsg::dot(fwd,pfwd);
-		auto angle= dot<1 ? acos(dot) : 0;
-		if (vsg::cross(fwd,pfwd).z < 0)
-			angle*= -1;
-		partSamplers[i]->update(angle);
+		auto fwd= vsg::dvec3(lr->bx,lr->by,0);
+		auto len= vsg::length(fwd);
+		if (len < 1e-5) {
+			partSamplers[i]->update(0);
+		} else {
+			fwd/= len;
+			auto pfwd= vsg::normalize(vsg::dvec3(plr->bx,plr->by,0));
+			auto dot= vsg::dot(fwd,pfwd);
+			auto angle= dot<1 ? acos(dot) : 0;
+			if (vsg::cross(fwd,pfwd).z < 0)
+				angle*= -1;
+			partSamplers[i]->update(angle);
+		}
 	}
 }
 

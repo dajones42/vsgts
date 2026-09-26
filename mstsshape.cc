@@ -1024,7 +1024,7 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 			continue;
 		anim= vsg::Animation::create();
 #if 0
-		fprintf(stderr,"animnodes %d %d\n",
+		fprintf(stderr,"animnodes %ld %ld\n",
 		  a.nodes.size(),matrices.size());
 		for (int k=0; k<matrices.size(); k++) {
 			Matrix& m= matrices[k];
@@ -1112,6 +1112,7 @@ vsg::ref_ptr<vsg::Node> MSTSShape::createModel(
 			sampler->name= n.name;
 			if (hasWheels && (//a.nFrames==16 ||
 			  strncasecmp(n.name.c_str(),"WHEELS",6) == 0 ||
+			  strncasecmp(n.name.c_str(),"A_",2) == 0 ||
 			  strncasecmp(n.name.c_str(),"ROD",3) == 0)) {
 				if (keyframes->positions.size()>0 &&
 				  keyframes->positions[keyframes->positions.size()-1].time<a.nFrames)
