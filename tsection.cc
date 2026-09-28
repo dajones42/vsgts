@@ -55,8 +55,8 @@ void TSection::readGlobalFile(const char* path, bool saveShapes)
 			if (curve==NULL && saveShapes) {
 				MSTSFileNode* size=
 				  s->children->find("SectionSize");
-				lengthMap[index]=
-				  atof(size->getChild(1)->value->c_str());
+				lengthMap[index]= size ?
+				  atof(size->getChild(1)->value->c_str()) : 0;
 			}
 			if (curve == NULL)
 				continue;

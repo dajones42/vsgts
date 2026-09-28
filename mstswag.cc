@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 #include <string>
+#include <map>
 using namespace std;
 
 #include "track.h"
@@ -30,9 +31,24 @@ using namespace std;
 #include "mstswag.h"
 #include "mstsfile.h"
 
+static map<string,float> conversionTable {
+	{ "ft:m", .3048 },
+	{ "m:in", 39.372 },
+	{ "in/2:in", 2 },
+	{ "*(ft^3):ft^3", 1 },
+	{ "kg:t", .001 },
+	{ "lb:t", .001/2.20462 },
+	{ "t-us:t", .9071847 },
+	{ "t-uk:t", 1.016047 },
+	{ "N:kN", .001 },
+	{ "lb:kN", .001/.224809 },
+	{ "lbf:kN", .001/.224809 },
+	{ "W:kW", .001 },
+	{ "hp:kW", .7457 }
+};
+
 //	gets a float value from a named field
-//	ignores any unit suffix at the moment
-float getFloat(MSTSFileNode* node, const char* name, int child, float dflt)
+float getFloat(MSTSFileNode* node, const char* name, int child, float dflt, const char* units=nullptr)
 {
 	MSTSFileNode* n= node->children->find(name);
 	if (n == NULL) {
@@ -42,7 +58,16 @@ float getFloat(MSTSFileNode* node, const char* name, int child, float dflt)
 	n= n->getChild(child);
 	if (n==NULL || n->value==NULL)
 		return dflt;
-	return atof(n->value->c_str());
+	char* suffix= nullptr;
+	auto x= strtof(n->value->c_str(),&suffix);
+	if (units && strlen(suffix)>0 && strcasecmp(units,suffix)!=0) {
+		auto i= conversionTable.find(string(suffix)+":"+units);
+		if (i == conversionTable.end())
+			fprintf(stderr,"unknown conversion for %s from %s to %s\n",name,suffix,units);
+		else
+			x*= i->second;
+	}
+	return x;
 }
 
 //	gets a int value from a named field
@@ -182,15 +207,15 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		fprintf(stderr,"cannot read %s\n",path.c_str());
 		return NULL;
 	}
-	def->mass0= def->mass1= 1e3*getFloat(wagon,"Mass",0,20);
-	def->length= getFloat(wagon,"Size",2,10);
+	def->mass0= def->mass1= 1e3*getFloat(wagon,"Mass",0,20,"t");
+	def->length= getFloat(wagon,"Size",2,10,"m");
 	MSTSFileNode* coupling= wagon->children->find("Coupling");
 	if (coupling != NULL) {
 		MSTSFileNode* spring= coupling->children->find("Spring");
 		if (spring != NULL)
-			def->length+= .01*getFloat(spring,"r0",0,0);
+			def->length+= .01*getFloat(spring,"r0",0,0,"cm");
 	}
-	def->maxBForce= getFloat(wagon,"MaxBrakeForce",0,16);
+	def->maxBForce= getFloat(wagon,"MaxBrakeForce",0,16,"kN");
 	if (def->maxBForce < 1000)
 		def->maxBForce*= 1000;
 	if (def->maxBForce < .7*def->mass1)
@@ -432,7 +457,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 	MSTSFileNode* cabview= engine->children->find("CabView");
 	if (cabview)
 		readCVF(dir,cabview->getChild(0)->value->c_str(),def);
-	def->maxEqRes= getFloat(engine,"TrainBrakesControllerMaxSystemPressure",0,70);
+	def->maxEqRes= getFloat(engine,"TrainBrakesControllerMaxSystemPressure",0,70,"psi");
 	if (def->maxEqRes < 70)
 		def->maxEqRes= 70;
 //	fprintf(stderr,"got engine\n");
@@ -447,16 +472,16 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 	if (*tp->value == "Diesel") {
 		DieselEngine* e= new DieselEngine;
 		def->engine= e;
-		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0));
-		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0));
+		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0,"kW"));
+		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0,"kN"));
 		e->setNNotches(getNotches(throttle));
 		fprintf(stderr,"maxforce %f\n",e->getMaxForce());
 	}
 	if (*tp->value == "Electric") {
 		ElectricEngine* e= new ElectricEngine;
 		def->engine= e;
-		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0));
-		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0));
+		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0,"kW"));
+		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0,"kN"));
 		e->setNNotches(getNotches(throttle));
 		fprintf(stderr,"maxforce %f\n",e->getMaxForce());
 	}
@@ -465,26 +490,26 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		def->engine= e;
 		e->setNumCylinders(
 		  (int)(getFloat(engine,"NumCylinders",0,0)+.5));
-		float stroke= getFloat(engine,"CylinderStroke",0,0);
+		float stroke= getFloat(engine,"CylinderStroke",0,0,"in");
 		e->setCylStroke(stroke);
-		e->setCylDiameter(getFloat(engine,"CylinderDiameter",0,0));
-		float diam= 2*getFloat(engine,"WheelRadius",0,0);
+		e->setCylDiameter(getFloat(engine,"CylinderDiameter",0,0,"in"));
+		float diam= 2*getFloat(engine,"WheelRadius",0,0,"in");
 		if (diam < stroke)
 			diam*= 39.37;// assume meters
 		if (diam > 100)
 			diam/= 6;// undo AI animation workaround
 		e->setWheelDiameter(diam);
-		e->setBoilerVolume(getFloat(engine,"BoilerVolume",0,0));
+		e->setBoilerVolume(getFloat(engine,"BoilerVolume",0,0,"ft^3"));
 		e->setMaxBoilerPressure(
-		  getFloat(engine,"MaxBoilerPressure",0,0));
-		e->setIdealFireMass(getFloat(engine,"IdealFireMass",0,0));
-		e->setAuxSteamUsage(getFloat(engine,"BasicSteamUsage",0,0));
+		  getFloat(engine,"MaxBoilerPressure",0,0,"psi"));
+		e->setIdealFireMass(getFloat(engine,"IdealFireMass",0,0,"lb"));
+		e->setAuxSteamUsage(getFloat(engine,"BasicSteamUsage",0,0,"lb/h"));
 		e->setSafetyUsage(
-		  getFloat(engine,"SafetyValvesSteamUsage",0,0));
+		  getFloat(engine,"SafetyValvesSteamUsage",0,0,"lb/h"));
 		e->setSafetyDrop(
-		  getFloat(engine,"SafetyValvePressureDifference",0,0));
-		e->setMaxBoilerOutput(getFloat(engine,"MaxBoilerOutput",0,0));
-		e->setExhaustLimit(getFloat(engine,"ExhaustLimit",0,0));
+		  getFloat(engine,"SafetyValvePressureDifference",0,0,"psi"));
+		e->setMaxBoilerOutput(getFloat(engine,"MaxBoilerOutput",0,0,"lb/h"));
+		e->setExhaustLimit(getFloat(engine,"ExhaustLimit",0,0,"lb/h"));
 	}
 	MSTSFileNode* effects= engine->children->find("Effects");
 	if (effects!=NULL) {

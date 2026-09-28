@@ -1279,6 +1279,8 @@ void MSTSRoute::readTrkFile()
 	MSTSFileNode* owh= trk->get("OverheadWireHeight");
 	if (owh && atoi(electric->get(0)->c_str()))
 		wireHeight= atof(owh->get(0)->c_str());
+	if (wireHeight > 100)
+		wireHeight= 0;
 	fprintf(stderr,"wire height %f %p %p %p '%s' '%s'\n",
 	  wireHeight,trk,owh,electric,owh->get(0)->c_str(),electric->get(0)->c_str());
 }

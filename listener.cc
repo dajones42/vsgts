@@ -137,8 +137,10 @@ ALuint Listener::findBuffer(string& file, float maxDuration)
 		if (fixed.size() > 0)
 			loadWav(fixed.c_str(),&sample);
 	}
-	if (sample.getLength() == 0)
+	if (sample.getLength() == 0) {
+		fprintf(stderr,"cannot read %s\n",file.c_str());
 		return 0;
+	}
 	ALuint buf= makeBuffer(&sample,maxDuration);
 	bufferMap[file]= buf;
 	return buf;
@@ -149,7 +151,7 @@ void Listener::loadWav(const char* filename, slSample* sample)
 {
 	ifstream in(filename);
 	if (!in) {
-		fprintf(stderr,"cannot read %s\n",filename);
+//		fprintf(stderr,"cannot read %s\n",filename);
 		return;
 	}
 	char magic[4];

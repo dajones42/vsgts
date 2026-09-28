@@ -48,7 +48,7 @@ int MSTSFile::getChar()
 		return EOF;
 	int c= (bytes[hiByte]<<8) + bytes[loByte];
 	if (c > 0x7f)
-		fprintf(stderr,"nonascii %d %d %d\n",c,bytes[hiByte],bytes[loByte]);
+		fprintf(stderr,"nonascii %d %d %d\r",c,bytes[hiByte],bytes[loByte]);
 	return c;
 }
 
