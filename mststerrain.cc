@@ -173,21 +173,22 @@ vsg::ref_ptr<vsg::StateGroup> MSTSRoute::makePatch(Patch* patch, int i0, int j0,
 			patch->dudx*= -1;
 	}
 	float uvmult= tile->microTexUVMult;
-	int nv= 17*17;
+	int np= tile->nSamples/16 + 1;
+	int nv= np*np;
 	vsg::ref_ptr<vsg::vec3Array> verts(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec2Array> texCoords(new vsg::vec2Array(nv));
 	vsg::ref_ptr<vsg::vec2Array> mtexCoords(new vsg::vec2Array(nv));
 	vsg::ref_ptr<vsg::vec3Array> normals(new vsg::vec3Array(nv));
 	vsg::ref_ptr<vsg::vec4Array> colors= vsg::vec4Array::create({vsg::vec4(1,1,1,1)});
-	auto indices= vsg::ushortArray::create(6*16*16);
+	auto indices= vsg::ushortArray::create(6*(np-1)*(np-1));
 	int ii= 0;
-	for (int i=0; i<=16; i++) {
-		int k= i*17;
-		for (int j=0; j<=16; j++) {
+	for (int i=0; i<np; i++) {
+		int k= i*np;
+		for (int j=0; j<np; j++) {
 			float a= getAltitude(i+i0,j+j0,tile,t12,t21,t22);
 			int vi= k+j;
-			verts->at(vi)=
-			  vsg::vec3(8*(j0+j-128),8*(128-i-i0),a);
+			verts->at(vi)= vsg::vec3(tile->sampleSize*(j0+j-tile->nSamples/2),
+			  tile->sampleSize*(tile->nSamples/2-i-i0),a);
 			float u= patch->u0+patch->dudx*j+patch->dudz*i;
 			float v= patch->v0+patch->dvdx*j+patch->dvdz*i;
 			texCoords->at(vi)= vsg::vec2(u,v);

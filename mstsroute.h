@@ -66,10 +66,6 @@ struct MSTSRoute {
 	float centerLong;
 	double cosCenterLat;
 	TSection tSection;
-	struct Terrain {
-		unsigned short y[256][256];
-		unsigned char f[256][256];
-	};
 	struct Patch {
 		int flags;
 		short texIndex;
@@ -86,8 +82,11 @@ struct MSTSRoute {
 	struct Tile {
 		int x;
 		int z;
+		int nSamples;
+		int nPatches;
 		float floor;
 		float scale;
+		float sampleSize;
 		float swWaterLevel;
 		float seWaterLevel;
 		float neWaterLevel;
@@ -96,7 +95,8 @@ struct MSTSRoute {
 		vsg::ref_ptr<vsg::Group> models;
 		vsg::ref_ptr<vsg::Group> terrModel;
 		vsg::PagedLOD* plod;
-		Terrain* terrain;
+		unsigned short* terrainY;
+		unsigned char* terrainF;
 		Patch patches[256];
 		SwVertexMap swVertexMap;
 		std::vector<std::string> textures;
@@ -106,12 +106,22 @@ struct MSTSRoute {
 		Tile(int tx, int tz) {	
 			x= tx;
 			z= tz;
-			terrain= NULL;
+			terrainY= nullptr;
+			terrainF= nullptr;
 			models= NULL;
 			terrModel= NULL;
 			microTexUVMult= 32;
 		};
 		float getWaterLevel(int i, int j);
+		int sampleIndex(int i, int j) {
+			return i*nSamples+j;
+		}
+		float getAltitude(int i, int j) {
+			return floor + scale*terrainY[sampleIndex(i,j)];
+		}
+		unsigned char getFlags(int i, int j) {
+			return terrainF[sampleIndex(i,j)];
+		}
 	};
 	int tileID(int tx, int tz) {
 		return ((0xffff&tx)<<16) + (0xffff&tz);

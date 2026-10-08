@@ -459,19 +459,28 @@ int MSTSRoute::readTFile(const char* filename, Tile* tile)
 		 case 282: // terrain sample usbuffer
 		 case 138: // terrain always select maxdist
 		 case 160: // terrain patchset dist
-		 case 161: // terrain patchset npatches
 			reader.getBytes(NULL,len);
 			break;
+		 case 161: // terrain patchset npatches
+			reader.getString();
+			tile->nPatches= reader.getInt();
+			break;
 		 case 140: // terrain nsamples
+			reader.getString();
+			tile->nSamples= reader.getInt();
+			break;
 		 case 158: // terrain patchsets
 			reader.getString();
 			reader.getInt();
 			break;
 		 case 137: // terrain errthreshold_scale
 		 case 141: // terrain sample rotation
-		 case 144: // terrain sample size
 			reader.getString();
 			reader.getFloat();
+			break;
+		 case 144: // terrain sample size
+			reader.getString();
+			tile->sampleSize= reader.getFloat();
 			break;
 		 case 136: // terrain
 		 case 139: // terrain_samples
@@ -607,16 +616,18 @@ int MSTSRoute::readTFile(const char* filename, Tile* tile)
 //	reads and saves a tile's terrain data
 void MSTSRoute::readTerrain(Tile* tile)
 {
-	if (tile->terrain != NULL)
+	if (tile->terrainY)
 		return;
-	tile->terrain= new Terrain;
+	int n= tile->nSamples*tile->nSamples;
+	tile->terrainY= (unsigned short*) malloc(n*sizeof(unsigned short));
+	tile->terrainF= (unsigned char*) malloc(n*sizeof(unsigned char));
 	string path= tilesDir+dirSep+tile->tFilename+"_y.raw";
 	ifstream iny(path);
 	if (!iny) {
 		fprintf(stderr,"cannot read %s\n",path.c_str());
-		memset(tile->terrain->y,0,sizeof(tile->terrain->y));
+		memset(tile->terrainY,0,n*sizeof(unsigned short));
 	} else {
-		iny.read((char*)tile->terrain->y,sizeof(tile->terrain->y));
+		iny.read((char*)tile->terrainY,n*sizeof(unsigned short));
 		if (!iny)
 			fprintf(stderr,"cannot read %s\n",path.c_str());
 		iny.close();
@@ -625,9 +636,9 @@ void MSTSRoute::readTerrain(Tile* tile)
 	ifstream inf(path);
 	if (!inf) {
 //		fprintf(stderr,"cannot read %s\n",path.c_str());
-		memset(tile->terrain->f,0,sizeof(tile->terrain->f));
+		memset(tile->terrainF,0,n*sizeof(unsigned char));
 	} else {
-		inf.read((char*)tile->terrain->f,sizeof(tile->terrain->f));
+		iny.read((char*)tile->terrainF,n*sizeof(unsigned char));
 		if (!inf)
 			fprintf(stderr,"cannot read %s\n",path.c_str());
 		inf.close();
@@ -711,9 +722,12 @@ void MSTSRoute::loadTerrainData(Tile* tile)
 
 void MSTSRoute::Tile::freeTerrain()
 {
-	if (terrain != NULL)
-		delete terrain;
-	terrain= NULL;
+	if (terrainY)
+		free(terrainY);
+	if (terrainF)
+		free(terrainF);
+	terrainY= nullptr;
+	terrainF= nullptr;
 }
 
 MSTSRoute::Tile* MSTSRoute::findTile(int tx, int tz)
@@ -1012,47 +1026,48 @@ void MSTSRoute::saveShoreMarkers(const char* filename)
 float MSTSRoute::getAltitude(int i, int j,
   Tile* tile, Tile* t12, Tile* t21, Tile* t22)
 {
-	if (tile==NULL || tile->terrain==NULL)
+	if (!tile || !tile->terrainY)
 		return 0;
 	if (i < 0) {
 		Tile* t= findTile(tile->x,tile->z+1);
-		if (t && t->terrain)
-			return getAltitude(i+256,j,t,NULL,NULL,NULL);
+		if (t && t->terrainY)
+			return getAltitude(i+tile->nSamples,j,t,NULL,NULL,NULL);
 		i= 0;
 	}
 	if (j < 0) {
 		Tile* t= findTile(tile->x-1,tile->z);
-		if (t && t->terrain)
-			return getAltitude(i,j+256,t,NULL,NULL,NULL);
+		if (t && t->terrainY)
+			return getAltitude(i,j+tile->nSamples,t,NULL,NULL,NULL);
 		j= 0;
 	}
-	if (i<256 && j<256)
-		return tile->floor + tile->scale*tile->terrain->y[i][j];
-	else if (i<256 && j>=256)
-	  if (t21!=NULL && t21->terrain!=NULL)
-		return t21->floor+ t21->scale*t21->terrain->y[i][j-256];
+	if (i<tile->nSamples && j<tile->nSamples)
+		return tile->getAltitude(i,j);
+	else if (i<tile->nSamples && j>=tile->nSamples)
+	  if (t21!=NULL && t21->terrainY)
+		return t21->getAltitude(i,j-tile->nSamples);
 	  else
-		return tile->floor+ tile->scale*tile->terrain->y[i][255];
-	else if (i>=256 && j<256)
-	  if (t12!=NULL && t12->terrain!=NULL)
-		return t12->floor+ t12->scale*t12->terrain->y[i-256][j];
+		return tile->getAltitude(i,tile->nSamples-1);
+	else if (i>=tile->nSamples && j<tile->nSamples)
+	  if (t12!=NULL && t12->terrainY)
+		return t12->getAltitude(i-tile->nSamples,j);
 	  else
-		return tile->floor+ tile->scale*tile->terrain->y[255][j];
-	else if (i>=256 && j>=256)
-	  if (t22!=NULL && t22->terrain!=NULL)
-		return t22->floor+ t22->scale*t22->terrain->y[i-256][j-256];
+		return tile->getAltitude(tile->nSamples-1,j);
+	else if (i>=tile->nSamples && j>=tile->nSamples)
+	  if (t22!=NULL && t22->terrainY)
+		return t22->getAltitude(i-tile->nSamples,j-tile->nSamples);
 	  else
-		return tile->floor+ tile->scale*tile->terrain->y[255][255];
+		return tile->getAltitude(tile->nSamples-1,tile->nSamples-1);
 	return 0;
 }
 
 float MSTSRoute::getAltitude(float x, float z,
   Tile* tile, Tile* t12, Tile* t21, Tile* t22)
 {
-	int j= (int)floor(x/8) + 128;
-	int i= 128 - (int)floor(z/8);
+	int n2= tile->nSamples/2;
+	int j= (int)floor(x/tile->sampleSize) + n2;
+	int i= n2 - (int)floor(z/tile->sampleSize);
 	if (j < 0) {
-		j+= 256;
+		j+= tile->nSamples;
 		x+= 2048;
 		t21= tile;
 		t22= t12;
@@ -1062,7 +1077,7 @@ float MSTSRoute::getAltitude(float x, float z,
 		t12= findTile(t21->x-1,t21->z-1);
 	}
 	if (i < 0) {
-		i+= 256;
+		i+= tile->nSamples;
 		z-= 2048;
 		t12= tile;
 		t22= t21;
@@ -1071,10 +1086,10 @@ float MSTSRoute::getAltitude(float x, float z,
 		tile= findTile(t12->x,t12->z+1);
 		t21= findTile(t12->x+1,t12->z+1);
 	}
-	float x0= 8*(j-128);
-	float z0= 8*(128-i);
-	float wx= (x-x0)/8;
-	float wz= (z-z0)/8;
+	float x0= tile->sampleSize*(j-n2);
+	float z0= tile->sampleSize*(n2-i);
+	float wx= (x-x0)/tile->sampleSize;
+	float wz= (z-z0)/tile->sampleSize;
 	float a00= getAltitude(i,j,tile,t12,t21,t22);
 	float a01= getAltitude(i-1,j,tile,t12,t21,t22);
 	float a11= getAltitude(i-1,j+1,tile,t12,t21,t22);
@@ -1120,10 +1135,11 @@ vsg::vec3 MSTSRoute::getNormal(int i, int j,
 vsg::vec3 MSTSRoute::getNormal(float x, float z,
   Tile* tile, Tile* t12, Tile* t21, Tile* t22)
 {
-	int j= (int)floor(x/8) + 128;
-	int i= 128 - (int)floor(z/8);
+	int n2= tile->nSamples/2;
+	int j= (int)floor(x/tile->sampleSize) + n2;
+	int i= n2 - (int)floor(z/tile->sampleSize);
 	if (j < 0) {
-		j+= 256;
+		j+= tile->nSamples;
 		x+= 2048;
 		t21= tile;
 		t22= t12;
@@ -1131,7 +1147,7 @@ vsg::vec3 MSTSRoute::getNormal(float x, float z,
 		t12= findTile(t21->x-1,t21->z-1);
 	}
 	if (i < 0) {
-		i+= 256;
+		i+= tile->nSamples;
 		z-= 2048;
 		t12= tile;
 		t22= t21;
@@ -1141,10 +1157,10 @@ vsg::vec3 MSTSRoute::getNormal(float x, float z,
 #if 0
 	return getNormal(i,j,tile,t12,t21,t22);
 #else
-	float x0= 8*(j-128);
-	float z0= 8*(128-i);
-	float wx= (x-x0)/8;
-	float wz= (z-z0)/8;
+	float x0= tile->sampleSize*(j-n2);
+	float z0= tile->sampleSize*(n2-i);
+	float wx= (x-x0)/tile->sampleSize;
+	float wz= (z-z0)/tile->sampleSize;
 	auto n00= getNormal(i,j,tile,t12,t21,t22);
 	auto n01= getNormal(i-1,j,tile,t12,t21,t22);
 	auto n11= getNormal(i-1,j+1,tile,t12,t21,t22);
@@ -1159,23 +1175,23 @@ bool MSTSRoute::getVertexHidden(int i, int j,
 {
 	if (ignoreHiddenTerrain)
 		return false;
-	if (i<256 && j<256)
-		return (tile->terrain->f[i][j]&0x04)!=0;
-	else if (i<256 && j>=256)
+	if (i<tile->nSamples && j<tile->nSamples)
+		return (tile->getFlags(i,j)&0x04)!=0;
+	else if (i<tile->nSamples && j>=tile->nSamples)
 	  if (t21 != NULL)
-		return (t21->terrain->f[i][j-256]&0x04)!=0;
+		return (t21->getFlags(i,j-tile->nSamples)&0x04)!=0;
 	  else
-		return (tile->terrain->f[i][255]&0x04)!=0;
-	else if (i>=256 && j<256)
+		return (tile->getFlags(i,tile->nSamples-1)&0x04)!=0;
+	else if (i>=tile->nSamples && j<tile->nSamples)
 	  if (t12 != NULL)
-		return (t12->terrain->f[i-256][j]&0x04)!=0;
+		return (t12->getFlags(i-tile->nSamples,j)&0x04)!=0;
 	  else
-		return (tile->terrain->f[255][j]&0x04)!=0;
-	else if (i>=256 && j>=256)
+		return (tile->getFlags(tile->nSamples-1,j)&0x04)!=0;
+	else if (i>=tile->nSamples && j>=tile->nSamples)
 	  if (t22 != NULL)
-		return (t22->terrain->f[i-256][j-256]&0x04)!=0;
+		return (t22->getFlags(i-tile->nSamples,j-tile->nSamples)&0x04)!=0;
 	  else
-		return (tile->terrain->f[255][255]&0x04)!=0;
+		return (tile->getFlags(tile->nSamples-1,tile->nSamples-1)&0x04)!=0;
 	return false;
 }
 
