@@ -446,7 +446,7 @@ void Train::stop()
 	speed= 0;
 	accel= 0;
 	tControl= 0;
-	bControl= 1;
+	bControl= nextStopDist && modelCouplerSlack ? 0 : 1;
 	for (RailCarInst* car=firstCar; car!=NULL; car=car->next)
 		car->speed= 0;
 	fprintf(stderr,"stopped %f\n",nextStopDist);

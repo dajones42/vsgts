@@ -149,7 +149,7 @@ void TSGui::showStatusWindow()
 		ImGui::Text("Grade: %.3f %%",-100*myTrain->location.grade());
 		ImGui::Text("Throttle: %.0f %%  Reverser: %.0f %%",
 		  100*myTrain->tControl,100*myTrain->dControl);
-		if (myTrain->engAirBrake)
+		if (myTrain->engAirBrake && myTrain->nextStopDist==0)
 			ImGui::Text("Brakes: %s %.0f %.0f %.0f %.0f %.0f %.1f",
 			  myTrain->bControl<0?"R":myTrain->bControl>0?"S":"L",
 			  myTrain->engAirBrake->getEqResPressure(),
@@ -168,17 +168,23 @@ void TSGui::showStatusWindow()
 			if (e)
 				ImGui::Text("Boiler Pressure: %.0f",e->getBoilerPressure());
 		}
-		std::string slack;
-		for (auto car=myTrain->firstCar; car!=myTrain->lastCar; car=car->next) {
-			if (car->cU < 0)
-				slack+= "<";
-			else if (car->cU > 0)
-				slack+= ">";
-			else
-				slack+= "-";
+		if (myTrain->nextStopDist) {
+			ImGui::Text("Next Stop: %.0f m",myTrain->nextStopDist);
+		} else if (myTrain->modelCouplerSlack) {
+			std::string slack;
+			for (auto car=myTrain->firstCar; car!=myTrain->lastCar; car=car->next) {
+				if (car->maxSlack > .5)
+					slack+= "|";
+				else if (car->cU < 0)
+					slack+= "<";
+				else if (car->cU > 0)
+					slack+= ">";
+				else
+					slack+= "-";
+			}
+			if (slack.size() > 0)
+				ImGui::Text("Couplers: %s",slack.c_str());
 		}
-		if (slack.size() > 0)
-			ImGui::Text("Couplers: %s",slack.c_str());
 		if (mstsRoute && mstsRoute->playerStops.size()>0) {
 			auto stop= mstsRoute->playerStops[0];
 			auto d= stop.distance - myTrain->absDistance - myTrain->length;

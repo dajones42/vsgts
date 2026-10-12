@@ -87,6 +87,7 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == ';') {
 		myTrain->decBrakes();
+		myTrain->nextStopDist= 0;
 		keyPress.handled= true;
 	} else if (keyPress.keyBase == '\'') {
 		myTrain->incBrakes();
@@ -110,23 +111,27 @@ void TrainController::apply(vsg::KeyPressEvent& keyPress)
 	} else if (keyPress.keyBase == '/') {
 		myTrain->bailOff();
 		keyPress.handled= true;
-	} else if (keyPress.keyBase == '<') {
+	} else if (keyPress.keyBase==',' && (keyPress.keyModifier&vsg::MODKEY_Shift)) {
 		myTrain->nextStopDist= myTrain->coupleDistance(true);
 		if (myTrain->targetSpeed < -myTrain->speed)
 			myTrain->targetSpeed= -myTrain->speed;
+		else if (myTrain->targetSpeed == 0)
+			myTrain->targetSpeed= 4.47;
 		keyPress.handled= true;
-	} else if (keyPress.keyBase == '>') {
+	} else if (keyPress.keyBase=='.' && (keyPress.keyModifier&vsg::MODKEY_Shift)) {
 		myTrain->nextStopDist= myTrain->coupleDistance(false);
 		if (myTrain->targetSpeed < myTrain->speed)
 			myTrain->targetSpeed= myTrain->speed;
+		else if (myTrain->targetSpeed == 0)
+			myTrain->targetSpeed= 4.47;
 		keyPress.handled= true;
-	} else if (keyPress.keyBase == '^') {
+	} else if (keyPress.keyBase=='6' && (keyPress.keyModifier&vsg::MODKEY_Shift)) {
 		myTrain->targetSpeed*= 1.4;
 		keyPress.handled= true;
-	} else if (keyPress.keyBase == ',') {
+	} else if (keyPress.keyBase==',' && (keyPress.keyModifier&vsg::MODKEY_Shift)==0) {
 		myTrain->targetSpeed/= 1.4;
 		keyPress.handled= true;
-	} else if (keyPress.keyBase == '.') {
+	} else if (keyPress.keyBase=='.' && (keyPress.keyModifier&vsg::MODKEY_Shift)==0) {
 		float d= .5*myTrain->speed*myTrain->speed/(myTrain->decelMult*myTrain->decelMult);
 		float mind= .5*myTrain->speed*myTrain->speed/myTrain->maxDecel;
 		if (myTrain->speed < 0) {

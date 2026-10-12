@@ -245,7 +245,7 @@ void CameraController::apply(vsg::KeyPressEvent& keyPress)
 		keyPress.handled= true;
 	} else if (keyPress.keyBase=='5' && followInside(selectedRailCar)) {
 		keyPress.handled= true;
-	} else if (keyPress.keyBase=='6' && selectedRailCar) {
+	} else if (keyPress.keyBase=='6' && selectedRailCar && (keyPress.keyModifier&vsg::MODKEY_Shift)==0) {
 		vsg::vec3 offset {0,0,2.1};
 		float heading= 0;
 		if (myTrain && selectedRailCar==myTrain->firstCar) {
