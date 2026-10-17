@@ -357,19 +357,22 @@ float SteamEngine::getForce(float throttle, float reverser,
 	float s= car->speed;
 	if (s < 0)
 		s= -s;
-	float maxUsage= usageMult*s*cylSteamDensity(cylPressure);
-	if (maxUsage>aiMaxUsage && (reverser>.99 || reverser<-.99)) {
+	if (reverser>.99 || reverser<-.99) {
 		// AI cutoff adjustment logic
-		float maxCutoff= aiMaxUsage/maxUsage;
-		if (cutoff > maxCutoff)
-			cutoff= maxCutoff;
-		if (cutoff < release.getMinX()) {
-			throttle= cutoff/release.getMinX();
-			cutoff= release.getMinX();
+		float maxUsage= usageMult*s*cylSteamDensity(cylPressure);
+		if (maxUsage > aiMaxUsage) {
+			float maxCutoff= aiMaxUsage/maxUsage - clearanceVolume;
+			if (cutoff > maxCutoff)
+				cutoff= maxCutoff;
+			if (cutoff < release.getMinX()) {
+				throttle= cutoff/release.getMinX();
+				cylPressure= throttle*boilerPressure - cylPressureDrop(usage);
+				cutoff= release.getMinX();
+			}
+//			if (boilerPressure < .99*maxBoilerPressure)
+//				fprintf(stderr,"aicutoff %f %f %f %f %f %f\r",
+//				  cutoff,throttle,maxCutoff,boilerPressure,usage,maxUsage);
 		}
-//		if (boilerPressure < .99*maxBoilerPressure)
-//			fprintf(stderr,"aicutoff %f %f %f %f %f %f\r",
-//			  cutoff,throttle,maxCutoff,boilerPressure,usage,maxUsage);
 	}
 	usage*= .6; // usage is moving average
 	if (cylPressure < backPres)
@@ -431,8 +434,7 @@ float SteamEngine::getForce(float throttle, float reverser,
 		return 0;
 	}
 	exhaustTime-= dt;
-	float dist= 1000*s*dt;
-	if (dist > wheelDiameter) {
+	if (s > 1) {
 		prevState= HISPEED;
 		float force= backPres*forceFactor1(cutoff) +
 		  cylPressure*forceFactor2(cutoff);
@@ -444,8 +446,6 @@ float SteamEngine::getForce(float throttle, float reverser,
 			cylState[i].volume= cutoff+clearanceVolume;
 		}
 	}
-//	if (cylPressure>0)
-//	fprintf(stderr,"dist %f %f\n",dist,wheelDiameter);
 	prevState= LOWSPEED;
 	float force= 0;
 	float state= 2*car->getMainWheelState();
@@ -776,7 +776,7 @@ void SteamEngine::init()
 		float maxBOut= 775*grateArea;
 		float maxSpeed= 2.23693*maxBOut/
 		  (3600*usageMult*cylSteamDensity(maxBoilerPressure));
-		aiMaxUsage= .9*(maxBOut-auxSteamUsage)/3600;
+		aiMaxUsage= .95*(maxBOut-auxSteamUsage)/3600;
 		fprintf(stderr,"maxSpeed %f %f\n",maxSpeed,maxBOut);
 		if (burnRate.size() == 0) {
 			for (int i=0; i<evapRate.size()-2; i++)
