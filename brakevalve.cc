@@ -180,14 +180,14 @@ BrakeValve* BrakeValve::get(std::string name)
 		valve->addState("SERV","SERV","LAP",100,.2);
 		valve->addState("QSLAP","QS","REL",.64,-.84);
 		valve->addPassage("REL","BP","AR",chokeAreaI(.082,1));
-		valve->addPassage("REL","BC","",radius2Area(.001));
+		valve->addPassage("REL","BC","",radius2Area(.002));
 		valve->addPassage("RR","BP","AR",chokeArea(.00143,1));
-		valve->addPassage("RR","BC","",radius2Area(.001));
+		valve->addPassage("RR","BC","",radius2Area(.0011));
 		valve->addPassage("QS","AR","BC",.5*radius2Area(.0016));
 		valve->addPassage("QS","BP","BC",chokeAreaI(1./32,1));
 		valve->addPassage("SERV","AR","BC",radius2Area(.0016));
 		valve->matchStates();
-		valve->addRetainerSetting("EX",radius2Area(.001),0);
+		valve->addRetainerSetting("EX",radius2Area(.002),0);
 		valve->addRetainerSetting("HP",.1*radius2Area(.001),20);
 		valve->addRetainerSetting("LP",.25*radius2Area(.001),10);
 		valve->addRetainerSetting("SD",.2*radius2Area(.001),0);
@@ -358,7 +358,7 @@ void BrakeValve::updatePressures(int state, float timeStep,
 				  retainerSettings[retainerControl];
 				if (tank1->getPa() < r->pressure)
 					continue;
-				tank1->vent(r->area,timeStep);
+				tank1->vent(r->area<passage->area?r->area:passage->area,timeStep);
 			} else {
 				tank1->vent(passage->area,timeStep);
 			}

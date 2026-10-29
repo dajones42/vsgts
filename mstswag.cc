@@ -224,9 +224,15 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		def->maxBForce= 2*def->mass0;
 //	fprintf(stderr,"maxbforce %s %f %f %f\n",file,
 //	  def->mass0,def->length,def->maxBForce);
-	MSTSFileNode* braketype= wagon->children->find("BrakeSystemType");
-	if (braketype && braketype->value && strcasecmp(braketype->value->c_str(),"air_single_pipe")==0)
+	auto wagonType= wagon->get("Type")->get(0)->c_str();
+	if (strcasecmp(wagon->get("BrakeSystemType")->get(0)->c_str(),"air_single_pipe") != 0)
 		def->brakeValve= "AMM";
+	else if (strcasecmp(wagonType,"Engine")==0 || strcasecmp(wagonType,"Tender")==0)
+		def->brakeValve= "H6";
+	else if (strcasecmp(wagonType,"Carriage") == 0)
+		def->brakeValve= "L";
+	else if (getFloat(wagon,"EmergencyBrakeResMaxPressure",0,70,"psi") > 70)
+		def->brakeValve= "AB";
 	MSTSFileNode* fanim= wagon->children->find("FreightAnim");
 	if (fanim!=NULL && fanim->getChild(0)!=NULL &&
 	  fanim->getChild(0)->value!=NULL) {

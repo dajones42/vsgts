@@ -39,7 +39,6 @@ struct AirTank {
 	static const float STDATM;
 	static const float PSI2PA;
 	static const float DENSITY;
-	static const float VISCOSITY;
 	static const float HEATRATIO;
 	static float massFlowRate(float p1, float p2, float area);
 };

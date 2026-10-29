@@ -149,7 +149,7 @@ EngAirBrake::EngAirBrake(float maxEqRes, string brakeValve) :
 	pumpChargeRate= 1;
 	feedThreshold= maxEqRes;
 	serviceOpeningArea= .00333*.00333*M_PI;
-	chargeOpeningArea= .4*.00312*.00312*M_PI;
+	chargeOpeningArea= .00312*.00312*M_PI;
 	mainRes= new AirTank(4*50000*pow(.0254,3));
 	eqRes= new AirTank(145*pow(.0254,3)); // 812?
 	mainRes->setPsig(pumpOffThreshold);
@@ -159,6 +159,8 @@ EngAirBrake::EngAirBrake(float maxEqRes, string brakeValve) :
 	if (valve) {
 		mrIndex= valve->getTankIndex("MR");
 		cpIndex= valve->getTankIndex("CP");
+		if (mrIndex >= 0)
+			tanks[mrIndex]= mainRes;
 	}
 }
 
@@ -171,11 +173,7 @@ void EngAirBrake::setMaxEqResPressure(float maxEqRes)
 
 void EngAirBrake::updatePressures(float dt)
 {
-	if (mrIndex>=0)
-		tanks[mrIndex]->setPa(mainRes->getPa());
 	AirBrake::updatePressures(dt);
-	if (mrIndex>=0)
-		mainRes->setPa(tanks[mrIndex]->getPa());
 	float flow= 0;
 	if (engCutOut)
 		return;

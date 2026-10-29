@@ -160,6 +160,21 @@ void TSGui::showStatusWindow()
 			  myTrain->engAirBrake->getAirFlowCFM());
 		else
 			ImGui::Text("Brakes: %.1f",myTrain->bControl);
+		if (false && myTrain->nextStopDist==0) {
+			std::string state;
+			for (auto car=myTrain->firstCar; car; car=car->next) {
+				if (!car->airBrake)
+					state+= "-";
+				else
+					state+= '0'+(car->airBrake->getValveState()&0x7);
+			}
+			if (state.size() > 0)
+				ImGui::Text("Valve State: %s %.1f %.1f %.1f",state.c_str(),
+				  myTrain->firstCar->airBrake->getPipePressure(),
+				  myTrain->lastCar->airBrake->getPipePressure(),
+				  myTrain->firstCar->airBrake->getPipePressure()-
+				  myTrain->lastCar->airBrake->getPipePressure());
+		}
 		ImGui::Text("Eng Brakes: %.0f %%",100*myTrain->engBControl);
 		if (selectedRailCar)
 			ImGui::Text("Hand Brake: %.0f %%",100*selectedRailCar->handBControl);

@@ -37,9 +37,6 @@ const float AirTank::PSI2PA= 6894.8;
 //	air density in kg per cubic meter at 20 degrees C and 1 atmosphere
 const float AirTank::DENSITY= 1.204;
 
-//	dynamic viscosity of air at 20 degrees C
-const float AirTank::VISCOSITY= 1.825-5;
-
 //	ratio of specific heat at constant pressure and
 //	specific heat at constant volume for air
 const float AirTank::HEATRATIO= 1.4;
