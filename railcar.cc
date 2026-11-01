@@ -35,6 +35,7 @@ using namespace std;
 #include "railcar.h"
 #include "mstsroute.h"
 #include "mstsace.h"
+#include "mstsshape.h"
 #include "smoke.h"
 
 RailCarDefMap railCarDefMap;
@@ -59,6 +60,7 @@ RailCarDef* findRailCarDef(string name, bool random)
 RailCarDef::RailCarDef()
 {
 	axles= 4;
+	reverseWheelRotation= false;
 	mass0= 30;
 	mass1= 30;
 	mass2= 3;
@@ -184,7 +186,7 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 			float r= def->parts[i].zoffset;
 			if (r > .99*maxr)
 				r= maxr;
-			wheels.push_back(RailCarWheel(r));
+			wheels.push_back(RailCarWheel(r,def->reverseWheelRotation));
 		}
 		linReg.push_back(new LinReg);
 		partSamplers.push_back({});
@@ -200,10 +202,13 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 			duplicate->insert(mt);
 		duplicate->insert(topPart.model);
 		for (auto i=def->headlights.begin(); i!=def->headlights.end(); i++)
-			duplicate->insert(i->lightSwitch);
+			if (i->lightSwitch)
+				duplicate->insert(i->lightSwitch);
 		auto clone= copyop(topPart.model);
 		model->addChild(clone);
 		for (auto i=def->headlights.begin(); i!=def->headlights.end(); i++) {
+			if (!i->lightSwitch)
+				continue;
 			auto dup= duplicate->find(i->lightSwitch);
 			if (dup == duplicate->end())
 				headlights.push_back(i->lightSwitch);
@@ -252,7 +257,8 @@ RailCarInst::RailCarInst(RailCarDef* def, vsg::Group* group, float maxEqRes,
 	} else {
 		model->addChild(topPart.model);
 		for (auto i=def->headlights.begin(); i!=def->headlights.end(); i++)
-			headlights.push_back(i->lightSwitch);
+			if (i->lightSwitch)
+				headlights.push_back(i->lightSwitch);
 		for (int i=0; i<def->panAnimations.size(); i++)
 			panAnimations.push_back(def->panAnimations[i]);
 		if (def->rodAnimation)
@@ -510,10 +516,12 @@ void RailCarInst::move(float distance)
 	}
 }
 
-RailCarWheel::RailCarWheel(float radius)
+RailCarWheel::RailCarWheel(float radius, bool rev)
 {
 	state= 0;
 	mult= 1./(2.*3.14159*radius);
+	if (rev)
+		mult*= -1;
 }
 
 //	moves a rail cars wheel and adjusts its angle
@@ -714,5 +722,130 @@ void RailCarInst::setHeadLight(int unit, bool rev, bool on)
 		if (i->unit == unit)
 			headlights[j]->setAllChildren(on);
 		i++;
+	}
+}
+
+struct FindWheelsVisitor : public vsg::Inherit<vsg::Visitor, FindWheelsVisitor>
+{
+	std::vector<vsg::dmat4> stack;
+	std::vector<RailCarPart> wheels;
+	std::vector<RailCarPart> bogies;
+	int parent= 0;
+	FindWheelsVisitor() {
+	}
+	void printExtras(vsg::Object* extras) {
+		return;
+		std::cerr<<"  extras "<<extras<<"\n";
+		if (extras->getAuxiliary()) {
+			for (auto i: extras->getAuxiliary()->userObjects) {
+				std:cerr<<"   "<<i.first<<"\n";
+			}
+		}
+		vsg::AsciiOutput out(std::cerr);
+		out.writeObject("extras",extras);
+	}
+	void apply(vsg::Object& o) override {
+		if (auto extras= o.getObject("extras")) {
+//			std::cerr<<"object "<<&o<<" "<<o.className()<<"\n";
+			printExtras(extras);
+		}
+		o.traverse(*this);
+	}
+	void apply(vsg::Light& light) override {
+//		std::cerr<<"light "<<light.name<<"\n";
+		if (auto extras= light.getObject("extras"))
+			printExtras(extras);
+	}
+	void apply(vsg::Animation& anim) override {
+//		std::cerr<<"animation "<<anim.name<<"\n";
+		if (auto extras= anim.getObject("extras"))
+			printExtras(extras);
+	}
+	void apply(vsg::MatrixTransform& mt) override {
+		if (stack.empty())
+			stack.push_back(mt.matrix);
+		else
+			stack.push_back(stack.back()*mt.matrix);
+		int prevParent= parent;
+		if (auto obj= mt.getObject("extras")) {
+			std::string name;
+			if (obj->getValue("OPENRAILS_animation_name",name)) {
+//				std::cerr<<"  OR animation name "<<name<<"\n";
+				auto& mat= stack.back();
+				RailCarPart part(parent,mat[3][1],mat[3][2]);
+				part.model= &mt;
+				if (name.substr(0,6) == "WHEELS") {
+					wheels.push_back(part);
+				} else if (name.substr(0,5) == "BOGIE") {
+					bogies.push_back(part);
+					parent= bogies.size();
+				}
+			}
+		}
+		mt.traverse(*this);
+		parent= prevParent;
+		stack.pop_back();
+	}
+};
+
+void RailCarDef::setModel(vsg::ref_ptr<vsg::Node> node, vsg::ref_ptr<vsg::Options> vsgOptions)
+{
+	if (!node)
+		return;
+	FindWheelsVisitor fwv;
+	node->accept(fwv);
+	auto nw= fwv.wheels.size();
+	auto nb= fwv.bogies.size();
+	axles= nw;
+	reverseWheelRotation= true;
+	for (int i=0; i<nw; i++) {
+		auto& wheel= fwv.wheels[i];
+		if (wheel.parent == 0)
+			wheel.parent= nw+nb;
+		else
+			wheel.parent+= nw-1;
+		parts.push_back(wheel);
+	}
+	for (int i=0; i<nb; i++) {
+		auto& bogie= fwv.bogies[i];
+		if (bogie.parent == 0)
+			bogie.parent= nw+nb;
+		else
+			bogie.parent+= nw-1;
+		parts.push_back(bogie);
+	}
+	parts.push_back(RailCarPart(-1,0,0));
+	auto mt= vsg::MatrixTransform::create();
+	mt->matrix= vsg::dmat4(0,1,0,0, -1,0,0,0, 0,0,1,0, 0,0,0,1);
+	mt->addChild(node);
+	parts[parts.size()-1].model= mt;
+//	for (int i=0; i<parts.size(); i++) {
+//		auto part= parts[i];
+//		std::cerr<<"part "<<i<<" "<<part.parent<<" "<<part.xoffset<<" "<<part.zoffset<<" "<<part.model<<"\n";
+//	}
+	addLightModels(vsgOptions);
+}
+
+void RailCarDef::addLightModels(vsg::ref_ptr<vsg::Options> vsgOptions)
+{
+	if (headlights.size() == 0)
+		return;
+	auto mt= (vsg::MatrixTransform*)parts[parts.size()-1].model.get();
+	for (list<HeadLight>::iterator j=headlights.begin(); j!=headlights.end(); j++) {
+		auto position= vsg::vec3(j->x,j->y,j->z+(j->z>0?.005:-.005));
+		auto color= vsg::vec4(((j->color>>16)&0xff)/255.,
+		  ((j->color>>8)&0xff)/255.,(j->color&0xff)/255.,
+		  ((j->color>>24)&0xff)/255.);
+		float radius= j->radius>.5?.2*j->radius:.4*j->radius;
+		if (j->unit==2 && radius>.15)
+			radius= .15;
+		else if (j->unit!=2 && radius>.06)
+			radius= .06;
+//		cerr<<"light "<<j->unit<<" "<<j->radius<<" "<<radius<<"\n";
+		auto light= createLightPoint(position,color,radius,vsgOptions);
+		auto sw= vsg::Switch::create();
+		sw->addChild(false,light);
+		mt->addChild(sw);
+		j->lightSwitch= sw;
 	}
 }

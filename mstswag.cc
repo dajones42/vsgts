@@ -199,10 +199,17 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 	}
 	path= string(dir)+"/"+wshape->getChild(0)->value->c_str();
 	try {
-		MSTSShape shape;
-		shape.vsgOptions= vsgOptions;
-		shape.readFile(path.c_str());
-		shape.createRailCar(def);
+		auto vsgPath= vsg::Path(path);
+		auto ext= vsg::lowerCaseFileExtension(vsgPath);
+		if (ext == ".s") {
+			MSTSShape shape;
+			shape.vsgOptions= vsgOptions;
+			shape.readFile(path.c_str());
+			shape.createRailCar(def);
+		} else {
+			auto object= vsg::read(vsgPath,vsgOptions);
+			def->setModel(object.cast<vsg::Node>(),vsgOptions);
+		}
 	} catch (const char* msg) {
 		fprintf(stderr,"cannot read %s\n",path.c_str());
 		return NULL;
@@ -237,14 +244,25 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 	if (fanim!=NULL && fanim->getChild(0)!=NULL &&
 	  fanim->getChild(0)->value!=NULL) {
 		path= string(dir)+"/"+fanim->getChild(0)->value->c_str();
-		try {
-		MSTSShape fashape;
-		fashape.readFile(path.c_str());
-		fashape.fixTop();
 		vsg::MatrixTransform* mt= (vsg::MatrixTransform*)
 		  def->parts[def->parts.size()-1].model.get();
-		if (mt)
-			mt->addChild(fashape.createModel(0,10));
+		try {
+			auto vsgPath= vsg::Path(path);
+			auto ext= vsg::lowerCaseFileExtension(vsgPath);
+			if (ext == ".s") {
+				MSTSShape fashape;
+				fashape.readFile(path.c_str());
+				fashape.fixTop();
+				if (mt)
+					mt->addChild(fashape.createModel(0,10));
+			} else {
+				auto object= vsg::read(vsgPath,vsgOptions);
+				auto node= object.cast<vsg::Node>();
+				if (mt && node)
+					mt->addChild(node);
+				else
+					throw "no fanim";
+			}
 		} catch (const char* msg) {
 			fprintf(stderr,"cannot read %s\n",path.c_str());
 		}

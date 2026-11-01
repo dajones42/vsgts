@@ -1398,27 +1398,7 @@ void MSTSShape::createRailCar(RailCarDef* car)
 			}
 		}
 	}
-	if (car->headlights.size() > 0) {
-		auto mt= (vsg::MatrixTransform*)car->parts[i].model.get();
-		for (list<HeadLight>::iterator j=car->headlights.begin();
-		  j!=car->headlights.end(); j++) {
-			auto position= vsg::vec3(j->x,j->y,j->z+(j->z>0?.005:-.005));
-			auto color= vsg::vec4(((j->color>>16)&0xff)/255.,
-			  ((j->color>>8)&0xff)/255.,(j->color&0xff)/255.,
-			  ((j->color>>24)&0xff)/255.);
-			float radius= j->radius>.5?.2*j->radius:.4*j->radius;
-			if (j->unit==2 && radius>.15)
-				radius= .15;
-			else if (j->unit!=2 && radius>.06)
-				radius= .06;
-//			cerr<<"light "<<j->unit<<" "<<j->radius<<" "<<radius<<"\n";
-			auto light= createLightPoint(position,color,radius,vsgOptions);
-			auto sw= vsg::Switch::create();
-			sw->addChild(false,light);
-			mt->addChild(sw);
-			j->lightSwitch= sw;
-		}
-	}
+	car->addLightModels(vsgOptions);
 	for (int j=0; j<matrices.size(); j++) {
 		int p= matrices[j].part;
 		if (p<0 || matrices[j].hasAnimation)

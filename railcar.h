@@ -117,6 +117,7 @@ struct RailCarDef {
 	std::vector<RailCarSmoke> smoke;
 	float maxBForce;
 	float soundGain;
+	bool reverseWheelRotation;
 	LocoEngine* engine;
 	std::vector<RailCarInside> inside;
 	std::list<HeadLight> headlights;
@@ -127,6 +128,8 @@ struct RailCarDef {
 	std::vector<vsg::ref_ptr<TwoStateAnimation>> panAnimations;
 	int nInst;
 	std::set<vsg::MatrixTransform*> animatedTransforms;
+	void setModel(vsg::ref_ptr<vsg::Node> node, vsg::ref_ptr<vsg::Options> vsgOptions);
+	void addLightModels(vsg::ref_ptr<vsg::Options> vsgOptions);
 };
 
 struct Waybill {
@@ -141,7 +144,7 @@ struct RailCarWheel {
 	Track::Location location;
 	float state;
 	float mult;
-	RailCarWheel(float radius);
+	RailCarWheel(float radius, bool rev);
 	void move(float distance, int rev);
 };
 

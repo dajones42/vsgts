@@ -44,6 +44,58 @@ vsg::ref_ptr<vsg::Node> createTextureQuad(vsg::ref_ptr<vsg::Data> sourceData,
 	return builder->createQuad(geom, state);
 }
 
+struct PrintVisitor : public vsg::Inherit<vsg::Visitor, PrintVisitor>
+{
+	std::vector<vsg::dmat4> stack;
+	int nmt= 0;
+	bool verbose= false;
+	PrintVisitor() {
+	}
+	void printExtras(vsg::Object& obj) {
+		if (!verbose)
+			return;
+		if (auto extras= obj.getObject("extras")) {
+			std::cerr<<"  extras "<<extras<<"\n";
+			if (extras->getAuxiliary()) {
+				for (auto i: extras->getAuxiliary()->userObjects) {
+					std:cerr<<"   "<<i.first<<"\n";
+				}
+			}
+			vsg::AsciiOutput out(std::cerr);
+			out.writeObject("extras",extras);
+		}
+	}
+	void apply(vsg::Object& o) override {
+		printExtras(o);
+		o.traverse(*this);
+	}
+	void apply(vsg::Light& light) override {
+		std::cerr<<"light "<<light.name<<"\n";
+		printExtras(light);
+		light.traverse(*this);
+	}
+	void apply(vsg::Animation& anim) override {
+		std::cerr<<"animation "<<anim.name<<"\n";
+		printExtras(anim);
+		anim.traverse(*this);
+	}
+	void apply(vsg::MatrixTransform& mt) override {
+		if (stack.empty()) {
+			stack.push_back(mt.matrix);
+		} else {
+			stack.push_back(stack.back()*mt.matrix);
+		}
+		int n= ++nmt;
+		std::string name;
+		mt.getValue("name",name);
+		std::cerr<<"mt "<<name<<" depth "<<stack.size()<<" children "<<(nmt-n)<<"\n";
+//		std::cerr<<"  matrix "<<stack.back()<<"\n";
+		printExtras(mt);
+		mt.traverse(*this);
+		stack.pop_back();
+	}
+};
+
 int main(int argc, char** argv)
 {
 	auto options= vsg::Options::create();
@@ -68,6 +120,8 @@ int main(int argc, char** argv)
 	options->add(MstsRouteReader::create());
 	options->add(MstsTerrainReader::create());
 //	vsg::Logger::instance()->level= vsg::Logger::LOGGER_DEBUG;;
+	vsg::Logger::instance()->level= vsg::Logger::LOGGER_OFF;;
+	bool printExtras= arguments.read({"--pe"});
 
 	auto scene= vsg::Group::create();
 	for (int i=1; i<argc; ++i) {
@@ -88,6 +142,9 @@ int main(int argc, char** argv)
 		std::cout<<"No scene loaded."<<std::endl;
 		return 1;
 	}
+	PrintVisitor printVisitor;
+	printVisitor.verbose= printExtras;
+	scene->accept(printVisitor);
 	auto aLight= vsg::AmbientLight::create();
 	aLight->color.set(1,1,1);
 	aLight->intensity= .4;
@@ -121,6 +178,7 @@ int main(int argc, char** argv)
 
 	vsg::ComputeBounds computeBounds;
 	scene->accept(computeBounds);
+	std::cout<<"bounding box "<<computeBounds.bounds<<"\n";
 	vsg::dvec3 center=
 	  (computeBounds.bounds.min+computeBounds.bounds.max)*0.5;
 	auto size= computeBounds.bounds.max-computeBounds.bounds.min;

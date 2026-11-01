@@ -422,6 +422,7 @@ int main(int argc, char** argv)
 	options->add(MstsRouteReader::create());
 	options->add(MstsTerrainReader::create());
 //	vsg::Logger::instance()->level= vsg::Logger::LOGGER_DEBUG;;
+	vsg::Logger::instance()->level= vsg::Logger::LOGGER_OFF;
 	if (arguments.read({"--shadows", "-s"}))
 		overcast= false;
 
