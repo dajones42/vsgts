@@ -32,6 +32,14 @@ THE SOFTWARE.
 #include "track.h"
 #include "railcar.h"
 
+float ForceTable::getForce(float tControl, float speed)
+{
+	if (force.size() == 0)
+		return 0;
+	int i= (int)(tControl*(force.size()-1)+.5);
+	return force[i](speed);
+}
+
 float DieselEngine::getThrottleInc()
 {
 	return 1/(float)nNotches;
@@ -51,13 +59,18 @@ float DieselEngine::getForce(float tControl, float dControl,
 	if (s < 0)
 		s= -s;
 	smoke= tControl;
-	float maxF= maxForce;
-	if (maxCForce > 0) {
-		float x= averageForce/maxCForce;
-		maxF= (1-x)*maxForce + x*maxCForce;
+	float force;
+	if (forceTable.hasData()) {
+		force= forceTable.getForce(tControl,s);
+	} else {
+		float maxF= maxForce;
+		if (maxCForce > 0) {
+			float x= averageForce/maxCForce;
+			maxF= (1-x)*maxForce + x*maxCForce;
+		}
+		force= tControl*(maxF*s>tControl*maxPower ?
+		  tControl*maxPower/s : maxF);
 	}
-	float force= tControl*(maxF*s>tControl*maxPower ?
-	  tControl*maxPower/s : maxF);
 	float w= dt/forceTimeConstant;
 	averageForce= w*force + (1-w)*averageForce;
 	return dControl<0 ? -force : force;
@@ -125,40 +138,44 @@ float ElectricEngine::getForce(float tControl, float dControl,
 	float s= car->speed;
 	if (s < 0)
 		s= -s;
-	if (topSpeed>0 && maxCForce==0) {
-		maxCForce= maxPower/(.6*topSpeed);
-		fprintf(stderr,"maxcforce %f\n",maxCForce);
-	}
-	float resistance= 1;
-	if (steps.size() > 0) {
-		int prev= state;
-		int i= (int)(tControl*nNotches+.5);
-		if (i<steps[state].notch && state>0)
-			state--;
-		if (minAccelForce==0 && i>steps[state].notch &&
-		  state<steps.size()-1)
-			state++;
-		if (minAccelForce>0 && force<minAccelForce &&
-		  state<steps.size()-1 && (i>steps[state].notch ||
-		  (i==steps[state].notch && i==steps[state+1].notch)))
-			state++;
-		tControl= steps[state].voltageRatio;
-		resistance= steps[state].resistanceMult;
-//		if (state != prev)
-//			fprintf(stderr,"state %d %d %f %f %f %f\n",
-//			  i,state,tControl,resistance,force,car->distance);
-	}
-	if (maxCForce > 0) {
-		float sm= maxPower/maxCForce;
-		float x= resistance*(1-efficiency) + efficiency*s/sm;
-		float pfsq= powerFactor*powerFactor;
-		float z= (1-pfsq)/pfsq;
-		force= tControl*tControl*maxCForce*(1+z)/(x*x+z);
-		if (force > maxForce)
-			force= maxForce;
+	if (forceTable.hasData()) {
+		force= forceTable.getForce(tControl,s);
 	} else {
-		force= tControl*(maxForce*s>tControl*maxPower ?
-		  tControl*maxPower/s : maxForce);
+		if (topSpeed>0 && maxCForce==0) {
+			maxCForce= maxPower/(.6*topSpeed);
+			fprintf(stderr,"maxcforce %f\n",maxCForce);
+		}
+		float resistance= 1;
+		if (steps.size() > 0) {
+			int prev= state;
+			int i= (int)(tControl*nNotches+.5);
+			if (i<steps[state].notch && state>0)
+				state--;
+			if (minAccelForce==0 && i>steps[state].notch &&
+			  state<steps.size()-1)
+				state++;
+			if (minAccelForce>0 && force<minAccelForce &&
+			  state<steps.size()-1 && (i>steps[state].notch ||
+			  (i==steps[state].notch && i==steps[state+1].notch)))
+				state++;
+			tControl= steps[state].voltageRatio;
+			resistance= steps[state].resistanceMult;
+//			if (state != prev)
+//				fprintf(stderr,"state %d %d %f %f %f %f\n",
+//				  i,state,tControl,resistance,force,car->distance);
+		}
+		if (maxCForce > 0) {
+			float sm= maxPower/maxCForce;
+			float x= resistance*(1-efficiency) + efficiency*s/sm;
+			float pfsq= powerFactor*powerFactor;
+			float z= (1-pfsq)/pfsq;
+			force= tControl*tControl*maxCForce*(1+z)/(x*x+z);
+			if (force > maxForce)
+				force= maxForce;
+		} else {
+			force= tControl*(maxForce*s>tControl*maxPower ?
+			  tControl*maxPower/s : maxForce);
+		}
 	}
 	return dControl<0 ? -force : force;
 }

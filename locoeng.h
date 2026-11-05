@@ -45,6 +45,13 @@ class LocoEngine {
 	virtual float getSmokeSpeed() = 0;
 };
 
+struct ForceTable {
+	std::vector<float> throttle;
+	std::vector<Spline<float>> force;
+	float getForce(float tcontrol, float speed);
+	bool hasData() { return force.size()>0; };
+};
+
 class DieselEngine : public LocoEngine, public CommandBlockHandler {
 	float maxForce;
 	float maxCForce;
@@ -63,6 +70,7 @@ class DieselEngine : public LocoEngine, public CommandBlockHandler {
 		averageForce= 0;
 		forceTimeConstant= 600;
 	};
+	ForceTable forceTable;
 	void setMaxPower(float p) { maxPower= p; }
 	void setMaxForce(float p) { maxForce= p; }
 	void setMaxCForce(float p) { maxCForce= p; }
@@ -119,6 +127,7 @@ class ElectricEngine : public LocoEngine, public CommandBlockHandler {
 		nNotches= 8;
 		state= 0;
 	};
+	ForceTable forceTable;
 	void setMaxPower(float p) { maxPower= p; }
 	void setMaxForce(float p) { maxForce= p; }
 	void setMaxCForce(float p) { maxCForce= p; }

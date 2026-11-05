@@ -134,6 +134,24 @@ void readCVF(const char* dir, const char* file, RailCarDef* def)
 	}
 }
 
+void getForceTable(MSTSFileNode* engine, ForceTable& forceTable)
+{
+	MSTSFileNode* n= engine->get("ORTSMaxTractiveForceCurves");
+	if (!n)
+		return;
+	for (int i=0; n->get(i); i+=2) {
+		forceTable.throttle.push_back(atof(n->get(i)->c_str()));
+		auto table= n->get(i+1);
+		Spline<float> spline;
+		for (int j=0; table->get(j); j+=2) {
+			float s= atof(table->get(j)->c_str());
+			float f= atof(table->get(j+1)->c_str());
+			spline.add(s,f);
+		}
+		forceTable.force.push_back(spline);
+	}
+}
+
 RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Options> vsgOptions)
 {
 	string path= string(dir)+"/"+file;
@@ -499,6 +517,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0,"kW"));
 		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0,"kN"));
 		e->setNNotches(getNotches(throttle));
+		getForceTable(engine,e->forceTable);
 		fprintf(stderr,"maxforce %f\n",e->getMaxForce());
 	}
 	if (*tp->value == "Electric") {
@@ -507,6 +526,7 @@ RailCarDef* readMSTSWag(const char* dir, const char* file, vsg::ref_ptr<vsg::Opt
 		e->setMaxPower(1000*getFloat(engine,"MaxPower",0,0,"kW"));
 		e->setMaxForce(1000*getFloat(engine,"MaxForce",0,0,"kN"));
 		e->setNNotches(getNotches(throttle));
+		getForceTable(engine,e->forceTable);
 		fprintf(stderr,"maxforce %f\n",e->getMaxForce());
 	}
 	if (*tp->value == "Steam") {
